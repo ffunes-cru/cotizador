@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_sembradora_config_wizard_form" model="ir.ui.view">
+        <field name="name">sembradora.config.wizard.form</field>
+        <field name="model">sembradora.config.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Configurar Sembradora">
+                <sheet>
+                    <group>
+                        <field name="modelo_id" options="{'no_create': True}"/>
+                        <field name="sale_order_id" invisible="1"/>
+                    </group>
+                    <separator string="Seleccione la configuración"/>
+                    <field name="line_ids" nolabel="1">
+                        <list editable="bottom" create="0" delete="1">
+                            <field name="attribute_id" readonly="1" force_save="1"/>
+                            <field name="value_id" 
+                                domain="[('id', 'in', value_domain_ids)]" 
+                                options="{'no_create': True, 'no_open': True}"/>
+                            <field name="value_domain_ids" column_invisible="1"/>
+                        </list>
+                    </field>
+                <sheet>
+                    <field name="config_finalizada" invisible="1"/>
+                    <field name="allowed_accessory_ids" invisible="1"/>
+
+                    <group string="Paso Final: Accesorios Compatibles" 
+                        invisible="not config_finalizada">
+                        
+                        <field name="accesories_id" 
+                            widget="many2many_checkboxes" 
+                            domain="[('id', 'in', allowed_accessory_ids)]"
+                            nolabel="1"/>
+                    </group>
+                </sheet>
+                </sheet>
+                <footer>
+                    <button name="action_confirm_config" string="Añadir a la Cotización" type="object" class="btn-primary"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_open_sembradora_wizard" model="ir.actions.act_window">
+        <field name="name">Configurar Sembradora</field>
+        <field name="res_model">sembradora.config.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field> <field name="context">{'default_sale_order_id': active_id}</field>
+    </record>
+
+    <record id="view_order_form_inherit_cotizador" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit.cotizador</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="%(action_open_sembradora_wizard)d" 
+                        type="action" 
+                        class="oe_stat_button" 
+                        icon="fa-sliders">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Configurar</span>
+                    </div>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+
