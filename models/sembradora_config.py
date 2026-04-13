@@ -11,7 +11,9 @@ class SembradoraConfigRel(models.Model):
     accesories_id = fields.Many2many(
             'product.product', 
             string='Accesorios Compatibles',
-            domain=[('categ_id.name', 'ilike', 'ACCESORIOS')])
+            domain=[("categ_id", "child_of", [4])])
+
+    price = fields.Float(string="Precio de Configuración")
     
     name = fields.Char(string="Configuración", compute="_compute_name")
 
