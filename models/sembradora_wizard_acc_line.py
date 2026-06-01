@@ -1,30 +1,32 @@
-from odoo import models, fields, api
-import logging
-_logger = logging.getLogger(__name__)
+from odoo import models, fields
 
-class SembradoraConfigWizardLine(models.TransientModel):
-    _name = 'sembradora.config.wizard.line'
-    
-    wizard_id = fields.Many2one('sembradora.config.wizard')
-    attribute_id = fields.Many2one('product.attribute', string='Atributo')
-    value_id = fields.Many2one('product.attribute.value', string='Valor')
-    value_domain_ids = fields.Many2many('product.attribute.value', compute='_compute_value_domain')
 
-    @api.depends('attribute_id', 'wizard_id.line_ids.value_id')
-    def _compute_value_domain(self):
-        for record in self:
-            # Si es la primera línea, solo filtramos por atributo
-            # Si hay líneas previas, filtramos por la matriz
-            domain = [('modelo_id', '=', record.wizard_id.modelo_id.id)]
-            
-            # Miramos qué eligieron los hermanos ARRIBA de esta línea
-            otras_lineas = record.wizard_id.line_ids.filtered(
-                lambda l: l.attribute_id != record.attribute_id and l.value_id
-            )
-            
-            for line in otras_lineas:
-                domain.append(('value_ids', 'in', line.value_id.id))
-            
-            configs = self.env['sembradora.config.rel'].search(domain)
-            valores = configs.mapped('value_ids').filtered(lambda v: v.attribute_id == record.attribute_id)
-            record.value_domain_ids = valores
+class SembradoraWizardAccSelection(models.TransientModel):
+    _name = 'sembradora.config.wizard.acc.selection'
+    _description = 'Selección de Accesorio en Wizard'
+
+    wizard_id = fields.Many2one('sembradora.config.wizard', ondelete='cascade')
+
+    # Referencia a la línea de accesorio de la configuración (tiene producto + precio)
+    config_acc_line_id = fields.Many2one(
+        'sembradora.config.accessory.line',
+        string='Línea Accesorio Config')
+
+    product_id = fields.Many2one(
+        'product.product',
+        related='config_acc_line_id.product_id',
+        string='Accesorio',
+        readonly=True)
+
+    price = fields.Float(
+        related='config_acc_line_id.price',
+        string='Precio',
+        readonly=True)
+
+    # Cantidad predefinida desde la configuración (fallback)
+    config_quantity = fields.Float(
+        related='config_acc_line_id.quantity',
+        string='Cant. Config',
+        readonly=True)
+
+    selected = fields.Boolean(string='Seleccionar', default=False)

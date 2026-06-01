@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 import logging
 import re
 _logger = logging.getLogger(__name__)
@@ -8,142 +9,171 @@ class SembradoraConfigWizard(models.TransientModel):
     _description = 'Configurador Dinámico'
 
     sale_order_id = fields.Many2one('sale.order', string='Venta')
-    modelo_id = fields.Many2one('product.template', string='Modelo', domain=[("categ_id", "in", [6, 7])])
+    modelo_id = fields.Many2one('product.template', string='Modelo',
+                                domain=[("categ_id.name", "=", "Maquina")])
 
-    # Aquí se generarán las filas dinámicas
+    # Filas dinámicas
     line_ids = fields.One2many('sembradora.config.wizard.line', 'wizard_id', string='Atributos')
 
-    # Agregamos nombres de tabla manuales para evitar la colisión
-    accesories_id = fields.Many2many(
-        'product.product', 
-        'wizard_accessories_rel', # Nombre de la tabla 1
-        'wizard_id', 'product_id', # Columnas
-        string='Accesorios Seleccionados'
-    )
-
-    allowed_accessory_ids = fields.Many2many(
-        'product.product', 
-        'wizard_allowed_accessories_rel', # Nombre de la tabla 2 (DIFERENTE)
-        'wizard_id', 'product_id',        # Columnas
-        string='Accesorios Permitidos'
-    )
+    # Selección de accesorios (One2many a línea transient con checkbox)
+    accessory_selection_ids = fields.One2many(
+        'sembradora.config.wizard.acc.selection',
+        'wizard_id',
+        string='Accesorios Disponibles')
 
     config_finalizada = fields.Boolean(string="¿Configuración Completa?", default=False)
 
+    # Precio total computado: precio base + accesorios seleccionados
+    config_base_price = fields.Float(string="Precio Base Configuración", readonly=True)
+    accessories_total = fields.Float(string="Total Accesorios", compute="_compute_accessories_total")
+    total_price = fields.Float(string="Precio Total", compute="_compute_total_price")
+
+    @api.depends('accessory_selection_ids.selected', 'accessory_selection_ids.price')
+    def _compute_accessories_total(self):
+        for wiz in self:
+            wiz.accessories_total = sum(
+                line.price for line in wiz.accessory_selection_ids if line.selected
+            )
+
+    @api.depends('config_base_price', 'accessories_total')
+    def _compute_total_price(self):
+        for wiz in self:
+            wiz.total_price = wiz.config_base_price + wiz.accessories_total
+
+    def _poblar_accesorios(self, configs):
+        """Método unificado para poblar accesorios desde un recordset de configs válidas."""
+        acc_lines = configs.mapped('accessory_line_ids')
+        acc_commands = [(5, 0, 0)]  # Limpiar todo primero
+        for acc_line in acc_lines:
+            acc_commands.append((0, 0, {
+                'config_acc_line_id': acc_line.id,
+                'selected': False,
+            }))
+        self.accessory_selection_ids = acc_commands
+
     @api.onchange('modelo_id', 'line_ids')
     def _onchange_configuracion_secuencial(self):
+        '''
+        Va agregando de forma secuencial, los distintos valores de atributo posibles para las configuraciones dadas.
+        
+        OPTIMIZADO: Una sola query al inicio, luego filtrado en memoria con .filtered()
+        '''
         if not self.modelo_id:
             self.line_ids = [(5, 0, 0)]
+            self.accessory_selection_ids = [(5, 0, 0)]
+            self.config_base_price = 0
             return
+
+        # === QUERY ÚNICA: Traemos TODAS las configs de este modelo una sola vez ===
+        todas_configs = self.env['sembradora.config.rel'].search([
+            ('modelo_id', '=', self.modelo_id.id)
+        ])
 
         # 1. Caso inicial: Sin líneas
         if not self.line_ids:
-            configs = self.env['sembradora.config.rel'].search([('modelo_id', '=', self.modelo_id.id)])
-            primer_attr = configs.mapped('value_ids.attribute_id')
+            primer_attr = todas_configs.mapped('value_ids.attribute_id')
             if primer_attr:
+                _logger.debug("Se añade el primer atributo %s", primer_attr[0].name)
                 self.line_ids = [(0, 0, {'attribute_id': primer_attr[0].id})]
             return
-
-        # --- LÓGICA DE VALIDACIÓN DE CADENA ---
-        nuevos_comandos = []
-        # Empezamos con el dominio base del modelo
-        dominio_acumulado = [('modelo_id', '=', self.modelo_id.id)]
         
+        nuevos_comandos = []
+        # Dominio acumulado: set de value_ids seleccionados (para filtrar en memoria)
+        valores_seleccionados_ids = []
+
         cortar = False
         for line in self.line_ids:
             if cortar:
-                # Si ya marcamos corte, eliminamos lo que siga
                 nuevos_comandos.append((2, line.id.origin or line.id))
                 continue
 
-            # Verificamos si el valor de ESTA línea es compatible con las ANTERIORES
             if line.value_id:
-                # Buscamos en la matriz si existe una config que tenga este valor 
-                # Y TAMBIÉN todos los valores que ya aceptamos de las filas de arriba
-                check_dominio = dominio_acumulado + [('value_ids', 'in', line.value_id.id)]
-                existe = self.env['sembradora.config.rel'].search_count(check_dominio)
+                # OPTIMIZACIÓN: Filtrado en memoria en vez de search_count
+                check_ids = valores_seleccionados_ids + [line.value_id.id]
+                existe = todas_configs.filtered(
+                    lambda c, ids=check_ids: all(vid in c.value_ids.ids for vid in ids)
+                )
                 
-                if existe > 0:
-                    # Es válido: lo mantenemos y actualizamos el dominio para la fila de abajo
+                if existe:
                     nuevos_comandos.append((4, line.id.origin or line.id))
-                    dominio_acumulado.append(('value_ids', 'in', line.value_id.id))
+                    valores_seleccionados_ids.append(line.value_id.id)
                 else:
-                    # El usuario cambió algo arriba y esta fila ya no coincide con la matriz
                     nuevos_comandos.append((2, line.id.origin or line.id))
                     cortar = True
             else:
-                # Fila vacía: la mantenemos pero cortamos la generación de las de abajo
+                # fila vacía
                 nuevos_comandos.append((4, line.id.origin or line.id))
                 cortar = True
 
-        # Aplicamos los cambios de la poda
         self.line_ids = nuevos_comandos
 
-        # 1. Buscamos las configs válidas según lo que hay en pantalla
-        configs_validas = self.env['sembradora.config.rel'].search(dominio_acumulado)
-        
-        # 2. Obtenemos los accesorios de esas configs
-        accesorios_posibles = configs_validas.mapped('accesories_id')
-        
-        # 3. LO CLAVE: Llenamos el campo técnico
-        self.allowed_accessory_ids = accesorios_posibles
+        # Filtrar configs válidas en memoria con los valores acumulados
+        configs_validas = todas_configs.filtered(
+            lambda c: all(vid in c.value_ids.ids for vid in valores_seleccionados_ids)
+        )
 
-        # 4. Limpieza: Si ya eligió algo que ahora no es compatible, lo sacamos
-        if self.accesories_id:
-            self.accesories_id = self.accesories_id.filtered(lambda a: a.id in accesorios_posibles.ids)
+        # Poblar accesorios y precio base
+        # self._poblar_accesorios(configs_validas)
+        if len(configs_validas) == 1:
+            self.config_base_price = configs_validas.price
+        else:
+            self.config_base_price = 0
 
-        # Por defecto, asumimos que no terminó
         self.config_finalizada = False
 
-# --- GENERACIÓN AUTOMÁTICA Y SALTO DE FILAS ÚNICAS ---
+        # --- GENERACIÓN AUTOMÁTICA Y SALTO DE FILAS ÚNICAS ---
         while True:
-            # 1. Ver qué tenemos en pantalla ahora mismo
-            # Filtramos para ignorar las líneas que acabamos de marcar para borrar (comando 2)
             lineas_vivas = self.line_ids.filtered(lambda l: not isinstance(l, tuple) or l[0] != 2)
-            
+
             if not lineas_vivas:
                 break
                 
             ultima = lineas_vivas[-1]
             
-            # Si la última línea aún no tiene valor, no podemos avanzar a la siguiente
             if not ultima.value_id:
                 break
-            
-            # 2. Buscar qué atributos faltan
-            configs_restantes = self.env['sembradora.config.rel'].search(dominio_acumulado)
+
+            # OPTIMIZACIÓN: Filtrado en memoria (no más search)
+            configs_restantes = configs_validas  # Ya filtradas arriba
             attrs_actuales = lineas_vivas.mapped('attribute_id')
             attrs_posibles = configs_restantes.mapped('value_ids.attribute_id')
             proximos = attrs_posibles - attrs_actuales
             
             if not proximos:
                 self.config_finalizada = True
+
+                # Configuración completa: actualizar precio base y accesorios
+                if len(configs_restantes) == 1:
+                    self.config_base_price = configs_restantes.price
+                    self._poblar_accesorios(configs_restantes)
+
                 break
-            
-            # 3. Analizar el siguiente atributo
+
+            # Analizar el siguiente atributo
             siguiente_attr = proximos[0]
-            # Buscamos qué valores de este atributo existen en las combinaciones que aún son válidas
             valores_disponibles = configs_restantes.mapped('value_ids').filtered(
                 lambda v: v.attribute_id == siguiente_attr
             )
             
-            # Preparar la nueva línea
             nueva_linea_vals = {'attribute_id': siguiente_attr.id}
             
-            # --- EL TRUCO: Si solo hay uno, lo llenamos de una vez ---
+            # Si solo hay un valor posible, lo seleccionamos automáticamente
             if len(valores_disponibles) == 1:
                 val_unico = valores_disponibles[0]
                 nueva_linea_vals['value_id'] = val_unico.id
-                # Importante: actualizamos el dominio acumulado para que la 
-                # siguiente vuelta del bucle sepa que este valor ya está "elegido"
-                dominio_acumulado.append(('value_ids', 'in', val_unico.id))
+                nueva_linea_vals['is_single_option'] = True  # Marcar como auto-seleccionado
+                valores_seleccionados_ids.append(val_unico.id)
                 
-                # Añadimos la línea y CONTINUAMOS el bucle para ver si la que sigue también es única
+                # Refiltrar configs_validas con el nuevo valor
+                configs_validas = configs_validas.filtered(
+                    lambda c, vid=val_unico.id: vid in c.value_ids.ids
+                )
+                configs_restantes = configs_validas
+                
                 self.line_ids = [(4, l.id.origin or l.id) for l in lineas_vivas] + [(0, 0, nueva_linea_vals)]
                 continue 
             else:
-                # Si hay múltiples opciones, creamos la línea vacía y PARAMOS (break)
-                # El usuario debe elegir.
+                # Múltiples opciones: el usuario debe elegir
                 self.line_ids = [(4, l.id.origin or l.id) for l in lineas_vivas] + [(0, 0, nueva_linea_vals)]
                 break
 
@@ -165,6 +195,17 @@ class SembradoraConfigWizard(models.TransientModel):
         return factor_qty
 
     def action_confirm_config(self):
+        if not self.sale_order_id:
+            # Fallback robusto en caso de que sale_order_id no venga persistido
+            active_id = (
+                self.env.context.get('default_sale_order_id') or 
+                self.env.context.get('params', {}).get('id')
+            )
+            if active_id:
+                self.sale_order_id = active_id
+            else:
+                raise ValidationError("No se puede completar la operación porque el identificador de la orden de venta (sale_order_id) está vacío. Por favor, guarde la cotización antes de configurar la sembradora.")
+
         # 1. Obtenemos los valores que el usuario seleccionó en las líneas del Wizard
         valores_seleccionados = self.line_ids.mapped('value_id')
 
@@ -196,7 +237,7 @@ class SembradoraConfigWizard(models.TransientModel):
         _logger.info("Valor de config: %s", config.mapped("name"))
         
         if not config:
-            raise models.ValidationError("No existe una configuración de precio definida para esta combinación.")
+            raise ValidationError("No existe una configuración de precio definida para esta combinación.")
 
         _logger.info("Configuración encontrada: %s - Precio: %s", config.display_name, config.price)
 
@@ -232,7 +273,7 @@ class SembradoraConfigWizard(models.TransientModel):
             'display_type': 'line_section',   #lo convierte en separador
         })
 
-        # 3. Finalmente, creamos la línea de la orden de venta
+        # 3. Finalmente, creamos la línea de la orden de venta para la variante
         self.env['sale.order.line'].create({
             'order_id': self.sale_order_id.id,
             'product_id': variant.id,
@@ -240,27 +281,35 @@ class SembradoraConfigWizard(models.TransientModel):
             # Odoo tomará automáticamente el list_price de la variante si no pasamos 'price_unit'
         })
 
-        self.env['sale.order.line'].create({
-            'order_id': self.sale_order_id.id,
-            'name': 'Accesorios',
-            'display_type': 'line_section',   #lo convierte en separador
-        })
+        # 4. CREAMOS LOS ACCESORIOS SELECCIONADOS
+        accesorios_seleccionados = self.accessory_selection_ids.filtered(lambda a: a.selected)
 
-        # 3. CREAMOS LOS ACCESORIOS CON CANTIDAD DINÁMICA
-        for acc_id in self.accesories_id:
-            cantidad_final = 1
-            
-            if acc_id.categ_id.id == 9:
-                _logger.info("Entro a categoria Ruedas pero uso el campo Keeton")
-                cantidad_final = self.get_acc_quan('Keeton')
-            if acc_id.categ_id.id == 8:
-                _logger.info("Entro a categoria Cuerpos")
-                cantidad_final = self.get_acc_quan('Cuerpos')
-
+        if accesorios_seleccionados:
             self.env['sale.order.line'].create({
                 'order_id': self.sale_order_id.id,
-                'product_id': acc_id.id,
-                'product_uom_qty': cantidad_final,
+                'name': 'Accesorios',
+                'display_type': 'line_section',   #lo convierte en separador
             })
+
+            for acc_sel in accesorios_seleccionados:
+                # Determinar cantidad: si hay cantidad en la config, usarla; sino, lógica dinámica
+                if acc_sel.config_quantity and acc_sel.config_quantity > 0:
+                    cantidad_final = acc_sel.config_quantity
+                else:
+                    # Fallback: lógica dinámica por categoría
+                    cantidad_final = 1
+                    if acc_sel.product_id.categ_id.id == 9:
+                        _logger.info("Entro a categoria Ruedas pero uso el campo Keeton")
+                        cantidad_final = self.get_acc_quan('Keeton')
+                    if acc_sel.product_id.categ_id.id == 8:
+                        _logger.info("Entro a categoria Cuerpos")
+                        cantidad_final = self.get_acc_quan('Cuerpos')
+
+                self.env['sale.order.line'].create({
+                    'order_id': self.sale_order_id.id,
+                    'product_id': acc_sel.product_id.id,
+                    'product_uom_qty': cantidad_final,
+                    'price_unit': acc_sel.price,  # Precio de la tabla de accesorios por config
+                })
 
         return {'type': 'ir.actions.act_window_close'}

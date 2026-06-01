@@ -1,21 +1,25 @@
 from odoo import models, fields, api
 
+
 class SembradoraConfigRel(models.Model):
     _name = 'sembradora.config.rel'
     _description = 'Matriz de Configuraciones Permitidas'
 
-    modelo_id = fields.Many2one('product.template', string='Modelo', required=True)
+    ext_id = fields.Char(string='ID Externo', readonly=False)
+    modelo_id = fields.Many2one('product.template', string='Modelo', required=True,
+                                domain=[("categ_id.name", "=", "Maquina")])
     # Cambiamos a Many2many para que en una sola fila pongas TODA la configuración
     value_ids = fields.Many2many('product.attribute.value', string='Combinación Permitida')
 
-    accesories_id = fields.Many2many(
-            'product.product', 
-            string='Accesorios Compatibles',
-            domain=[("categ_id", "child_of", [4])])
+    # Relación 1:N con accesorios (cada uno con su precio en esta configuración)
+    accessory_line_ids = fields.One2many(
+        'sembradora.config.accessory.line',
+        'config_id',
+        string='Accesorios con Precio')
 
     price = fields.Float(string="Precio de Configuración")
-    
-    name = fields.Char(string="Configuración", compute="_compute_name")
+
+    name = fields.Char(string="Configuración", compute="_compute_name", store=True)
 
     @api.depends('modelo_id', 'value_ids')
     def _compute_name(self):

@@ -1,4 +1,10 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_sembradora_config,access.sembradora.config.rel,model_sembradora_config_rel,base.group_user,1,1,1,1
+access_sembradora_config_acc_line,access.sembradora.config.accessory.line,model_sembradora_config_accessory_line,base.group_user,1,1,1,1
 access_sembradora_config_wizard,access.sembradora.config.wizard,model_sembradora_config_wizard,base.group_user,1,1,1,1
 access_sembradora_config_wizard_line,access.sembradora.config.wizard.line,model_sembradora_config_wizard_line,base.group_user,1,1,1,1
+access_sembradora_wizard_acc_selection,access.sembradora.config.wizard.acc.selection,model_sembradora_config_wizard_acc_selection,base.group_user,1,1,1,1
+access_plan_pago_template,access.cotizador.plan.pago.template,model_cotizador_plan_pago_template,base.group_user,1,1,1,1
+access_plan_pago_template_line,access.cotizador.plan.pago.template.line,model_cotizador_plan_pago_template_line,base.group_user,1,1,1,1
+access_plan_pago_wizard,access.cotizador.plan.pago.wizard,model_cotizador_plan_pago_wizard,base.group_user,1,1,1,1
+access_plan_pago_wizard_line,access.cotizador.plan.pago.wizard.line,model_cotizador_plan_pago_wizard_line,base.group_user,1,1,1,1

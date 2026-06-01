@@ -11,11 +11,18 @@ class SembradoraConfigWizardLine(models.TransientModel):
     value_id = fields.Many2one('product.attribute.value', string='Valor')
     value_domain_ids = fields.Many2many('product.attribute.value', compute='_compute_value_domain')
 
+    # Indica si esta línea fue auto-seleccionada por tener una sola opción disponible
+    # Se muestra en readonly/grisado en la vista
+    is_single_option = fields.Boolean(string='Opción Única', default=False)
+
     @api.depends('attribute_id', 'wizard_id.line_ids.value_id')
     def _compute_value_domain(self):
         for record in self:
-            # Si es la primera línea, solo filtramos por atributo
-            # Si hay líneas previas, filtramos por la matriz
+            if not record.wizard_id.modelo_id or not record.attribute_id:
+                record.value_domain_ids = self.env['product.attribute.value']
+                continue
+
+            # Construir dominio completo de una sola vez
             domain = [('modelo_id', '=', record.wizard_id.modelo_id.id)]
             
             # Miramos qué eligieron los hermanos ARRIBA de esta línea

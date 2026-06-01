@@ -14,25 +14,41 @@
                     <field name="line_ids" nolabel="1">
                         <list editable="bottom" create="0" delete="1">
                             <field name="attribute_id" readonly="1" force_save="1"/>
+                            <!-- DOMINIO: Modificar aquí para controlar qué valores se muestran en cada atributo -->
                             <field name="value_id" 
                                 domain="[('id', 'in', value_domain_ids)]" 
-                                options="{'no_create': True, 'no_open': True}"/>
+                                options="{'no_create': True, 'no_open': True}"
+                                readonly="is_single_option"
+                                force_save="1"/>
                             <field name="value_domain_ids" column_invisible="1"/>
+                            <!-- DOMINIO: is_single_option controla si la fila aparece readonly (opción única auto-seleccionada) -->
+                            <field name="is_single_option" column_invisible="1"/>
                         </list>
                     </field>
-                <sheet>
+
                     <field name="config_finalizada" invisible="1"/>
-                    <field name="allowed_accessory_ids" invisible="1"/>
 
                     <group string="Paso Final: Accesorios Compatibles" 
                         invisible="not config_finalizada">
+
+                        <group>
+                            <field name="config_base_price" readonly="1"/>
+                        </group>
                         
-                        <field name="accesories_id" 
-                            widget="many2many_checkboxes" 
-                            domain="[('id', 'in', allowed_accessory_ids)]"
-                            nolabel="1"/>
+                        <field name="accessory_selection_ids" nolabel="1">
+                            <list editable="bottom" create="0" delete="0">
+                                <field name="selected"/>
+                                <field name="product_id" readonly="1"/>
+                                <field name="price" readonly="1"/>
+                                <field name="config_acc_line_id" column_invisible="1"/>
+                            </list>
+                        </field>
+
+                        <group>
+                            <field name="accessories_total" readonly="1"/>
+                            <field name="total_price" readonly="1" class="fw-bold"/>
+                        </group>
                     </group>
-                </sheet>
                 </sheet>
                 <footer>
                     <button name="action_confirm_config" string="Añadir a la Cotización" type="object" class="btn-primary"/>
@@ -49,22 +65,54 @@
         <field name="target">new</field> <field name="context">{'default_sale_order_id': active_id}</field>
     </record>
 
+    <!-- Herencia de la vista de sale.order -->
     <record id="view_order_form_inherit_cotizador" model="ir.ui.view">
         <field name="name">sale.order.form.inherit.cotizador</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
+            <!-- Botón Configurar en button_box -->
             <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="%(action_open_sembradora_wizard)d" 
-                        type="action" 
+                <button name="action_open_config_wizard" 
+                        type="object" 
                         class="oe_stat_button" 
-                        icon="fa-sliders">
+                        icon="fa-sliders"
+                        invisible="state not in ('draft', 'sent')">
                     <div class="o_stat_info">
                         <span class="o_stat_text">Configurar</span>
                     </div>
                 </button>
+                <button name="action_open_plan_pago_wizard" 
+                        type="object" 
+                        class="oe_stat_button" 
+                        icon="fa-money"
+                        invisible="state not in ('draft', 'sent')">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Planes de Pago</span>
+                    </div>
+                </button>
+            </xpath>
+
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="user_id" widget="many2one_avatar_user" string="Concesionario"/>
+            </xpath>
+
+            <!-- Interceptar "Add a product" en order_line para abrir nuestro wizard si es categoría Maquina -->
+            <!-- Reemplazamos los controles del listado de order_line -->
+            <xpath expr="//field[@name='order_line']//list//control" position="replace">
+                <control>
+                    <!-- Botón que abre nuestro wizard configurador llamando al método del parent sale.order passing the parent id -->
+                    <button name="action_open_config_wizard" 
+                            type="object"
+                            string="Configurar Sembradora"
+                            class="px-4 btn-link"
+                            context="{'default_sale_order_id': parent.id}"/>
+                    <!-- Mantener "Add a product" estándar para productos no-máquina -->
+                    <create name="add_product_control" string="Añadir otro producto"/>
+                    <create name="add_section_control" string="Add a section" context="{'default_display_type': 'line_section'}"/>
+                    <create name="add_note_control" string="Add a note" context="{'default_display_type': 'line_note'}"/>
+                </control>
             </xpath>
         </field>
     </record>
 </odoo>
-
