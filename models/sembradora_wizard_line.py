@@ -15,6 +15,23 @@ class SembradoraConfigWizardLine(models.TransientModel):
     # Se muestra en readonly/grisado en la vista
     is_single_option = fields.Boolean(string='Opción Única', default=False)
 
+    # Propagado desde product.attribute: controla si el atributo se muestra en la descripción
+    show_in_description = fields.Boolean(
+        related='attribute_id.show_in_description',
+        string='Mostrar en Descripción',
+        readonly=True)
+
+    # Si es opción única Y no se muestra en descripción → ocultar la fila completa en el wizard
+    is_hidden = fields.Boolean(
+        string='Ocultar Línea',
+        compute='_compute_is_hidden',
+        store=True)
+
+    @api.depends('is_single_option', 'show_in_description')
+    def _compute_is_hidden(self):
+        for record in self:
+            record.is_hidden = record.is_single_option and not record.show_in_description
+
     @api.depends('attribute_id', 'wizard_id.line_ids.value_id')
     def _compute_value_domain(self):
         for record in self:

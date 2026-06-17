@@ -53,18 +53,12 @@ class SembradoraConfigWizard(models.TransientModel):
 
     @api.onchange('modelo_id', 'line_ids')
     def _onchange_configuracion_secuencial(self):
-        '''
-        Va agregando de forma secuencial, los distintos valores de atributo posibles para las configuraciones dadas.
-        
-        OPTIMIZADO: Una sola query al inicio, luego filtrado en memoria con .filtered()
-        '''
         if not self.modelo_id:
             self.line_ids = [(5, 0, 0)]
             self.accessory_selection_ids = [(5, 0, 0)]
             self.config_base_price = 0
             return
 
-        # === QUERY ÚNICA: Traemos TODAS las configs de este modelo una sola vez ===
         todas_configs = self.env['sembradora.config.rel'].search([
             ('modelo_id', '=', self.modelo_id.id)
         ])
@@ -73,110 +67,128 @@ class SembradoraConfigWizard(models.TransientModel):
         if not self.line_ids:
             primer_attr = todas_configs.mapped('value_ids.attribute_id')
             if primer_attr:
-                _logger.debug("Se añade el primer atributo %s", primer_attr[0].name)
                 self.line_ids = [(0, 0, {'attribute_id': primer_attr[0].id})]
             return
         
-        nuevos_comandos = []
-        # Dominio acumulado: set de value_ids seleccionados (para filtrar en memoria)
-        valores_seleccionados_ids = []
+        # --- OPTIMIZACIÓN: Trabajaremos con listas locales de registros (memoria pura) ---
+        lineas_vivas_list = [l for l in self.line_ids if not isinstance(l, tuple) or l[0] != 2]
+        valores_seleccionados_ids = [l.value_id.id for l in lineas_vivas_list if l.value_id]
 
+        # Validar consistencia de lo que ya está seleccionado
         cortar = False
-        for line in self.line_ids:
-            if cortar:
-                nuevos_comandos.append((2, line.id.origin or line.id))
-                continue
+        lineas_validadas = []
+        valores_filtrados_ids = []
 
+        for line in lineas_vivas_list:
+            if cortar:
+                continue
             if line.value_id:
-                # OPTIMIZACIÓN: Filtrado en memoria en vez de search_count
-                check_ids = valores_seleccionados_ids + [line.value_id.id]
-                existe = todas_configs.filtered(
-                    lambda c, ids=check_ids: all(vid in c.value_ids.ids for vid in ids)
-                )
-                
-                if existe:
-                    nuevos_comandos.append((4, line.id.origin or line.id))
-                    valores_seleccionados_ids.append(line.value_id.id)
+                check_ids = valores_filtrados_ids + [line.value_id.id]
+                # Al tener name con store=True, esto vuela
+                if todas_configs.filtered(lambda c: all(vid in c.value_ids.ids for vid in check_ids)):
+                    lineas_validadas.append(line)
+                    valores_filtrados_ids.append(line.value_id.id)
                 else:
-                    nuevos_comandos.append((2, line.id.origin or line.id))
                     cortar = True
             else:
-                # fila vacía
-                nuevos_comandos.append((4, line.id.origin or line.id))
+                lineas_validadas.append(line)
                 cortar = True
 
-        self.line_ids = nuevos_comandos
+        valores_seleccionados_ids = valores_filtrados_ids
 
-        # Filtrar configs válidas en memoria con los valores acumulados
+        # Filtrar configs válidas en memoria
         configs_validas = todas_configs.filtered(
             lambda c: all(vid in c.value_ids.ids for vid in valores_seleccionados_ids)
         )
 
-        # Poblar accesorios y precio base
-        # self._poblar_accesorios(configs_validas)
-        if len(configs_validas) == 1:
-            self.config_base_price = configs_validas.price
-        else:
-            self.config_base_price = 0
-
         self.config_finalizada = False
+        configs_restantes = configs_validas
 
-        # --- GENERACIÓN AUTOMÁTICA Y SALTO DE FILAS ÚNICAS ---
+        # --- EL BUCLE OPTIMIZADO (Sin escrituras intermedias a la UI) ---
         while True:
-            lineas_vivas = self.line_ids.filtered(lambda l: not isinstance(l, tuple) or l[0] != 2)
-
-            if not lineas_vivas:
+            if not lineas_validadas:
                 break
                 
-            ultima = lineas_vivas[-1]
-            
+            ultima = lineas_validadas[-1]
             if not ultima.value_id:
                 break
 
-            # OPTIMIZACIÓN: Filtrado en memoria (no más search)
-            configs_restantes = configs_validas  # Ya filtradas arriba
-            attrs_actuales = lineas_vivas.mapped('attribute_id')
+            attrs_actuales = [l.attribute_id for l in lineas_validadas]
             attrs_posibles = configs_restantes.mapped('value_ids.attribute_id')
-            proximos = attrs_posibles - attrs_actuales
+            
+            # Restar usando conjuntos en lugar de objetos de Odoo (más rápido)
+            proximos = [a for a in attrs_posibles if a not in attrs_actuales]
             
             if not proximos:
                 self.config_finalizada = True
-
-                # Configuración completa: actualizar precio base y accesorios
-                if len(configs_restantes) == 1:
-                    self.config_base_price = configs_restantes.price
-                    self._poblar_accesorios(configs_restantes)
-
                 break
 
-            # Analizar el siguiente atributo
             siguiente_attr = proximos[0]
             valores_disponibles = configs_restantes.mapped('value_ids').filtered(
                 lambda v: v.attribute_id == siguiente_attr
             )
             
-            nueva_linea_vals = {'attribute_id': siguiente_attr.id}
+            # Simulamos el registro en la lista local de Python
+            nueva_linea_mock = {
+                'attribute_id': siguiente_attr,
+                'value_id': False,
+                'is_single_option': False
+            }
             
-            # Si solo hay un valor posible, lo seleccionamos automáticamente
             if len(valores_disponibles) == 1:
                 val_unico = valores_disponibles[0]
-                nueva_linea_vals['value_id'] = val_unico.id
-                nueva_linea_vals['is_single_option'] = True  # Marcar como auto-seleccionado
+                nueva_linea_mock['value_id'] = val_unico
+                nueva_linea_mock['is_single_option'] = True
                 valores_seleccionados_ids.append(val_unico.id)
                 
-                # Refiltrar configs_validas con el nuevo valor
-                configs_validas = configs_validas.filtered(
-                    lambda c, vid=val_unico.id: vid in c.value_ids.ids
-                )
+                configs_validas = configs_validas.filtered(lambda c: val_unico.id in c.value_ids.ids)
                 configs_restantes = configs_validas
                 
-                self.line_ids = [(4, l.id.origin or l.id) for l in lineas_vivas] + [(0, 0, nueva_linea_vals)]
+                # Lo agregamos a nuestra colección temporal de Python
+                # Usamos un objeto Dummy/Banda para que el bucle pueda seguir leyendo
+                class DummyRecord:
+                    def __init__(self, d):
+                        self.attribute_id = d['attribute_id']
+                        self.value_id = d['value_id']
+                lineas_validadas.append(DummyRecord(nueva_linea_mock))
                 continue 
             else:
-                # Múltiples opciones: el usuario debe elegir
-                self.line_ids = [(4, l.id.origin or l.id) for l in lineas_vivas] + [(0, 0, nueva_linea_vals)]
+                class DummyRecordVacio:
+                    def __init__(self, d):
+                        self.attribute_id = d['attribute_id']
+                        self.value_id = False
+                lineas_validadas.append(DummyRecordVacio(nueva_linea_mock))
                 break
 
+        # --- UNA SOLA ESCRITURA FINAL A ODOO ---
+        # Convertimos nuestra lista de Python al formato de comandos de Odoo (4, id) y (0, 0, vals)
+        comandos_finales = []
+        for l in lineas_vivas_list:
+            if l in lineas_validadas:
+                comandos_finales.append((4, l.id.origin or l.id))
+            else:
+                comandos_finales.append((2, l.id.origin or l.id)) # Borrar las sobrantes
+
+        # Agregar las nuevas líneas auto-generadas del bucle
+        for l in lineas_validadas:
+            if not hasattr(l, 'id'): # Es una línea nueva simulada
+                comandos_finales.append((0, 0, {
+                    'attribute_id': l.attribute_id.id,
+                    'value_id': l.value_id.id if l.value_id else False,
+                    'is_single_option': True if l.value_id else False
+                }))
+
+        self.line_ids = comandos_finales
+
+        # === OPTIMIZACIÓN CRÍTICA DE ACCESORIOS ===
+        # Solo poblamos accesorios y disparamos lógica pesada si la máquina está completa
+        if self.config_finalizada and len(configs_restantes) == 1:
+            self.config_base_price = configs_restantes.price
+            self._poblar_accesorios(configs_restantes) # <--- Aquí adentro metes las queries pesadas
+        else:
+            self.config_base_price = 0
+            self.accessory_selection_ids = [(5, 0, 0)] # Mantener vacío mientras elige
+            
     def get_acc_quan(self, attribute_name):
         linea_cantidad = self.line_ids.filtered(
             lambda l: l.attribute_id.name in [attribute_name]
@@ -267,6 +279,16 @@ class SembradoraConfigWizard(models.TransientModel):
             })
             _logger.info("Variante creada exitosamente con ID %s y precio %s", variant.id, variant.list_price)
 
+        # Construir descripción detallada de la variante seleccionada
+        # Solo incluye atributos marcados con show_in_description en product.attribute
+        detalle_variante = f"{self.modelo_id.name}"
+        lineas_detalle = []
+        for line in self.line_ids:
+            if line.attribute_id and line.value_id and line.show_in_description:
+                lineas_detalle.append(f"• {line.attribute_id.name}: {line.value_id.name}")
+        if lineas_detalle:
+            detalle_variante += "\n" + "\n".join(lineas_detalle)
+
         self.env['sale.order.line'].create({
             'order_id': self.sale_order_id.id,
             'name': 'Variante de Configuracion',
@@ -278,6 +300,7 @@ class SembradoraConfigWizard(models.TransientModel):
             'order_id': self.sale_order_id.id,
             'product_id': variant.id,
             'product_uom_qty': 1,
+            'name': detalle_variante,
             # Odoo tomará automáticamente el list_price de la variante si no pasamos 'price_unit'
         })
 

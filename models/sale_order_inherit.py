@@ -1,5 +1,5 @@
-from odoo import models, fields, api
-from odoo.exceptions import ValidationError
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError, UserError
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -27,6 +27,17 @@ class SaleOrderInherit(models.Model):
     #         order.has_cheques = 'cheques' in tipos
     #         order.has_documentos = 'documentos' in tipos
     #         order.has_credito_bancario = 'credito_bancario' in tipos
+
+    def action_confirm(self):
+        """Override para validar que exista al menos una línea de plan de pago antes de confirmar."""
+        for order in self:
+            tiene_plan_pago = order.order_line.filtered(lambda l: l.is_plan_pago)
+            if not tiene_plan_pago:
+                raise UserError(
+                    _("No se puede confirmar la orden '%s' porque no tiene un Plan de Pago seleccionado.\n"
+                      "Por favor, agregue un Plan de Pago antes de confirmar.") % order.name
+                )
+        return super().action_confirm()
 
     def action_open_config_wizard(self):
         """Abre nuestro wizard de configuración de sembradora en lugar del configurador de Odoo."""

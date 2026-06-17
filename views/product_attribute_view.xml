@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Herencia del formulario de product.attribute para agregar show_in_description -->
+    <record id="view_product_attribute_form_inherit_cotizador" model="ir.ui.view">
+        <field name="name">product.attribute.form.inherit.cotizador</field>
+        <field name="model">product.attribute</field>
+        <field name="inherit_id" ref="product.product_attribute_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='sale_main_fields']" position="inside">
+                <field name="show_in_description"
+                       help="Si está activo, este atributo se mostrará en la descripción de la línea de cotización y será visible en el wizard de configuración aunque sea opción única."/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

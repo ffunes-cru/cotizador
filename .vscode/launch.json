@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Odoo: Debug Cotizador",
+            "type": "python",
+            "request": "launch",
+            // Apuntamos afuera sin miedo con la ruta absoluta
+            "program": "/home/user/odoo/odoo-bin",
+            "console": "integratedTerminal",
+            "args": [
+                "-u",
+                "cotizador"
+            ],
+            "justMyCode": true
+        }
+    ]
+}

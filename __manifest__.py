@@ -14,6 +14,7 @@
         'views/views.xml',
         'views/config_view.xml',
         'views/plan_pago_views.xml',
+        'views/product_attribute_view.xml',
     ],
     'installable': True,
 }
