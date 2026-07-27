@@ -15,6 +15,10 @@
         'views/config_view.xml',
         'views/plan_pago_views.xml',
         'views/product_attribute_view.xml',
+        'data/product_category_data.xml',
+        'views/import_wizard_view.xml',
+        'views/accessory_rule_view.xml',
     ],
     'installable': True,
+    'post_init_hook': '_post_init_hook',
 }

@@ -1,4 +1,4 @@
-from odoo import models, fields
+from odoo import models, fields, api
 
 
 class SembradoraWizardAccSelection(models.TransientModel):
@@ -7,7 +7,6 @@ class SembradoraWizardAccSelection(models.TransientModel):
 
     wizard_id = fields.Many2one('sembradora.config.wizard', ondelete='cascade')
 
-    # Referencia a la línea de accesorio de la configuración (tiene producto + precio)
     config_acc_line_id = fields.Many2one(
         'sembradora.config.accessory.line',
         string='Línea Accesorio Config')
@@ -18,15 +17,30 @@ class SembradoraWizardAccSelection(models.TransientModel):
         string='Accesorio',
         readonly=True)
 
-    price = fields.Float(
-        related='config_acc_line_id.price',
-        string='Precio',
+    rule_ids = fields.Many2many(
+        'sembradora.accessory.rule',
+        related='config_acc_line_id.rule_ids',
         readonly=True)
 
-    # Cantidad predefinida desde la configuración (fallback)
-    config_quantity = fields.Float(
-        related='config_acc_line_id.quantity',
-        string='Cant. Config',
+    is_trigger = fields.Boolean(
+        related='config_acc_line_id.is_trigger',
         readonly=True)
+
+    price = fields.Float(string='Subtotal', digits='Product Price', compute='_compute_price', store=True)
+    quantity = fields.Float(string='Cantidad', default=1.0)
+    price_unit = fields.Float(string='Precio Unitario')
+
+    is_locked = fields.Boolean(string='Bloqueado', default=False)
+
+    is_inclusion_locked = fields.Boolean(
+        string='Bloqueado por Inclusión',
+        default=False,
+        help='True si este accesorio pertenece a un grupo de inclusión '
+             'y su trigger no está seleccionado.')
 
     selected = fields.Boolean(string='Seleccionar', default=False)
+
+    @api.depends('price_unit', 'quantity')
+    def _compute_price(self):
+        for line in self:
+            line.price = line.price_unit * line.quantity

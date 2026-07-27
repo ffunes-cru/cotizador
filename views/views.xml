@@ -39,9 +39,13 @@
                         
                         <field name="accessory_selection_ids" nolabel="1">
                             <list editable="bottom" create="0" delete="0">
-                                <field name="selected"/>
+                                <field name="selected" readonly="is_locked"/>
                                 <field name="product_id" readonly="1"/>
-                                <field name="price" readonly="1"/>
+                                <field name="quantity" readonly="1" force_save="1"/>
+                                <field name="price_unit" readonly="1" force_save="1"/>
+                                <field name="price" readonly="1" string="Subtotal" force_save="1"/>
+                                <field name="is_locked" column_invisible="1"/>
+                                <field name="is_inclusion_locked" column_invisible="1"/>
                                 <field name="config_acc_line_id" column_invisible="1"/>
                             </list>
                         </field>

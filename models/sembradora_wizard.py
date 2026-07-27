@@ -40,15 +40,86 @@ class SembradoraConfigWizard(models.TransientModel):
         for wiz in self:
             wiz.total_price = wiz.config_base_price + wiz.accessories_total
 
+    def _extraer_factor_de_atributos(self, palabras_clave):
+        """
+        Busca en las líneas del wizard un atributo que coincida con las palabras clave
+        y extrae el primer valor numérico que encuentre (soporta enteros y decimales).
+        """
+        for line in self.line_ids:
+            if line.attribute_id and line.value_id:
+                nombre_attr = line.attribute_id.name.lower()
+                # Verifica si el atributo es el correcto (ej: contiene "línea" o "distancia")
+                if any(p in nombre_attr for p in palabras_clave):
+                    texto_valor = line.value_id.name
+                    # Busca números enteros o decimales (ej: 16 o 52.5)
+                    numeros = re.findall(r'\d+\.?\d*', texto_valor)
+                    if numeros:
+                        return float(numeros[0])
+        return 1.0  # Fallback si no encuentra el atributo o un número válido
+
     def _poblar_accesorios(self, configs):
-        """Método unificado para poblar accesorios desde un recordset de configs válidas."""
+        """Pobla los accesorios aplicando precios unitarios y cantidades dinámicas por separado."""
         acc_lines = configs.mapped('accessory_line_ids')
-        acc_commands = [(5, 0, 0)]  # Limpiar todo primero
+        acc_commands = [(5, 0, 0)]  # Limpiar líneas existentes del wizard
+        
+        cat_lineas = self.env.ref('cotizador.cat_accesorio_cantidad_lineas', raise_if_not_found=False)
+        cat_distancia = self.env.ref('cotizador.cat_accesorio_distancia_lineas', raise_if_not_found=False)
+        cat_por_maquina = self.env.ref('cotizador.cat_accesorio_por_maquina', raise_if_not_found=False)
+
         for acc_line in acc_lines:
+            producto = acc_line.product_id
+            categoria = producto.categ_id
+            
+            # Valores base por defecto
+            precio_unitario = producto.list_price
+            cantidad = 1.0
+
+            # 1. Determinación de Cantidad y Precio según Categoría
+            if cat_lineas and categoria == cat_lineas:
+                precio_unitario = producto.list_price
+                cantidad = self._extraer_factor_de_atributos(['línea', 'linea', 'cantidad'])
+                
+            elif cat_distancia and categoria == cat_distancia:
+                precio_unitario = producto.list_price
+                cantidad = self._extraer_factor_de_atributos(['distancia', 'entre'])
+                
+            elif cat_por_maquina and categoria == cat_por_maquina:
+                precio_unitario = producto.list_price
+                cantidad = 1.0
+                
+            elif categoria.id == 9:  # Ruedas / Keeton
+                precio_unitario = acc_line.price  # Trae el precio unitario de la matriz
+                cantidad = self.get_acc_quan('Keeton')
+                
+            elif categoria.id == 8:  # Cuerpos
+                precio_unitario = acc_line.price  # Trae el precio unitario de la matriz
+                cantidad = self.get_acc_quan('Cuerpos')
+                
+            else:
+                # Cualquier otro accesorio general de la matriz
+                precio_unitario = acc_line.price
+                cantidad = 1.0
+
+            _logger.info("Accesorio detectado: %s -> Cantidad: %s, Precio Unitario: %s", producto.name, cantidad, precio_unitario)
+
+            # 2. Determinar estado de bloqueo inicial por reglas de inclusión
+            #    Un accesorio con regla de inclusión donde NO es trigger → empieza bloqueado
+            is_inclusion_locked = False
+            for rule in acc_line.rule_ids:
+                if rule.rule_type == 'inclusion' and not acc_line.is_trigger:
+                    is_inclusion_locked = True
+                    break
+
+            # 3. Construir comando para el One2many del Wizard
             acc_commands.append((0, 0, {
                 'config_acc_line_id': acc_line.id,
                 'selected': False,
+                'price_unit': precio_unitario,
+                'quantity': cantidad,
+                'is_locked': is_inclusion_locked,
+                'is_inclusion_locked': is_inclusion_locked,
             }))
+
         self.accessory_selection_ids = acc_commands
 
     @api.onchange('modelo_id', 'line_ids')
@@ -206,9 +277,62 @@ class SembradoraConfigWizard(models.TransientModel):
             _logger.warning("valores null de %s y %s",linea_cantidad, self.line_ids.mapped("attribute_id.name"))
         return factor_qty
 
+    @api.onchange('accessory_selection_ids')
+    def _onchange_accessory_rules(self):
+        """Bloquea/desbloquea accesorios según reglas de exclusión e inclusión."""
+        # --- Paso 1: Recopilar el estado actual de reglas ---
+        rule_state = {}
+
+        for wiz_line in self.accessory_selection_ids:
+            if not wiz_line.rule_ids:
+                continue
+            for rule in wiz_line.rule_ids:
+                rid = rule.id
+                if rid not in rule_state:
+                    rule_state[rid] = {
+                        'rule': rule,
+                        'selected_lines': [],
+                        'all_lines': [],
+                        'triggers': [],
+                        'non_triggers': [],
+                    }
+                rule_state[rid]['all_lines'].append(wiz_line)
+                if wiz_line.selected:
+                    rule_state[rid]['selected_lines'].append(wiz_line)
+                if wiz_line.is_trigger:
+                    rule_state[rid]['triggers'].append(wiz_line)
+                else:
+                    rule_state[rid]['non_triggers'].append(wiz_line)
+
+        # --- Paso 2: Evaluar bloqueos ---
+        lock_reasons = {wiz_line: set() for wiz_line in self.accessory_selection_ids}
+
+        for rid, state in rule_state.items():
+            rule = state['rule']
+
+            if rule.rule_type == 'exclusion':
+                # EXCLUSIÓN: Si hay alguno seleccionado, bloquear los demás del grupo
+                if state['selected_lines']:
+                    for wiz_line in state['all_lines']:
+                        if not wiz_line.selected:
+                            lock_reasons.setdefault(wiz_line, set()).add(f'excl:{rule.name}')
+
+            elif rule.rule_type == 'inclusion':
+                # INCLUSIÓN: Los non-triggers empiezan bloqueados.
+                # Se desbloquean solo si un trigger del grupo está seleccionado.
+                trigger_selected = any(t.selected for t in state['triggers'])
+                if not trigger_selected:
+                    for wiz_line in state['non_triggers']:
+                        lock_reasons.setdefault(wiz_line, set()).add(f'incl:{rule.name}')
+
+        # --- Paso 3: Aplicar estado de bloqueo ---
+        for wiz_line in self.accessory_selection_ids:
+            reasons = lock_reasons.get(wiz_line, set())
+            wiz_line.is_locked = bool(reasons)
+            wiz_line.is_inclusion_locked = any(r.startswith('incl:') for r in reasons)
+
     def action_confirm_config(self):
         if not self.sale_order_id:
-            # Fallback robusto en caso de que sale_order_id no venga persistido
             active_id = (
                 self.env.context.get('default_sale_order_id') or 
                 self.env.context.get('params', {}).get('id')
@@ -218,55 +342,49 @@ class SembradoraConfigWizard(models.TransientModel):
             else:
                 raise ValidationError("No se puede completar la operación porque el identificador de la orden de venta (sale_order_id) está vacío. Por favor, guarde la cotización antes de configurar la sembradora.")
 
-        # 1. Obtenemos los valores que el usuario seleccionó en las líneas del Wizard
+        accesorios_seleccionados = self.accessory_selection_ids.filtered(lambda a: a.selected)
+
+        # Validar reglas de exclusión: no puede haber >1 seleccionado por grupo
+        exclusion_check = {}  # {rule_id: [acc_names]}
+        for acc in accesorios_seleccionados:
+            for rule in acc.rule_ids:
+                if rule.rule_type == 'exclusion':
+                    exclusion_check.setdefault(rule.id, []).append((rule.name, acc.product_id.name))
+
+        for rule_id, entries in exclusion_check.items():
+            if len(entries) > 1:
+                rule_name = entries[0][0]
+                acc_names = ', '.join(e[1] for e in entries)
+                raise ValidationError(
+                    f"Configuración inválida: Ha seleccionado más de un accesorio "
+                    f"del grupo de exclusión '{rule_name}': {acc_names}. "
+                    f"Verifique su selección."
+                )
+        
         valores_seleccionados = self.line_ids.mapped('value_id')
 
-        # 2. Obtener los 'Template Attribute Values' correspondientes
-        # En Odoo, para crear una variante necesitas los IDs de la tabla intermedia 
-        # que une el atributo con el producto específico.
         template_attribute_values = self.env['product.template.attribute.value'].search([
             ('product_tmpl_id', '=', self.modelo_id.id),
             ('product_attribute_value_id', 'in', valores_seleccionados.ids)
         ])
 
-        # 3. Intentar buscar la variante existente
         variant = self.env['product.product'].search([
             ('product_tmpl_id', '=', self.modelo_id.id),
             ('product_template_attribute_value_ids', 'in', template_attribute_values.ids)
-        ])
-        
-        # Filtrar para asegurar match exacto
-        variant = variant.filtered(
-            lambda p: set(p.product_template_attribute_value_ids.ids) == set(template_attribute_values.ids)
-        )
+        ]).filtered(lambda p: set(p.product_template_attribute_value_ids.ids) == set(template_attribute_values.ids))
 
-        # 1. Buscamos la configuración exacta en la matriz
-        # (Usamos filtered para asegurar que la combinación de valores sea idéntica)
         config = self.env['sembradora.config.rel'].search([
             ('modelo_id', '=', self.modelo_id.id),
             ('value_ids', 'in', valores_seleccionados.ids)
         ]).filtered(lambda c: set(c.value_ids.ids) == set(valores_seleccionados.ids))        
-        _logger.info("Valor de config: %s", config.mapped("name"))
         
         if not config:
             raise ValidationError("No existe una configuración de precio definida para esta combinación.")
 
-        _logger.info("Configuración encontrada: %s - Precio: %s", config.display_name, config.price)
-
-        # 2. Lógica de Variantes (Actualizar o Crear)
         if variant:
-            # SI LA VARIANTE YA EXISTE: Comparamos y actualizamos si el precio cambió en la matriz
             if variant.list_price != config.price:
-                _logger.info("Actualizando precio de variante existente %s: %s -> %s", 
-                             variant.display_name, variant.list_price, config.price)
-                
-                # .write() actualiza el registro en la base de datos
                 variant.write({'list_price': config.price})
         else:
-            # SI LA VARIANTE NO EXISTE: La creamos desde cero
-            _logger.info("Variante no encontrada. Creando nueva variante para el modelo %s", self.modelo_id.name)
-            
-            # Obtenemos los IDs de la tabla intermedia necesarios para la creación
             template_attribute_values = self.env['product.template.attribute.value'].search([
                 ('product_tmpl_id', '=', self.modelo_id.id),
                 ('product_attribute_value_id', 'in', valores_seleccionados.ids)
@@ -275,12 +393,9 @@ class SembradoraConfigWizard(models.TransientModel):
             variant = self.env['product.product'].create({
                 'product_tmpl_id': self.modelo_id.id,
                 'product_template_attribute_value_ids': [(6, 0, template_attribute_values.ids)],
-                'list_price': config.price  # Se asigna el precio de la matriz al crear
+                'list_price': config.price
             })
-            _logger.info("Variante creada exitosamente con ID %s y precio %s", variant.id, variant.list_price)
 
-        # Construir descripción detallada de la variante seleccionada
-        # Solo incluye atributos marcados con show_in_description en product.attribute
         detalle_variante = f"{self.modelo_id.name}"
         lineas_detalle = []
         for line in self.line_ids:
@@ -289,50 +404,49 @@ class SembradoraConfigWizard(models.TransientModel):
         if lineas_detalle:
             detalle_variante += "\n" + "\n".join(lineas_detalle)
 
+        tax_105 = self.env['account.tax'].search([
+            ('type_tax_use', '=', 'sale'),
+            ('amount', '=', 10.5)
+        ], limit=1)
+        tax_commands = [(6, 0, [tax_105.id])] if tax_105 else False
+
         self.env['sale.order.line'].create({
             'order_id': self.sale_order_id.id,
             'name': 'Variante de Configuracion',
-            'display_type': 'line_section',   #lo convierte en separador
+            'display_type': 'line_section',
         })
 
-        # 3. Finalmente, creamos la línea de la orden de venta para la variante
+        # Cremos la línea de la variante inyectando su precio real
         self.env['sale.order.line'].create({
             'order_id': self.sale_order_id.id,
             'product_id': variant.id,
             'product_uom_qty': 1,
             'name': detalle_variante,
-            # Odoo tomará automáticamente el list_price de la variante si no pasamos 'price_unit'
+            'price_unit': config.price,  # <--- DESCOMENTADO: Clave para que no sea 0.0
+            'tax_ids': tax_commands,
         })
-
-        # 4. CREAMOS LOS ACCESORIOS SELECCIONADOS
-        accesorios_seleccionados = self.accessory_selection_ids.filtered(lambda a: a.selected)
 
         if accesorios_seleccionados:
             self.env['sale.order.line'].create({
                 'order_id': self.sale_order_id.id,
                 'name': 'Accesorios',
-                'display_type': 'line_section',   #lo convierte en separador
+                'display_type': 'line_section',
             })
 
             for acc_sel in accesorios_seleccionados:
-                # Determinar cantidad: si hay cantidad en la config, usarla; sino, lógica dinámica
-                if acc_sel.config_quantity and acc_sel.config_quantity > 0:
-                    cantidad_final = acc_sel.config_quantity
-                else:
-                    # Fallback: lógica dinámica por categoría
-                    cantidad_final = 1
-                    if acc_sel.product_id.categ_id.id == 9:
-                        _logger.info("Entro a categoria Ruedas pero uso el campo Keeton")
-                        cantidad_final = self.get_acc_quan('Keeton')
-                    if acc_sel.product_id.categ_id.id == 8:
-                        _logger.info("Entro a categoria Cuerpos")
-                        cantidad_final = self.get_acc_quan('Cuerpos')
+                # Tomamos los datos directamente procesados por el wizard
+                cantidad_final = acc_sel.quantity
+                precio_unitario_final = acc_sel.price_unit
+
+                _logger.info("Enviando a cotización - Producto: %s | Cantidad: %s | Unitario: %s", 
+                             acc_sel.product_id.name, cantidad_final, precio_unitario_final)
 
                 self.env['sale.order.line'].create({
                     'order_id': self.sale_order_id.id,
                     'product_id': acc_sel.product_id.id,
                     'product_uom_qty': cantidad_final,
-                    'price_unit': acc_sel.price,  # Precio de la tabla de accesorios por config
+                    'price_unit': precio_unitario_final,  # <--- AGREGADO: Pasa el unitario calculado
+                    'tax_ids': tax_commands,
                 })
 
         return {'type': 'ir.actions.act_window_close'}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="cat_accesorio_base" model="product.category">
+            <field name="name">Accesorio</field>
+        </record>
+
+        <record id="cat_accesorio_cantidad_lineas" model="product.category">
+            <field name="name">Cantidad de Líneas</field>
+            <field name="parent_id" ref="cat_accesorio_base"/>
+        </record>
+
+        <record id="cat_accesorio_distancia_lineas" model="product.category">
+            <field name="name">Distancia Entre Líneas</field>
+            <field name="parent_id" ref="cat_accesorio_base"/>
+        </record>
+
+        <record id="cat_accesorio_por_maquina" model="product.category">
+            <field name="name">Por Maquina</field>
+            <field name="parent_id" ref="cat_accesorio_base"/>
+        </record>
+    </data>
+</odoo>

@@ -8,3 +8,5 @@ access_plan_pago_template,access.cotizador.plan.pago.template,model_cotizador_pl
 access_plan_pago_template_line,access.cotizador.plan.pago.template.line,model_cotizador_plan_pago_template_line,base.group_user,1,1,1,1
 access_plan_pago_wizard,access.cotizador.plan.pago.wizard,model_cotizador_plan_pago_wizard,base.group_user,1,1,1,1
 access_plan_pago_wizard_line,access.cotizador.plan.pago.wizard.line,model_cotizador_plan_pago_wizard_line,base.group_user,1,1,1,1
+access_sembradora_import_wizard,access.sembradora.import.wizard,model_sembradora_import_wizard,base.group_user,1,1,1,1
+access_sembradora_accessory_rule,access.sembradora.accessory.rule,model_sembradora_accessory_rule,base.group_user,1,1,1,1
