@@ -7,19 +7,6 @@
         <field name="arch" type="xml">
             <form string="Importar Configuraciones desde CSV">
                 <header>
-                    <button name="action_analyze"
-                            string="📊 Analizar CSV"
-                            type="object"
-                            class="btn-primary"
-                            invisible="state != 'draft'"/>
-                    <button name="action_import"
-                            string="📥 Importar"
-                            type="object"
-                            class="btn-primary"
-                            invisible="state != 'analyzed'"/>
-                    <button string="Cerrar"
-                            class="btn-secondary"
-                            special="cancel"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,analyzed,done"/>
                 </header>
@@ -46,6 +33,21 @@
                         <field name="analysis_summary" nolabel="1" colspan="2"/>
                     </group>
                 </sheet>
+                <footer>
+                    <button name="action_analyze"
+                            string="📊 Analizar CSV"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_import"
+                            string="📥 Importar"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'analyzed'"/>
+                    <button string="Cerrar"
+                            class="btn-secondary"
+                            special="cancel"/>
+                </footer>
             </form>
         </field>
     </record>

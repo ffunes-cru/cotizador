@@ -71,6 +71,30 @@ class SembradoraImportWizard(models.TransientModel):
             _logger.warning("No se pudo parsear el precio: '%s'", price_str)
             return 0.0
 
+    def _make_ext_id(self, conf_id_raw, modelo_name):
+        """
+        Genera un ext_id único prefijado por el nombre del modelo si no lo incluye ya.
+        Evita colisiones entre configuraciones de distintos modelos que usen el mismo ID.
+        Ejemplos:
+          conf_id_raw='CONF-001', modelo_name='Pionera' -> 'C-PIONERA-CONF-001'
+          conf_id_raw='001', modelo_name='Pionera' -> 'C-PIONERA-001'
+          conf_id_raw='C-PIONERA-001', modelo_name='Pionera' -> 'C-PIONERA-001'
+        """
+        if not conf_id_raw:
+            return ''
+        conf_id = conf_id_raw.strip()
+        if not modelo_name:
+            return conf_id
+
+        mod_clean = modelo_name.strip().upper().replace(' ', '-')
+        conf_upper = conf_id.upper()
+
+        if conf_upper.startswith(f"C-{mod_clean}") or mod_clean in conf_upper:
+            return conf_id
+        if conf_upper.startswith("C-"):
+            return f"C-{mod_clean}-{conf_id[2:]}"
+        return f"C-{mod_clean}-{conf_id}"
+
     def _parse_rules_str(self, rules_str):
         """
         Parsea la cadena de reglas del CSV.
@@ -175,9 +199,10 @@ class SembradoraImportWizard(models.TransientModel):
         calc_params = set()
 
         for row in rows:
-            conf_id = row.get('ID_Configuracion', '').strip()
+            conf_id_raw = row.get('ID_Configuracion', '').strip()
             modelo = row.get('Modelo', '').strip()
             tipo = row.get('Tipo_Item', '').strip().upper()
+            conf_id = self._make_ext_id(conf_id_raw, modelo)
 
             if modelo:
                 modelos.add(modelo)
@@ -767,6 +792,13 @@ class SembradoraImportWizard(models.TransientModel):
                     raise UserError(
                         f"El producto accesorio '{nombre}' no existe y la opción de crear está desactivada."
                     )
+            else:
+                # Si el producto ya existe y se especificó Calc_param, actualizar la categoría si cambió
+                if cp:
+                    categ = category_map.get(cp, category_map.get(''))
+                    if categ and prod.categ_id != categ:
+                        prod.write({'categ_id': categ.id})
+                        _logger.info("Categoría de accesorio '%s' actualizada a: %s", nombre, categ.name)
             acc_map[nombre] = prod
 
         return acc_map
@@ -810,16 +842,17 @@ class SembradoraImportWizard(models.TransientModel):
         """Crea o actualiza sembradora.config.rel y sus accessory lines."""
         ConfigRel = self.env['sembradora.config.rel']
         AccLine = self.env['sembradora.config.accessory.line']
-        RuleRel = self.env['sembradora.acc.line.rule.rel']
 
-        # Agrupar filas por ID_Configuracion
+        # Agrupar filas por ID_Configuracion prefijado por modelo
         grouped = {}
         for row in rows:
-            conf_id = row.get('ID_Configuracion', '').strip()
-            if conf_id:
-                grouped.setdefault(conf_id, []).append(row)
+            conf_id_raw = row.get('ID_Configuracion', '').strip()
+            modelo_name = row.get('Modelo', '').strip()
+            ext_id = self._make_ext_id(conf_id_raw, modelo_name)
+            if ext_id:
+                grouped.setdefault(ext_id, []).append(row)
 
-        for conf_id, conf_rows in grouped.items():
+        for ext_id, conf_rows in grouped.items():
             # Tomar datos de la primera fila BASE
             base_row = None
             for r in conf_rows:
@@ -827,13 +860,13 @@ class SembradoraImportWizard(models.TransientModel):
                     base_row = r
                     break
             if not base_row:
-                _logger.warning("Configuración %s sin fila BASE, usando primera fila.", conf_id)
+                _logger.warning("Configuración %s sin fila BASE, usando primera fila.", ext_id)
                 base_row = conf_rows[0]
 
             modelo_name = base_row.get('Modelo', '').strip()
             tmpl = template_map.get(modelo_name)
             if not tmpl:
-                _logger.error("Template no encontrado para modelo '%s' en config %s", modelo_name, conf_id)
+                _logger.error("Template no encontrado para modelo '%s' en config %s", modelo_name, ext_id)
                 continue
 
             # Construir los value_ids (product.attribute.value) de la combinación
@@ -849,7 +882,7 @@ class SembradoraImportWizard(models.TransientModel):
             precio = self._parse_price(base_row.get('Precio_Base', ''))
 
             # Buscar config existente por ext_id
-            config = ConfigRel.search([('ext_id', '=', conf_id)], limit=1)
+            config = ConfigRel.search([('ext_id', '=', ext_id)], limit=1)
             if config:
                 config.write({
                     'modelo_id': tmpl.id,
@@ -857,16 +890,16 @@ class SembradoraImportWizard(models.TransientModel):
                     'price': precio,
                 })
                 counters['configs_updated'] += 1
-                _logger.info("Config actualizada: %s", conf_id)
+                _logger.info("Config actualizada: %s", ext_id)
             else:
                 config = ConfigRel.create({
-                    'ext_id': conf_id,
+                    'ext_id': ext_id,
                     'modelo_id': tmpl.id,
                     'value_ids': [(6, 0, value_ids)],
                     'price': precio,
                 })
                 counters['configs_created'] += 1
-                _logger.info("Config creada: %s", conf_id)
+                _logger.info("Config creada: %s", ext_id)
 
             # --- Líneas de accesorio ---
             existing_acc_lines = AccLine.search([('config_id', '=', config.id)])
