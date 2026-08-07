@@ -40,18 +40,20 @@ class SembradoraConfigWizard(models.TransientModel):
         for wiz in self:
             wiz.total_price = wiz.config_base_price + wiz.accessories_total
 
-    def _extraer_factor_de_atributos(self, palabras_clave):
+    def _extraer_factor_de_atributos(self, nombres_atributo):
         """
-        Busca en las líneas del wizard un atributo que coincida con las palabras clave
-        y extrae el primer valor numérico que encuentre (soporta enteros y decimales).
+        Busca en las líneas del wizard un atributo cuyo nombre coincida exactamente con
+        algún elemento de 'nombres_atributo' y extrae el primer número (entero o decimal).
         """
+        if isinstance(nombres_atributo, str):
+            nombres_atributo = [nombres_atributo]
+        nombres_clean = [n.strip().lower() for n in nombres_atributo]
+
         for line in self.line_ids:
             if line.attribute_id and line.value_id:
-                nombre_attr = line.attribute_id.name.lower()
-                # Verifica si el atributo es el correcto (ej: contiene "línea" o "distancia")
-                if any(p in nombre_attr for p in palabras_clave):
+                nombre_attr = line.attribute_id.name.strip().lower()
+                if nombre_attr in nombres_clean:
                     texto_valor = line.value_id.name
-                    # Busca números enteros o decimales (ej: 16 o 52.5)
                     numeros = re.findall(r'\d+\.?\d*', texto_valor)
                     if numeros:
                         return float(numeros[0])
@@ -77,11 +79,15 @@ class SembradoraConfigWizard(models.TransientModel):
             # 1. Determinación de Cantidad y Precio según Categoría
             if cat_lineas and categoria == cat_lineas:
                 precio_unitario = producto.list_price
-                cantidad = self._extraer_factor_de_atributos(['línea', 'linea', 'cantidad'])
+                cantidad = self._extraer_factor_de_atributos([
+                    'cantidad de líneas', 'cantidad de lineas', 'cantidad lineas', 'cantidad de líneas:'
+                ])
                 
             elif cat_distancia and categoria == cat_distancia:
                 precio_unitario = producto.list_price
-                cantidad = self._extraer_factor_de_atributos(['distancia', 'entre'])
+                cantidad = self._extraer_factor_de_atributos([
+                    'distancia entre líneas', 'distancia entre lineas', 'distancia de lineas', 'espaciamiento'
+                ])
                 
             elif cat_por_maquina and categoria == cat_por_maquina:
                 precio_unitario = producto.list_price
@@ -136,9 +142,11 @@ class SembradoraConfigWizard(models.TransientModel):
 
         # 1. Caso inicial: Sin líneas
         if not self.line_ids:
-            primer_attr = todas_configs.mapped('value_ids.attribute_id')
-            if primer_attr:
-                self.line_ids = [(0, 0, {'attribute_id': primer_attr[0].id})]
+            all_attrs = todas_configs.mapped('value_ids.attribute_id')
+            if all_attrs:
+                model_attr_order = {attr.id: i for i, attr in enumerate(self.modelo_id.attribute_line_ids.sorted('sequence').mapped('attribute_id'))}
+                all_attrs_sorted = sorted(all_attrs, key=lambda a: model_attr_order.get(a.id, a.sequence or 999))
+                self.line_ids = [(0, 0, {'attribute_id': all_attrs_sorted[0].id})]
             return
         
         # --- OPTIMIZACIÓN: Trabajaremos con listas locales de registros (memoria pura) ---
@@ -187,8 +195,12 @@ class SembradoraConfigWizard(models.TransientModel):
             attrs_actuales = [l.attribute_id for l in lineas_validadas]
             attrs_posibles = configs_restantes.mapped('value_ids.attribute_id')
             
+            # Ordenar atributos según la secuencia definida en la plantilla del producto
+            model_attr_order = {attr.id: i for i, attr in enumerate(self.modelo_id.attribute_line_ids.sorted('sequence').mapped('attribute_id'))}
+            attrs_posibles_sorted = sorted(attrs_posibles, key=lambda a: model_attr_order.get(a.id, a.sequence or 999))
+
             # Restar usando conjuntos en lugar de objetos de Odoo (más rápido)
-            proximos = [a for a in attrs_posibles if a not in attrs_actuales]
+            proximos = [a for a in attrs_posibles_sorted if a not in attrs_actuales]
             
             if not proximos:
                 self.config_finalizada = True

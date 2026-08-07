@@ -536,18 +536,24 @@ class SembradoraImportWizard(models.TransientModel):
 
         attr_map = {}  # {attr_name: {value_str: record}}
 
-        for attr_name, values in attr_values.items():
+        for idx, col in enumerate(attribute_columns, start=10):
+            attr_name = col.replace('_', ' ')
+            if attr_name not in attr_values:
+                continue
+            values = attr_values[attr_name]
             # Buscar o crear el atributo
             attr = ProductAttribute.search([('name', '=', attr_name)], limit=1)
             if not attr:
                 if self.create_missing_attributes:
-                    attr = ProductAttribute.create({'name': attr_name})
+                    attr = ProductAttribute.create({'name': attr_name, 'sequence': idx})
                     counters['attributes_created'] += 1
-                    _logger.info("Atributo creado: %s", attr_name)
+                    _logger.info("Atributo creado: %s (secuencia: %d)", attr_name, idx)
                 else:
                     raise UserError(
                         f"El atributo '{attr_name}' no existe y la opción de crear faltantes está desactivada."
                     )
+            else:
+                attr.write({'sequence': idx})
 
             attr_map[attr_name] = {}
             for val_str in values:
@@ -625,7 +631,7 @@ class SembradoraImportWizard(models.TransientModel):
     def _ensure_template_attribute_lines(self, tmpl, attr_map, rows, attribute_columns, modelo_name):
         """
         Asegura que el product.template tenga product.template.attribute.line
-        para cada atributo, con los valores correspondientes.
+        para cada atributo, con los valores correspondientes y su secuencia.
         """
         PTAL = self.env['product.template.attribute.line']
 
@@ -640,7 +646,11 @@ class SembradoraImportWizard(models.TransientModel):
                     attr_name = col.replace('_', ' ')
                     model_attr_values.setdefault(attr_name, set()).add(val)
 
-        for attr_name, value_strs in model_attr_values.items():
+        for idx, col in enumerate(attribute_columns, start=10):
+            attr_name = col.replace('_', ' ')
+            if attr_name not in model_attr_values:
+                continue
+            value_strs = model_attr_values[attr_name]
             if attr_name not in attr_map:
                 continue
             attr_record = list(attr_map[attr_name].values())[0].attribute_id if attr_map[attr_name] else None
@@ -660,19 +670,21 @@ class SembradoraImportWizard(models.TransientModel):
             value_ids = [v.id for v in value_records]
 
             if existing_ptal:
-                # Agregar valores faltantes (sin quitar los existentes)
                 current_ids = existing_ptal.value_ids.ids
                 new_ids = list(set(current_ids + value_ids))
+                write_vals = {'sequence': idx}
                 if set(new_ids) != set(current_ids):
-                    existing_ptal.write({'value_ids': [(6, 0, new_ids)]})
-                    _logger.info("Valores actualizados en attribute line de %s / %s", tmpl.name, attr_name)
+                    write_vals['value_ids'] = [(6, 0, new_ids)]
+                existing_ptal.write(write_vals)
+                _logger.info("Secuencia y valores actualizados en attribute line de %s / %s (secuencia: %d)", tmpl.name, attr_name, idx)
             else:
                 PTAL.create({
                     'product_tmpl_id': tmpl.id,
                     'attribute_id': attr_record.id,
+                    'sequence': idx,
                     'value_ids': [(6, 0, value_ids)],
                 })
-                _logger.info("Attribute line creada para %s / %s", tmpl.name, attr_name)
+                _logger.info("Attribute line creada para %s / %s con secuencia %d", tmpl.name, attr_name, idx)
 
     def _ensure_categories(self, rows, counters):
         """
