@@ -565,15 +565,23 @@ class SembradoraImportWizard(models.TransientModel):
             attr = ProductAttribute.search([('name', '=', attr_name)], limit=1)
             if not attr:
                 if self.create_missing_attributes:
-                    attr = ProductAttribute.create({'name': attr_name, 'sequence': idx})
+                    attr = ProductAttribute.create({
+                        'name': attr_name,
+                        'sequence': idx,
+                        'create_variant': 'dynamic',
+                    })
                     counters['attributes_created'] += 1
-                    _logger.info("Atributo creado: %s (secuencia: %d)", attr_name, idx)
+                    _logger.info("Atributo creado: %s (secuencia: %d, variantes: dynamic)", attr_name, idx)
                 else:
                     raise UserError(
                         f"El atributo '{attr_name}' no existe y la opción de crear faltantes está desactivada."
                     )
             else:
-                attr.write({'sequence': idx})
+                write_vals = {'sequence': idx}
+                # Forzar modo dinámico si está en 'always' para evitar explosión combinatoria
+                if attr.create_variant == 'always' and not attr.number_related_products:
+                    write_vals['create_variant'] = 'dynamic'
+                attr.write(write_vals)
 
             attr_map[attr_name] = {}
             for val_str in values:

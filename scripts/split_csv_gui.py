@@ -127,15 +127,15 @@ class CSVSplitterGUI(QMainWindow):
         main_layout.setSpacing(15)
         main_layout.setContentsMargins(20, 20, 20, 20)
 
-        # Encabezado estilo Dashboard
-        header_label = QLabel("✂️ Divisor de CSV para Cotizador de Sembradoras")
-        header_font = QFont("Segoe UI", 14, QFont.Weight.Bold)
+        # Encabezado
+        header_label = QLabel("Divisor de CSV para Cotizador de Sembradoras")
+        header_font = QFont()
+        header_font.setPointSize(12)
+        header_font.setBold(True)
         header_label.setFont(header_font)
-        header_label.setStyleSheet("color: #1a237e;")
         main_layout.addWidget(header_label)
 
         sub_label = QLabel("Divida archivos CSV de configuraciones pesadas en partes listas para importar en Odoo.")
-        sub_label.setStyleSheet("color: #555; font-size: 12px;")
         main_layout.addWidget(sub_label)
 
         # Grupo de Configuración
@@ -149,7 +149,7 @@ class CSVSplitterGUI(QMainWindow):
         file_label.setFixedWidth(120)
         self.txt_file = QLineEdit()
         self.txt_file.setPlaceholderText("Seleccione el archivo .csv gigante...")
-        btn_browse_file = QPushButton("📁 Buscar...")
+        btn_browse_file = QPushButton("Buscar...")
         btn_browse_file.clicked.connect(self.browse_file)
         file_layout.addWidget(file_label)
         file_layout.addWidget(self.txt_file)
@@ -162,7 +162,7 @@ class CSVSplitterGUI(QMainWindow):
         out_label.setFixedWidth(120)
         self.txt_output = QLineEdit()
         self.txt_output.setPlaceholderText("Directorio donde se guardarán las partes...")
-        btn_browse_out = QPushButton("📂 Seleccionar...")
+        btn_browse_out = QPushButton("Seleccionar...")
         btn_browse_out.clicked.connect(self.browse_output)
         out_layout.addWidget(out_label)
         out_layout.addWidget(self.txt_output)
@@ -178,7 +178,6 @@ class CSVSplitterGUI(QMainWindow):
         self.num_max_configs.setValue(150)
         self.num_max_configs.setFixedWidth(100)
         help_chunk = QLabel("(Recomendado: 150 a 200 configuraciones por archivo)")
-        help_chunk.setStyleSheet("color: #777; font-size: 11px;")
         chunk_layout.addWidget(chunk_label)
         chunk_layout.addWidget(self.num_max_configs)
         chunk_layout.addWidget(help_chunk)
@@ -187,30 +186,18 @@ class CSVSplitterGUI(QMainWindow):
 
         main_layout.addWidget(group_box)
 
-        # Botón Acción Principal
-        self.btn_run = QPushButton("⚡ Dividir Archivo CSV")
-        self.btn_run.setFixedHeight(42)
-        self.btn_run.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        self.btn_run.setStyleSheet("""
-            QPushButton {
-                background-color: #00796b;
-                color: white;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background-color: #004d40;
-            }
-            QPushButton:disabled {
-                background-color: #b2dfdb;
-            }
-        """)
+        # Botón Acción Principal Nativo
+        self.btn_run = QPushButton("Dividir Archivo CSV")
+        btn_font = QFont()
+        btn_font.setBold(True)
+        self.btn_run.setFont(btn_font)
+        self.btn_run.setFixedHeight(36)
         self.btn_run.clicked.connect(self.run_split)
         main_layout.addWidget(self.btn_run)
 
         # Consola / Log de Salida
         self.txt_log = QTextEdit()
         self.txt_log.setReadOnly(True)
-        self.txt_log.setStyleSheet("background-color: #f8f9fa; border: 1px solid #cccccc; font-family: Consolas, monospace; font-size: 12px;")
         main_layout.addWidget(self.txt_log)
 
     def browse_file(self):
@@ -244,7 +231,7 @@ class CSVSplitterGUI(QMainWindow):
 
         self.txt_log.clear()
         self.btn_run.setEnabled(False)
-        self.log("🚀 Iniciando división del archivo...")
+        self.log("Iniciando división del archivo...")
 
         # Iniciar hilo de trabajo secundario
         self.worker = SplitWorker(input_file, max_configs, output_dir)
@@ -258,13 +245,12 @@ class CSVSplitterGUI(QMainWindow):
             self.log(f"\n{message}")
             QMessageBox.information(self, "Éxito", message)
         else:
-            self.log(f"\n❌ {message}")
+            self.log(f"\n{message}")
             QMessageBox.critical(self, "Error", message)
 
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyle("Fusion")
     window = CSVSplitterGUI()
     window.show()
     sys.exit(app.exec())
