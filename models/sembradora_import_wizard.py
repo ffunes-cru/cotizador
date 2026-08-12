@@ -1,7 +1,9 @@
 import base64
 import csv
 import io
+import json
 import logging
+import os
 from odoo import models, fields, api
 from odoo.exceptions import UserError
 
@@ -24,8 +26,7 @@ class SembradoraImportWizard(models.TransientModel):
     _description = 'Importador CSV de Configuraciones de Sembradora'
 
     # --- Paso 1: Carga ---
-    csv_file = fields.Binary(string='Archivo CSV', required=True)
-    csv_filename = fields.Char(string='Nombre del Archivo')
+    csv_file_ids = fields.Many2many('ir.attachment', string='Archivos CSV')
 
     # --- Resultado del análisis ---
     state = fields.Selection([
@@ -150,20 +151,32 @@ class SembradoraImportWizard(models.TransientModel):
         return result
 
     def _read_csv(self):
-        """Lee el CSV subido y devuelve una lista de dicts."""
-        if not self.csv_file:
-            raise UserError("Por favor, suba un archivo CSV.")
-        raw = base64.b64decode(self.csv_file)
-        # Intentar decodificar con UTF-8 y luego latin-1 como fallback
-        try:
-            text = raw.decode('utf-8-sig')
-        except UnicodeDecodeError:
-            text = raw.decode('latin-1')
-        reader = csv.DictReader(io.StringIO(text))
-        rows = list(reader)
-        if not rows:
-            raise UserError("El archivo CSV está vacío o no tiene el formato esperado.")
-        return rows
+        """Lee los CSVs subidos en csv_file_ids o recupera los datos parseados de _parsed_data."""
+        if self._parsed_data:
+            try:
+                return json.loads(self._parsed_data)
+            except Exception as e:
+                _logger.warning("No se pudo parsear _parsed_data: %s", e)
+
+        if not self.csv_file_ids:
+            raise UserError("Por favor, seleccione al menos un archivo CSV.")
+
+        all_rows = []
+        for att in self.csv_file_ids:
+            raw = att.raw
+            if not raw:
+                continue
+            try:
+                text = raw.decode('utf-8-sig')
+            except UnicodeDecodeError:
+                text = raw.decode('latin-1')
+            reader = csv.DictReader(io.StringIO(text))
+            file_rows = list(reader)
+            all_rows.extend(file_rows)
+
+        if not all_rows:
+            raise UserError("Los archivos CSV seleccionados están vacíos o no tienen el formato esperado.")
+        return all_rows
 
     def _get_attribute_columns(self, rows):
         """
@@ -250,91 +263,87 @@ class SembradoraImportWizard(models.TransientModel):
                         rules_detected[key]['is_trigger_seen'] = True
 
         # --- Verificar existencia en Odoo ---
+        # --- Verificar existencia en Odoo (optimizado en lote) ---
         ProductTemplate = self.env['product.template']
         ProductProduct = self.env['product.product']
         ProductAttribute = self.env['product.attribute']
         ProductAttributeValue = self.env['product.attribute.value']
 
         # Modelos (product.template con categ "Maquina")
-        modelos_existentes = set()
-        modelos_faltantes = set()
-        for m in modelos:
-            tmpl = ProductTemplate.search([('name', '=', m), ('categ_id.name', '=', 'Maquina')], limit=1)
-            if tmpl:
-                modelos_existentes.add(m)
-            else:
-                modelos_faltantes.add(m)
+        found_templates = ProductTemplate.search([
+            ('name', 'in', list(modelos)),
+            ('categ_id.name', '=', 'Maquina')
+        ]) if modelos else ProductTemplate
+        modelos_existentes = set(found_templates.mapped('name'))
+        modelos_faltantes = modelos - modelos_existentes
 
-        # Atributos y valores
+        # Atributos y valores (en lote)
+        all_attr_names = list(attr_values.keys())
+        found_attrs = ProductAttribute.search([('name', 'in', all_attr_names)]) if all_attr_names else ProductAttribute
+        attr_by_name = {a.name: a for a in found_attrs}
+
+        all_val_strings = set()
+        for vals in attr_values.values():
+            all_val_strings.update(vals)
+        found_vals = ProductAttributeValue.search([
+            ('name', 'in', list(all_val_strings)),
+            ('attribute_id', 'in', [a.id for a in found_attrs])
+        ]) if (found_attrs and all_val_strings) else ProductAttributeValue
+        val_exist_set = set((v.name, v.attribute_id.id) for v in found_vals)
+
         attrs_existentes = {}
         attrs_faltantes = {}
         valores_existentes = {}
         valores_faltantes = {}
 
         for attr_name, values in attr_values.items():
-            attr = ProductAttribute.search([('name', '=', attr_name)], limit=1)
-            if attr:
+            if attr_name in attr_by_name:
+                attr = attr_by_name[attr_name]
                 attrs_existentes[attr_name] = attr
                 for v in values:
-                    val = ProductAttributeValue.search([
-                        ('name', '=', v),
-                        ('attribute_id', '=', attr.id)
-                    ], limit=1)
-                    if val:
+                    if (v, attr.id) in val_exist_set:
                         valores_existentes.setdefault(attr_name, set()).add(v)
                     else:
                         valores_faltantes.setdefault(attr_name, set()).add(v)
             else:
                 attrs_faltantes[attr_name] = values
 
-        # Accesorios (product.product con categoría hija de Accesorio)
+        # Accesorios (product.product en lote)
         cat_base = self.env.ref(CATEGORY_BASE_XMLID, raise_if_not_found=False)
-        accs_existentes = set()
-        accs_faltantes = set()
-        for nombre in accesorios:
-            # Buscar en product.product dentro de la jerarquía de categorías de Accesorio
-            domain = [('name', '=', nombre)]
-            if cat_base:
-                # Buscar en la categoría base y sus hijas
-                child_cats = self.env['product.category'].search([
-                    ('id', 'child_of', cat_base.id)
-                ])
-                domain.append(('categ_id', 'in', child_cats.ids))
-            prod = ProductProduct.search(domain, limit=1)
-            if prod:
-                accs_existentes.add(nombre)
-            else:
-                accs_faltantes.add(nombre)
+        child_cat_ids = []
+        if cat_base:
+            child_cats = self.env['product.category'].search([('id', 'child_of', cat_base.id)])
+            child_cat_ids = child_cats.ids
 
-        # Categorías de Calc_param
+        acc_domain = [('name', 'in', list(accesorios.keys()))]
+        if child_cat_ids:
+            acc_domain.append(('categ_id', 'in', child_cat_ids))
+
+        found_prods = ProductProduct.search(acc_domain) if accesorios else ProductProduct
+        accs_existentes = set(found_prods.mapped('name'))
+        accs_faltantes = set(accesorios.keys()) - accs_existentes
+
+        # Categorías de Calc_param (en lote)
         cats_faltantes_param = set()
-        for cp in calc_params:
-            xmlid = CALC_PARAM_CATEGORY_MAP.get(cp)
-            if xmlid:
-                cat = self.env.ref(xmlid, raise_if_not_found=False)
-                if not cat:
-                    cats_faltantes_param.add(cp)
-            else:
-                # Calc_param no mapeado → necesita nueva categoría
-                # Verificar si ya existe una categoría hija con ese nombre
-                if cat_base:
-                    existing = self.env['product.category'].search([
-                        ('name', '=', cp),
-                        ('parent_id', '=', cat_base.id)
-                    ], limit=1)
-                    if not existing:
+        if cat_base and calc_params:
+            existing_cats = self.env['product.category'].search([
+                ('parent_id', '=', cat_base.id)
+            ])
+            existing_cat_names = set(existing_cats.mapped('name'))
+            for cp in calc_params:
+                xmlid = CALC_PARAM_CATEGORY_MAP.get(cp)
+                if xmlid:
+                    cat = self.env.ref(xmlid, raise_if_not_found=False)
+                    if not cat:
                         cats_faltantes_param.add(cp)
+                elif cp not in existing_cat_names:
+                    cats_faltantes_param.add(cp)
 
-        # Configs existentes (por ext_id)
+        # Configs existentes (por ext_id en lote)
         ConfigRel = self.env['sembradora.config.rel']
-        configs_existentes = set()
-        configs_nuevas = set()
-        for conf_id in configs:
-            existing = ConfigRel.search([('ext_id', '=', conf_id)], limit=1)
-            if existing:
-                configs_existentes.add(conf_id)
-            else:
-                configs_nuevas.add(conf_id)
+        found_configs = ConfigRel.search([('ext_id', 'in', list(configs.keys()))]) if configs else ConfigRel
+        configs_existentes = set(found_configs.mapped('ext_id'))
+        configs_nuevas = set(configs.keys()) - configs_existentes
 
         # --- Generar HTML del resumen ---
         html = self._build_analysis_html(
@@ -349,6 +358,7 @@ class SembradoraImportWizard(models.TransientModel):
         self.write({
             'state': 'analyzed',
             'analysis_summary': html,
+            '_parsed_data': json.dumps(rows),
         })
 
         return {
@@ -371,11 +381,15 @@ class SembradoraImportWizard(models.TransientModel):
         # Configuraciones
         lines.append(f'<h3>📋 Configuraciones: {len(configs)}</h3>')
         lines.append('<ul>')
-        for cid in sorted(configs.keys()):
+        sorted_cids = sorted(configs.keys())
+        max_configs = 25
+        for cid in sorted_cids[:max_configs]:
             status = '✅ existente' if cid in configs_exist else '🆕 nueva'
             c = configs[cid]
             attrs_str = ', '.join(f'{k}: {v}' for k, v in c['attrs'].items())
             lines.append(f'<li><b>{cid}</b> — {c["modelo"]} ({attrs_str}) — ${c["precio"]:,.2f} — {status}</li>')
+        if len(sorted_cids) > max_configs:
+            lines.append(f'<li><i>... y {len(sorted_cids) - max_configs} configuraciones más.</i></li>')
         lines.append('</ul>')
 
         # Modelos
@@ -403,10 +417,14 @@ class SembradoraImportWizard(models.TransientModel):
         lines.append(f'<h3>🔧 Accesorios: {len(accesorios)}</h3>')
         if accs_falt:
             lines.append('<p style="color: #e65100;">⚠️ A crear:</p><ul>')
-            for a in sorted(accs_falt):
+            sorted_accs = sorted(accs_falt)
+            max_accs = 25
+            for a in sorted_accs[:max_accs]:
                 cp = accesorios[a]['calc_param']
                 cp_str = f' (Calc: {cp})' if cp else ''
                 lines.append(f'<li>{a}{cp_str}</li>')
+            if len(sorted_accs) > max_accs:
+                lines.append(f'<li><i>... y {len(sorted_accs) - max_accs} accesorios más.</i></li>')
             lines.append('</ul>')
         if accs_exist:
             lines.append(f'<p style="color: #2e7d32;">✅ Existentes: {len(accs_exist)} accesorios</p>')
@@ -423,15 +441,17 @@ class SembradoraImportWizard(models.TransientModel):
         if rules_detected:
             lines.append(f'<h3>📏 Reglas de Exclusión/Inclusión: {len(rules_detected)}</h3>')
             lines.append('<ul>')
-            for (name, rtype), info in sorted(rules_detected.items()):
+            sorted_rules = sorted(rules_detected.items())
+            max_rules = 25
+            found_rules = self.env['sembradora.accessory.rule'].search([])
+            existing_rule_keys = set((r.name, r.rule_type) for r in found_rules)
+            for (name, rtype), info in sorted_rules[:max_rules]:
                 tipo_label = '🚫 Exclusión' if rtype == 'exclusion' else '🔗 Inclusión'
                 trigger_str = ' (con trigger)' if info['is_trigger_seen'] else ''
-                # Verificar si ya existe en BD
-                existing = self.env['sembradora.accessory.rule'].search([
-                    ('name', '=', name), ('rule_type', '=', rtype)
-                ], limit=1)
-                status = '✅' if existing else '🆕'
+                status = '✅' if (name, rtype) in existing_rule_keys else '🆕'
                 lines.append(f'<li>{status} <b>{name}</b> — {tipo_label}{trigger_str}</li>')
+            if len(sorted_rules) > max_rules:
+                lines.append(f'<li><i>... y {len(sorted_rules) - max_rules} reglas más.</i></li>')
             lines.append('</ul>')
 
         lines.append('</div>')
