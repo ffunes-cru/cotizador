@@ -30,32 +30,51 @@
                         </p>
                     </t>
 
-                    <div class="page">
-                        <!-- Título -->
-                        <h2 class="mt-4">
+                    <div class="page" style="padding-top: 0 !important; margin-top: 0 !important;">
+                        <style>
+                            .page {
+                                padding-top: 0px !important;
+                                margin-top: 0px !important;
+                            }
+                            .table-sm th, .table-sm td {
+                                padding: 0.25rem 0.4rem !important;
+                            }
+                            h2.report-title {
+                                margin-top: 0px !important;
+                                margin-bottom: 6px !important;
+                                font-size: 1.5rem !important;
+                            }
+                        </style>
+
+                        <!-- Título Compacto -->
+                        <h2 class="report-title">
                             <span t-if="doc.state in ['draft','sent']">Cotización # </span>
                             <span t-else="">Orden # </span>
                             <span t-field="doc.name"/>
                         </h2>
 
-                        <!-- Datos de la Cotización -->
-                        <div class="row mb-4 mt-4" id="informations">
-                            <div t-if="doc.date_order" class="col" name="informations_date">
-                                <strong>Fecha</strong>
+                        <!-- Datos de la Cotización: Fecha, Vencimiento, Vendedor, Líder de Equipo -->
+                        <div class="row mb-3 mt-2" id="informations">
+                            <div t-if="doc.date_order" class="col-3" name="informations_date">
+                                <strong class="d-block text-muted small">Fecha:</strong>
                                 <div t-field="doc.date_order" t-options='{"widget": "date"}'/>
                             </div>
-                            <div t-if="doc.validity_date and doc.state in ['draft', 'sent']" class="col">
-                                <strong>Vencimiento</strong>
+                            <div t-if="doc.validity_date and doc.state in ['draft', 'sent']" class="col-3">
+                                <strong class="d-block text-muted small">Vencimiento:</strong>
                                 <div t-field="doc.validity_date"/>
                             </div>
-                            <div t-if="doc.user_id.name" class="col">
-                                <strong>Vendedor</strong>
+                            <div t-if="doc.user_id.name" class="col-3">
+                                <strong class="d-block text-muted small">Vendedor:</strong>
                                 <div t-field="doc.user_id"/>
+                            </div>
+                            <div t-if="doc.team_id and doc.team_id.user_id" class="col-3">
+                                <strong class="d-block text-muted small">Líder de Equipo:</strong>
+                                <div t-field="doc.team_id.user_id"/>
                             </div>
                         </div>
 
                         <!-- ======================================= -->
-                        <!-- Descripción de la Configuración         -->
+                        <!-- Descripción de la Máquina en Texto Plano-->
                         <!-- ======================================= -->
                         <t t-set="config_descriptions" t-value="[]"/>
                         <t t-foreach="doc.order_line.filtered(lambda l: l.product_id and l.product_id.product_tmpl_id.categ_id.name == 'Maquina')" t-as="maquina_line">
@@ -64,10 +83,7 @@
                                 ('value_ids', 'in', maquina_line.product_id.product_template_attribute_value_ids.mapped('product_attribute_value_id').ids)
                             ], limit=1)"/>
                             <t t-if="config_rel and config_rel.description">
-                                <div class="mb-4 p-3" style="background-color: #f8f9fa; border-left: 4px solid #495057;">
-                                    <h4 class="mb-2">
-                                        <i class="fa fa-info-circle"/> Descripción — <span t-out="config_rel.name"/>
-                                    </h4>
+                                <div class="mb-3 text-secondary" style="font-size: 0.95rem; line-height: 1.4;">
                                     <div t-field="config_rel.description"/>
                                 </div>
                             </t>

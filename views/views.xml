@@ -99,25 +99,112 @@
                 </button>
             </xpath>
 
+            <!-- Banner de Alerta BCRA -->
+            <xpath expr="//div[@name='button_box']" position="after">
+                <field name="bcra_tiene_deuda" invisible="1"/>
+                <field name="bcra_peor_situacion" invisible="1"/>
+                <div class="alert alert-danger d-flex align-items-center justify-content-between mb-3 mt-2 shadow-sm"
+                     role="alert"
+                     invisible="not bcra_tiene_deuda or bcra_peor_situacion == '1'">
+                    <div class="d-flex align-items-center">
+                        <i class="fa fa-exclamation-triangle fa-2x me-3 text-danger"/>
+                        <div>
+                            <strong class="fs-6">ALERTA CREDITICIA BCRA:</strong>
+                            <div class="text-dark"><field name="bcra_alerta_mensaje" readonly="1"/></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-warning d-flex align-items-center justify-content-between mb-3 mt-2 shadow-sm"
+                     role="alert"
+                     invisible="not bcra_tiene_deuda or bcra_peor_situacion != '1'">
+                    <div class="d-flex align-items-center">
+                        <i class="fa fa-info-circle fa-2x me-3 text-warning"/>
+                        <div>
+                            <strong class="fs-6">Información Crediticia BCRA:</strong>
+                            <div class="text-dark"><field name="bcra_alerta_mensaje" readonly="1"/></div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+
             <xpath expr="//field[@name='partner_id']" position="after">
                 <field name="user_id" widget="many2one_avatar_user" string="Concesionario"/>
             </xpath>
 
             <!-- Interceptar "Add a product" en order_line para abrir nuestro wizard si es categoría Maquina -->
-            <!-- Reemplazamos los controles del listado de order_line -->
             <xpath expr="//field[@name='order_line']//list//control" position="replace">
                 <control>
-                    <!-- Botón que abre nuestro wizard configurador llamando al método del parent sale.order passing the parent id -->
                     <button name="action_open_config_wizard" 
                             type="object"
                             string="Configurar Sembradora"
                             class="px-4 btn-link"
                             context="{'default_sale_order_id': parent.id}"/>
-                    <!-- Mantener "Add a product" estándar para productos no-máquina -->
                     <create name="add_product_control" string="Añadir otro producto"/>
                     <create name="add_section_control" string="Add a section" context="{'default_display_type': 'line_section'}"/>
                     <create name="add_note_control" string="Add a note" context="{'default_display_type': 'line_note'}"/>
                 </control>
+            </xpath>
+
+            <!-- Pestaña de Situación Crediticia BCRA -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Situación Crediticia BCRA" name="page_bcra">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="fw-bold mb-1">
+                                <i class="fa fa-university text-primary me-2"/>Central de Deudores (BCRA)
+                            </h5>
+                            <p class="text-muted small mb-0">
+                                Información de deudas financieras y cheques rechazados provista en tiempo real por el Banco Central.
+                            </p>
+                        </div>
+                        <button name="action_consultar_bcra"
+                                type="object"
+                                string="Actualizar Consulta BCRA"
+                                icon="fa-refresh"
+                                class="btn btn-outline-primary btn-sm"/>
+                    </div>
+
+                    <group>
+                        <group string="Resumen del Cliente">
+                            <field name="bcra_denominacion" readonly="1"/>
+                            <field name="bcra_consulta_fecha" readonly="1"/>
+                        </group>
+                        <group string="Estado Crediticio">
+                            <field name="bcra_peor_situacion" readonly="1"
+                                   widget="badge"
+                                   decoration-success="bcra_peor_situacion == '1'"
+                                   decoration-warning="bcra_peor_situacion == '2'"
+                                   decoration-danger="bcra_peor_situacion in ('3', '4', '5', '6')"/>
+                            <field name="bcra_monto_total" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <separator string="Deudas por Entidad Bancaria"/>
+                    <field name="bcra_deuda_ids" readonly="1">
+                        <list decoration-danger="situacion in ('3','4','5','6')" decoration-warning="situacion == '2'" decoration-success="situacion == '1'">
+                            <field name="periodo"/>
+                            <field name="entidad"/>
+                            <field name="situacion" widget="badge"
+                                   decoration-success="situacion == '1'"
+                                   decoration-warning="situacion == '2'"
+                                   decoration-danger="situacion in ('3', '4', '5', '6')"/>
+                            <field name="monto"/>
+                            <field name="dias_atraso"/>
+                            <field name="observaciones"/>
+                        </list>
+                    </field>
+
+                    <separator string="Cheques Rechazados" invisible="not bcra_cheque_ids"/>
+                    <field name="bcra_cheque_ids" readonly="1" invisible="not bcra_cheque_ids">
+                        <list decoration-danger="True">
+                            <field name="nro_cheque"/>
+                            <field name="fecha_rechazo"/>
+                            <field name="monto"/>
+                            <field name="causal"/>
+                            <field name="estado"/>
+                        </list>
+                    </field>
+                </page>
             </xpath>
         </field>
     </record>

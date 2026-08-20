@@ -4,7 +4,9 @@ from . import sembradora_config_acc_line
 from . import sembradora_wizard
 from . import sembradora_wizard_line
 from . import sembradora_wizard_acc_line
+from . import bcra_service
 from . import sale_order_inherit
+from . import crm_lead_inherit
 from . import plan_pago
 from . import product_attribute_inherit
 from . import sembradora_import_wizard

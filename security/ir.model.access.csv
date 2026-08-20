@@ -10,3 +10,5 @@ access_plan_pago_wizard,access.cotizador.plan.pago.wizard,model_cotizador_plan_p
 access_plan_pago_wizard_line,access.cotizador.plan.pago.wizard.line,model_cotizador_plan_pago_wizard_line,base.group_user,1,1,1,1
 access_sembradora_import_wizard,access.sembradora.import.wizard,model_sembradora_import_wizard,base.group_user,1,1,1,1
 access_sembradora_accessory_rule,access.sembradora.accessory.rule,model_sembradora_accessory_rule,base.group_user,1,1,1,1
+access_sale_order_bcra_deuda,access.sale.order.bcra.deuda,model_sale_order_bcra_deuda,base.group_user,1,1,1,1
+access_sale_order_bcra_cheque,access.sale.order.bcra.cheque,model_sale_order_bcra_cheque,base.group_user,1,1,1,1

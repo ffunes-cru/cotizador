@@ -9,6 +9,8 @@
         'base_import_module',
         'sale',
         'portal',
+        'crm',
+        'sale_crm',
     ],
     'data': [
         'security/ir.model.access.csv',
