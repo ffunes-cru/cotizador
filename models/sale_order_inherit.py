@@ -29,14 +29,18 @@ class SaleOrderInherit(models.Model):
     #         order.has_credito_bancario = 'credito_bancario' in tipos
 
     def action_confirm(self):
-        """Override para validar que exista al menos una línea de plan de pago antes de confirmar."""
-        for order in self:
-            tiene_plan_pago = order.order_line.filtered(lambda l: l.is_plan_pago)
-            if not tiene_plan_pago:
-                raise UserError(
-                    _("No se puede confirmar la orden '%s' porque no tiene un Plan de Pago seleccionado.\n"
-                      "Por favor, agregue un Plan de Pago antes de confirmar.") % order.name
-                )
+        """Override para validar que exista al menos una línea de plan de pago antes de confirmar (si está configurado como obligatorio)."""
+        plan_pago_required = self.env['ir.config_parameter'].sudo().get_param(
+            'cotizador.plan_pago_required', default='False'
+        )
+        if plan_pago_required == 'True':
+            for order in self:
+                tiene_plan_pago = order.order_line.filtered(lambda l: l.is_plan_pago)
+                if not tiene_plan_pago:
+                    raise UserError(
+                        _("No se puede confirmar la orden '%s' porque no tiene un Plan de Pago seleccionado.\n"
+                          "Por favor, agregue un Plan de Pago antes de confirmar.") % order.name
+                    )
         return super().action_confirm()
 
     def action_open_config_wizard(self):

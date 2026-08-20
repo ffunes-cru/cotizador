@@ -8,6 +8,7 @@
         'base',
         'base_import_module',
         'sale',
+        'portal',
     ],
     'data': [
         'security/ir.model.access.csv',
@@ -18,7 +19,16 @@
         'data/product_category_data.xml',
         'views/import_wizard_view.xml',
         'views/accessory_rule_view.xml',
+        'views/res_config_settings_view.xml',
+        'report/report_cotizacion_planes.xml',
+        'views/portal_templates.xml',
+        'views/price_wizard_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'cotizador/static/src/components/price_wizard/**/*',
+        ],
+    },
     'installable': True,
     'post_init_hook': '_post_init_hook',
 }

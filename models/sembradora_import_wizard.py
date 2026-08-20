@@ -920,24 +920,25 @@ class SembradoraImportWizard(models.TransientModel):
                         value_ids.append(val_record.id)
 
             precio = self._parse_price(base_row.get('Precio_Base', ''))
+            descripcion = base_row.get('Descripcion', '').strip()
 
             # Buscar config existente por ext_id
             config = ConfigRel.search([('ext_id', '=', ext_id)], limit=1)
+            config_vals = {
+                'modelo_id': tmpl.id,
+                'value_ids': [(6, 0, value_ids)],
+                'price': precio,
+            }
+            if descripcion:
+                config_vals['description'] = descripcion
+
             if config:
-                config.write({
-                    'modelo_id': tmpl.id,
-                    'value_ids': [(6, 0, value_ids)],
-                    'price': precio,
-                })
+                config.write(config_vals)
                 counters['configs_updated'] += 1
                 _logger.info("Config actualizada: %s", ext_id)
             else:
-                config = ConfigRel.create({
-                    'ext_id': ext_id,
-                    'modelo_id': tmpl.id,
-                    'value_ids': [(6, 0, value_ids)],
-                    'price': precio,
-                })
+                config_vals['ext_id'] = ext_id
+                config = ConfigRel.create(config_vals)
                 counters['configs_created'] += 1
                 _logger.info("Config creada: %s", ext_id)
 

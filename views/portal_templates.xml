@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- ============================================= -->
+    <!-- Herencia del Portal: Planes de Pago           -->
+    <!-- ============================================= -->
+    <template id="sale_order_portal_plan_pago"
+              name="Planes de Pago en Portal"
+              inherit_id="sale.sale_order_portal_content">
+        <!-- Inyectar la sección de planes de pago después de los totales -->
+        <xpath expr="//div[@id='total']" position="after">
+            <t t-if="plan_templates and sale_order.state in ('draft', 'sent')">
+                <section id="plan_pago_portal" class="mt-4">
+                    <h4><i class="fa fa-money"/> Planes de Pago Disponibles</h4>
+                    <hr class="mt-0 mb-3"/>
+
+                    <!-- Mensaje de confirmación si el plan fue seleccionado -->
+                    <t t-if="message == 'plan_selected'">
+                        <div class="alert alert-success" role="alert">
+                            <i class="fa fa-check-circle"/> El plan de pago fue seleccionado exitosamente. El vendedor será notificado.
+                        </div>
+                    </t>
+
+                    <!-- Verificar si ya tiene un plan -->
+                    <t t-set="has_plan" t-value="sale_order.order_line.filtered(lambda l: l.is_plan_pago)"/>
+
+                    <t t-if="has_plan">
+                        <div class="alert alert-info" role="alert">
+                            <i class="fa fa-info-circle"/> Ya tiene un plan de pago seleccionado en esta cotización. Contacte al vendedor si desea modificarlo.
+                        </div>
+                    </t>
+
+                    <t t-foreach="plan_templates" t-as="plan_tmpl">
+                        <h5 class="mt-3 mb-2" style="color: #495057;">
+                            <span t-out="plan_tmpl.name"/>
+                        </h5>
+
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 55%;">Detalle</th>
+                                    <th class="text-end text-nowrap" style="width: 15%;">Desc/Rec (%)</th>
+                                    <th class="text-end text-nowrap" style="width: 18%;">Total Estimado</th>
+                                    <th t-if="not has_plan" class="text-center text-nowrap" style="width: 12%;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="plan_tmpl.line_ids" t-as="pl">
+                                    <tr>
+                                        <td><span t-out="pl.name"/></td>
+                                        <td class="text-end text-nowrap">
+                                            <span t-out="pl.descuento"/>%
+                                        </td>
+                                        <td class="text-end text-nowrap fw-bold">
+                                            <span t-out="sale_order.amount_total * (1 + pl.descuento / 100)"
+                                                  t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                        </td>
+                                        <td t-if="not has_plan" class="text-center text-nowrap">
+                                            <form t-att-action="sale_order.get_portal_url(suffix='/select_plan')"
+                                                  method="POST" class="d-inline">
+                                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                                <input type="hidden" name="access_token" t-att-value="sale_order._portal_ensure_token()"/>
+                                                <input type="hidden" name="plan_line_id" t-att-value="pl.id"/>
+                                                <button type="submit" class="btn btn-sm btn-primary">
+                                                    <i class="fa fa-check"/> Elegir
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </t>
+                </section>
+            </t>
+        </xpath>
+    </template>
+</odoo>

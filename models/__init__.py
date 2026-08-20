@@ -8,3 +8,5 @@ from . import sale_order_inherit
 from . import plan_pago
 from . import product_attribute_inherit
 from . import sembradora_import_wizard
+from . import res_config_settings
+from . import price_wizard_service

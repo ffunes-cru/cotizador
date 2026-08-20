@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Acción de Cliente OWL para el Asistente de Precios -->
+    <record id="action_cotizador_price_wizard" model="ir.actions.client">
+        <field name="name">Asistente de Precios</field>
+        <field name="tag">cotizador_price_wizard</field>
+    </record>
+
+    <!-- Menú dentro de Ventas -> Configuración -> Configurador Sembradoras -->
+    <menuitem id="menu_cotizador_price_wizard"
+              name="Asistente de Precios"
+              parent="cotizador.menu_sembradora_config_root"
+              sequence="5"
+              action="action_cotizador_price_wizard"/>
+</odoo>

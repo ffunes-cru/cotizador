@@ -18,6 +18,7 @@ class SembradoraConfigRel(models.Model):
         string='Accesorios con Precio')
 
     price = fields.Float(string="Precio de Configuración")
+    description = fields.Html(string="Descripción", help="Descripción detallada de la configuración de la máquina.")
 
     name = fields.Char(string="Configuración", compute="_compute_name", store=True)
 
