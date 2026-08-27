@@ -25,6 +25,7 @@
         'report/report_cotizacion_planes.xml',
         'views/portal_templates.xml',
         'views/price_wizard_views.xml',
+        'views/bcra_wizard_view.xml',
     ],
     'assets': {
         'web.assets_backend': [

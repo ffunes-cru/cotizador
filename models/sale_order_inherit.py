@@ -10,62 +10,40 @@ _logger = logging.getLogger(__name__)
 class SaleOrderInherit(models.Model):
     _inherit = 'sale.order'
 
-    # --- Campos de Integración BCRA Central de Deudores ---
-    bcra_consulta_fecha = fields.Datetime(string="Fecha Consulta BCRA", readonly=True, copy=False)
-    bcra_denominacion = fields.Char(string="Denominación BCRA", readonly=True, copy=False)
-    bcra_tiene_deuda = fields.Boolean(string="Tiene Deuda BCRA", default=False, readonly=True, copy=False)
-    bcra_peor_situacion = fields.Selection([
-        ('1', '1 - Normal'),
-        ('2', '2 - Con Seguimiento Especial'),
-        ('3', '3 - Con Problemas'),
-        ('4', '4 - Alto Riesgo de Insolvencia'),
-        ('5', '5 - Irrecuperable'),
-        ('6', '6 - Irrecuperable Técnica'),
-    ], string="Peor Situación BCRA", readonly=True, copy=False)
-    bcra_monto_total = fields.Monetary(string="Total Deuda BCRA", currency_field='currency_id', readonly=True, copy=False)
-    bcra_alerta_mensaje = fields.Text(string="Mensaje de Alerta BCRA", readonly=True, copy=False)
+    @api.onchange('partner_id')
+    def _onchange_partner_id_bcra(self):
+        """Al seleccionar cliente, consulta en tiempo real al BCRA y emite alerta si posee deudas."""
+        if self.partner_id and self.partner_id.vat:
+            data = consultar_bcra_completo(self.partner_id.vat)
+            if data and data.get('success') and data.get('tiene_deuda') and data.get('monto_total_deuda', 0.0) > 0:
+                monto_total = data.get('monto_total_deuda', 0.0)
+                peor_sit = data.get('peor_situacion') or '1'
+                monto_fmt = f"{monto_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                peor_desc = SITUACION_LABELS.get(int(peor_sit), f"Situación {peor_sit}")
+                return {
+                    'warning': {
+                        'title': _("⚠️ Alerta Crediticia - Central de Deudores BCRA"),
+                        'message': _(
+                            "El cliente '%s' (CUIT: %s) registra deudas informadas en el BCRA por un monto total de $ %s (%s).\n\n"
+                            "Puede consultar el detalle completo haciendo clic en el botón 'Situación BCRA'."
+                        ) % (self.partner_id.name, self.partner_id.vat or '', monto_fmt, peor_desc)
+                    }
+                }
 
-    bcra_deuda_ids = fields.One2many(
-        'sale.order.bcra.deuda',
-        'order_id',
-        string="Deudas en Sistema Financiero",
-        copy=False
-    )
-    bcra_cheque_ids = fields.One2many(
-        'sale.order.bcra.cheque',
-        'order_id',
-        string="Cheques Rechazados",
-        copy=False
-    )
+    def action_ver_bcra_wizard(self):
+        """Abre un wizard modal con el informe crediticio en tiempo real del BCRA."""
+        self.ensure_one()
+        if not self.partner_id:
+            raise UserError(_("Por favor seleccione primero un cliente."))
+        if not self.partner_id.vat:
+            raise UserError(_("El cliente seleccionado '%s' no tiene CUIT configurado.") % self.partner_id.name)
 
-    def _consultar_y_cargar_bcra(self, partner):
-        """Ejecuta la consulta a la API del BCRA para el partner y puebla los campos y líneas de la orden."""
-        if not partner or not partner.vat:
-            self.bcra_consulta_fecha = False
-            self.bcra_denominacion = False
-            self.bcra_tiene_deuda = False
-            self.bcra_peor_situacion = False
-            self.bcra_monto_total = 0.0
-            self.bcra_alerta_mensaje = "El cliente no posee CUIT cargado en su ficha."
-            self.bcra_deuda_ids = [(5, 0, 0)]
-            self.bcra_cheque_ids = [(5, 0, 0)]
-            return None
-
-        data = consultar_bcra_completo(partner.vat)
+        data = consultar_bcra_completo(self.partner_id.vat)
         if not data or not data.get('success'):
-            self.bcra_consulta_fecha = fields.Datetime.now()
-            self.bcra_alerta_mensaje = data.get('error', 'Error al consultar la API del BCRA.') if data else 'Error desconocido.'
-            return None
+            raise UserError(data.get('error', _('No se pudo obtener información desde la API del BCRA.')))
 
-        self.bcra_consulta_fecha = fields.Datetime.now()
-        self.bcra_denominacion = data.get('denominacion') or partner.name
-        self.bcra_tiene_deuda = data.get('tiene_deuda', False)
-        self.bcra_peor_situacion = data.get('peor_situacion') or ('1' if data.get('deudas') else False)
-        self.bcra_monto_total = data.get('monto_total_deuda', 0.0)
-        self.bcra_alerta_mensaje = data.get('mensaje_resumen', '')
-
-        # Líneas de deuda bancaria
-        deuda_commands = [(5, 0, 0)]
+        # Comandos de creación de líneas de deuda
+        deuda_commands = []
         for d in data.get('deudas', []):
             deuda_commands.append((0, 0, {
                 'periodo': d.get('periodo'),
@@ -75,10 +53,9 @@ class SaleOrderInherit(models.Model):
                 'dias_atraso': d.get('dias_atraso'),
                 'observaciones': d.get('observaciones'),
             }))
-        self.bcra_deuda_ids = deuda_commands
 
-        # Líneas de cheques rechazados
-        cheque_commands = [(5, 0, 0)]
+        # Comandos de creación de líneas de cheques rechazados
+        cheque_commands = []
         for ch in data.get('cheques_rechazados', []):
             cheque_commands.append((0, 0, {
                 'nro_cheque': ch.get('nro_cheque'),
@@ -87,46 +64,26 @@ class SaleOrderInherit(models.Model):
                 'causal': ch.get('causal'),
                 'estado': ch.get('estado'),
             }))
-        self.bcra_cheque_ids = cheque_commands
 
-        return data
+        wizard = self.env['cotizador.bcra.wizard'].create({
+            'partner_id': self.partner_id.id,
+            'cuit': data.get('cuit') or self.partner_id.vat,
+            'denominacion': data.get('denominacion') or self.partner_id.name,
+            'tiene_deuda': data.get('tiene_deuda', False),
+            'peor_situacion': data.get('peor_situacion') or ('1' if data.get('deudas') else False),
+            'monto_total': data.get('monto_total_deuda', 0.0),
+            'alerta_mensaje': data.get('mensaje_resumen', ''),
+            'deuda_ids': deuda_commands,
+            'cheque_ids': cheque_commands,
+        })
 
-    @api.onchange('partner_id')
-    def _onchange_partner_id_bcra(self):
-        """Al seleccionar cliente, consulta en tiempo real al BCRA y emite alerta si posee deudas."""
-        if self.partner_id:
-            res_bcra = self._consultar_y_cargar_bcra(self.partner_id)
-            if self.bcra_tiene_deuda and self.bcra_monto_total > 0:
-                monto_fmt = f"{self.bcra_monto_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                peor_desc = SITUACION_LABELS.get(int(self.bcra_peor_situacion or 1), f"Situación {self.bcra_peor_situacion}")
-                return {
-                    'warning': {
-                        'title': _("⚠️ Alerta Crediticia - Central de Deudores BCRA"),
-                        'message': _(
-                            "El cliente '%s' (CUIT: %s) registra deudas informadas en el BCRA por un monto total de $ %s (%s).\n\n"
-                            "Por favor revise los detalles de bancos y cheques en la pestaña 'Situación Crediticia BCRA'."
-                        ) % (self.partner_id.name, self.partner_id.vat or '', monto_fmt, peor_desc)
-                    }
-                }
-
-    def action_consultar_bcra(self):
-        """Botón manual para refrescar la información del BCRA."""
-        self.ensure_one()
-        if not self.partner_id:
-            raise UserError(_("Por favor seleccione primero un cliente."))
-        if not self.partner_id.vat:
-            raise UserError(_("El cliente seleccionado '%s' no tiene CUIT configurado.") % self.partner_id.name)
-
-        self._consultar_y_cargar_bcra(self.partner_id)
         return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Consulta BCRA Actualizada'),
-                'message': _('Se actualizó la información crediticia de %s desde el BCRA.') % self.partner_id.name,
-                'type': 'info' if not self.bcra_tiene_deuda else 'warning',
-                'sticky': False,
-            }
+            'name': _('Situación Crediticia BCRA - %s') % (self.partner_id.name),
+            'type': 'ir.actions.act_window',
+            'res_model': 'cotizador.bcra.wizard',
+            'res_id': wizard.id,
+            'view_mode': 'form',
+            'target': 'new',
         }
 
     # --- Sincronización Automática con Oportunidades del CRM ---
@@ -147,7 +104,7 @@ class SaleOrderInherit(models.Model):
                     order.opportunity_id._sync_expected_revenue_from_orders()
         return res
 
-    # --- Métodos Existentes ---
+    # --- Métodos de Configuración y Planes de Pago ---
 
     def action_confirm(self):
         """Override para validar que exista al menos una línea de plan de pago antes de confirmar (si está configurado como obligatorio)."""
@@ -201,42 +158,6 @@ class SaleOrderInherit(models.Model):
             'view_mode': 'form',
             'target': 'new',
         }
-
-
-class SaleOrderBcraDeuda(models.Model):
-    _name = 'sale.order.bcra.deuda'
-    _description = 'Línea de Deuda Financiera BCRA'
-    _order = 'situacion desc, monto desc'
-
-    order_id = fields.Many2one('sale.order', string="Orden de Venta", ondelete='cascade', required=True)
-    periodo = fields.Char(string="Período")
-    entidad = fields.Char(string="Entidad Financiera", required=True)
-    situacion = fields.Selection([
-        ('1', '1 - Normal'),
-        ('2', '2 - Con Seguimiento Especial'),
-        ('3', '3 - Con Problemas'),
-        ('4', '4 - Alto Riesgo'),
-        ('5', '5 - Irrecuperable'),
-        ('6', '6 - Irrecuperable Técnica'),
-    ], string="Situación")
-    monto = fields.Monetary(string="Monto ($)", currency_field='currency_id')
-    currency_id = fields.Many2one(related='order_id.currency_id', string="Moneda", readonly=True)
-    dias_atraso = fields.Integer(string="Días Atraso")
-    observaciones = fields.Char(string="Observaciones")
-
-
-class SaleOrderBcraCheque(models.Model):
-    _name = 'sale.order.bcra.cheque'
-    _description = 'Línea de Cheque Rechazado BCRA'
-    _order = 'fecha_rechazo desc'
-
-    order_id = fields.Many2one('sale.order', string="Orden de Venta", ondelete='cascade', required=True)
-    nro_cheque = fields.Char(string="Nº Cheque")
-    fecha_rechazo = fields.Date(string="Fecha Rechazo")
-    monto = fields.Monetary(string="Monto ($)", currency_field='currency_id')
-    currency_id = fields.Many2one(related='order_id.currency_id', string="Moneda", readonly=True)
-    causal = fields.Char(string="Causal")
-    estado = fields.Char(string="Estado")
 
 
 class SaleOrderLineInherit(models.Model):

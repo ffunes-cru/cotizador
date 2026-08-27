@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista Formulario del Wizard de Consulta BCRA -->
+    <record id="view_cotizador_bcra_wizard_form" model="ir.ui.view">
+        <field name="name">cotizador.bcra.wizard.form</field>
+        <field name="model">cotizador.bcra.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Situación Crediticia - BCRA">
+                <field name="tiene_deuda" invisible="1"/>
+                <field name="peor_situacion" invisible="1"/>
+
+                <!-- Banner Informativo -->
+                <div class="alert alert-danger d-flex align-items-center mb-3"
+                     role="alert"
+                     invisible="not tiene_deuda or peor_situacion == '1'">
+                    <i class="fa fa-exclamation-triangle fa-2x me-3 text-danger" title="Alerta"/>
+                    <div>
+                        <strong class="fs-6">ALERTA CREDITICIA:</strong>
+                        <div><field name="alerta_mensaje" readonly="1"/></div>
+                    </div>
+                </div>
+                <div class="alert alert-warning d-flex align-items-center mb-3"
+                     role="alert"
+                     invisible="not tiene_deuda or peor_situacion != '1'">
+                    <i class="fa fa-info-circle fa-2x me-3 text-warning" title="Información"/>
+                    <div>
+                        <strong class="fs-6">Información Crediticia:</strong>
+                        <div><field name="alerta_mensaje" readonly="1"/></div>
+                    </div>
+                </div>
+                <div class="alert alert-success d-flex align-items-center mb-3"
+                     role="alert"
+                     invisible="tiene_deuda">
+                    <i class="fa fa-check-circle fa-2x me-3 text-success" title="Normal"/>
+                    <div>
+                        <strong class="fs-6">Situación Normal:</strong>
+                        <div><field name="alerta_mensaje" readonly="1"/></div>
+                    </div>
+                </div>
+
+                <group>
+                    <group string="Datos del Cliente">
+                        <field name="partner_id"/>
+                        <field name="cuit"/>
+                        <field name="denominacion"/>
+                        <field name="consulta_fecha"/>
+                    </group>
+                    <group string="Resumen Crediticio">
+                        <field name="peor_situacion"
+                               widget="badge"
+                               decoration-success="peor_situacion == '1'"
+                               decoration-warning="peor_situacion == '2'"
+                               decoration-danger="peor_situacion in ('3', '4', '5', '6')"/>
+                        <field name="monto_total"/>
+                    </group>
+                </group>
+
+                <notebook>
+                    <page string="Deudas por Entidad Bancaria" name="page_deudas">
+                        <field name="deuda_ids" readonly="1">
+                            <list decoration-danger="situacion in ('3','4','5','6')"
+                                  decoration-warning="situacion == '2'"
+                                  decoration-success="situacion == '1'">
+                                <field name="periodo"/>
+                                <field name="entidad"/>
+                                <field name="situacion" widget="badge"
+                                       decoration-success="situacion == '1'"
+                                       decoration-warning="situacion == '2'"
+                                       decoration-danger="situacion in ('3', '4', '5', '6')"/>
+                                <field name="monto"/>
+                                <field name="dias_atraso"/>
+                                <field name="observaciones"/>
+                            </list>
+                        </field>
+                    </page>
+                    <page string="Cheques Rechazados" name="page_cheques" invisible="not cheque_ids">
+                        <field name="cheque_ids" readonly="1">
+                            <list decoration-danger="True">
+                                <field name="nro_cheque"/>
+                                <field name="fecha_rechazo"/>
+                                <field name="monto"/>
+                                <field name="causal"/>
+                                <field name="estado"/>
+                            </list>
+                        </field>
+                    </page>
+                </notebook>
+
+                <footer>
+                    <button string="Cerrar" class="btn-primary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

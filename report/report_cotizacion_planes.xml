@@ -1,6 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <!-- ============================================= -->
+    <!-- Formato de Papel Compacto (Márgenes Reducidos)-->
+    <!-- ============================================= -->
+    <record id="paperformat_cotizacion_compacta" model="report.paperformat">
+        <field name="name">Cotización Planes Compacto (A4)</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="page_height">0</field>
+        <field name="page_width">0</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">10</field>
+        <field name="margin_bottom">10</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <!-- ============================================= -->
     <!-- Acción de Reporte: Cotización con Planes      -->
     <!-- ============================================= -->
     <record id="action_report_cotizacion_planes" model="ir.actions.report">
@@ -10,6 +29,7 @@
         <field name="report_name">cotizador.report_cotizacion_planes_document</field>
         <field name="report_file">cotizador.report_cotizacion_planes_document</field>
         <field name="print_report_name">'Cotización Planes - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_cotizacion_compacta"/>
         <field name="binding_model_id" ref="sale.model_sale_order"/>
         <field name="binding_type">report</field>
     </record>
@@ -20,112 +40,152 @@
     <template id="report_cotizacion_planes_document">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
-                <t t-call="web.external_layout">
+                <t t-call="web.basic_layout">
                     <t t-set="doc" t-value="doc.with_context(lang=doc.partner_id.lang)"/>
-                    <t t-set="address">
-                        <div t-field="doc.partner_id" class="mb-0"
-                            t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
-                        <p t-if="doc.partner_id.vat" class="mb-0">
-                            CUIT: <span t-field="doc.partner_id.vat"/>
-                        </p>
-                    </t>
 
-                    <div class="page" style="padding-top: 0 !important; margin-top: 0 !important;">
+                    <div class="page" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 13px; color: #212529; padding-top: 0 !important; margin-top: 0 !important;">
                         <style>
                             .page {
                                 padding-top: 0px !important;
                                 margin-top: 0px !important;
                             }
-                            .table-sm th, .table-sm td {
-                                padding: 0.25rem 0.4rem !important;
+                            .header-box {
+                                border-bottom: 2px solid #343a40;
+                                padding-bottom: 8px;
+                                margin-bottom: 12px;
                             }
-                            h2.report-title {
-                                margin-top: 0px !important;
-                                margin-bottom: 6px !important;
-                                font-size: 1.5rem !important;
+                            .table-sm th, .table-sm td {
+                                padding: 0.35rem 0.4rem !important;
+                            }
+                            .o_line_section td {
+                                background-color: #e9ecef !important;
+                                color: #111111 !important;
+                                font-weight: 700;
+                                padding-top: 0.45rem !important;
+                                padding-bottom: 0.45rem !important;
+                            }
+                            .meta-label {
+                                color: #495057 !important;
+                                font-size: 11px;
+                                font-weight: 700;
+                                text-transform: uppercase;
+                                letter-spacing: 0.5px;
+                                margin-bottom: 2px;
+                            }
+                            .meta-val {
+                                color: #111111;
+                                font-weight: 600;
+                                font-size: 13px;
                             }
                         </style>
 
-                        <!-- Título Compacto -->
-                        <h2 class="report-title">
-                            <span t-if="doc.state in ['draft','sent']">Cotización # </span>
-                            <span t-else="">Orden # </span>
-                            <span t-field="doc.name"/>
-                        </h2>
+                        <!-- ============================================= -->
+                        <!-- PÁGINA 1: Encabezado, Líneas y Totales        -->
+                        <!-- ============================================= -->
 
-                        <!-- Datos de la Cotización: Fecha, Vencimiento, Vendedor, Líder de Equipo -->
-                        <div class="row mb-3 mt-2" id="informations">
-                            <div t-if="doc.date_order" class="col-3" name="informations_date">
-                                <strong class="d-block text-muted small">Fecha:</strong>
-                                <div t-field="doc.date_order" t-options='{"widget": "date"}'/>
-                            </div>
-                            <div t-if="doc.validity_date and doc.state in ['draft', 'sent']" class="col-3">
-                                <strong class="d-block text-muted small">Vencimiento:</strong>
-                                <div t-field="doc.validity_date"/>
-                            </div>
-                            <div t-if="doc.user_id.name" class="col-3">
-                                <strong class="d-block text-muted small">Vendedor:</strong>
-                                <div t-field="doc.user_id"/>
-                            </div>
-                            <div t-if="doc.team_id and doc.team_id.user_id" class="col-3">
-                                <strong class="d-block text-muted small">Líder de Equipo:</strong>
-                                <div t-field="doc.team_id.user_id"/>
+                        <!-- Encabezado Compacto y Distribuido a lo Largo -->
+                        <div class="header-box">
+                            <div class="row align-items-center">
+                                <!-- Columna Izquierda: Empresa y Logo -->
+                                <div class="col-5">
+                                    <img t-if="doc.company_id.logo" t-att-src="image_data_uri(doc.company_id.logo)" style="max-height: 48px; max-width: 200px;" alt="Logo"/>
+                                    <div class="mt-1" style="font-size: 11px; color: #333333; line-height: 1.3;">
+                                        <strong style="color: #111111;"><span t-field="doc.company_id.name"/></strong>
+                                        <span t-if="doc.company_id.vat"> | CUIT: <span t-field="doc.company_id.vat"/></span><br/>
+                                        <span t-if="doc.company_id.street"><span t-field="doc.company_id.street"/>, </span>
+                                        <span t-if="doc.company_id.city"><span t-field="doc.company_id.city"/></span>
+                                        <span t-if="doc.company_id.phone"> | Tel: <span t-field="doc.company_id.phone"/></span>
+                                    </div>
+                                </div>
+
+                                <!-- Columna Derecha: Datos del Cliente Distribuidos a lo Largo -->
+                                <div class="col-7 text-end">
+                                    <div style="line-height: 1.35;">
+                                        <div class="meta-label">CLIENTE</div>
+                                        <div style="font-size: 15px; font-weight: 700; color: #111111; margin-bottom: 2px;">
+                                            <span t-field="doc.partner_id.name"/>
+                                        </div>
+                                        <div style="font-size: 12px; color: #212529;">
+                                            <span t-if="doc.partner_id.vat"><strong>CUIT:</strong> <span t-field="doc.partner_id.vat"/> &#160;|&#160; </span>
+                                            <span t-if="doc.partner_id.street"><span t-field="doc.partner_id.street"/>, </span>
+                                            <span t-if="doc.partner_id.city"><span t-field="doc.partner_id.city"/></span>
+                                            <span t-if="doc.partner_id.state_id"> (<span t-field="doc.partner_id.state_id.name"/>)</span>
+                                            <span t-if="doc.partner_id.country_id">, <span t-field="doc.partner_id.country_id.name"/></span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- ======================================= -->
-                        <!-- Descripción de la Máquina en Texto Plano-->
-                        <!-- ======================================= -->
-                        <t t-set="config_descriptions" t-value="[]"/>
-                        <t t-foreach="doc.order_line.filtered(lambda l: l.product_id and l.product_id.product_tmpl_id.categ_id.name == 'Maquina')" t-as="maquina_line">
-                            <t t-set="config_rel" t-value="doc.env['sembradora.config.rel'].search([
-                                ('modelo_id', '=', maquina_line.product_id.product_tmpl_id.id),
-                                ('value_ids', 'in', maquina_line.product_id.product_template_attribute_value_ids.mapped('product_attribute_value_id').ids)
-                            ], limit=1)"/>
-                            <t t-if="config_rel and config_rel.description">
-                                <div class="mb-3 text-secondary" style="font-size: 0.95rem; line-height: 1.4;">
-                                    <div t-field="config_rel.description"/>
+                        <!-- Título de Cotización y Metadatos -->
+                        <div class="row align-items-center mb-3">
+                            <div class="col-4">
+                                <h3 class="fw-bold mb-0" style="letter-spacing: -0.5px; color: #111111;">
+                                    <span t-if="doc.state in ['draft','sent']">Cotización # </span>
+                                    <span t-else="">Orden # </span>
+                                    <span t-field="doc.name"/>
+                                </h3>
+                            </div>
+                            <div class="col-8">
+                                <div class="row text-end">
+                                    <div t-if="doc.date_order" class="col">
+                                        <span class="meta-label d-block">Fecha</span>
+                                        <span class="meta-val" t-field="doc.date_order" t-options='{"widget": "date"}'/>
+                                    </div>
+                                    <div t-if="doc.validity_date and doc.state in ['draft', 'sent']" class="col">
+                                        <span class="meta-label d-block">Vencimiento</span>
+                                        <span class="meta-val" t-field="doc.validity_date"/>
+                                    </div>
+                                    <div t-if="doc.user_id.name" class="col">
+                                        <span class="meta-label d-block">Vendedor</span>
+                                        <span class="meta-val" t-field="doc.user_id.name"/>
+                                    </div>
+                                    <div t-if="doc.team_id and doc.team_id.user_id" class="col">
+                                        <span class="meta-label d-block">Líder Equipo</span>
+                                        <span class="meta-val" t-field="doc.team_id.user_id.name"/>
+                                    </div>
                                 </div>
-                            </t>
-                        </t>
+                            </div>
+                        </div>
 
-                        <!-- ======================================= -->
-                        <!-- Tabla de Líneas de la Cotización         -->
-                        <!-- ======================================= -->
+                        <!-- Tabla de Líneas de la Cotización -->
                         <t t-set="lines_to_report" t-value="doc.order_line.filtered(lambda l: not l.is_plan_pago)"/>
-                        <table class="table table-sm o_main_table table-borderless mt-4">
-                            <thead style="display: table-row-group">
+                        <table class="table table-sm o_main_table table-borderless mt-2 mb-3">
+                            <thead style="display: table-row-group; border-bottom: 2px solid #343a40;">
                                 <tr>
-                                    <th class="text-start">Descripción</th>
-                                    <th class="text-end">Cantidad</th>
-                                    <th class="text-end">Precio Unitario</th>
-                                    <th class="text-end">Subtotal</th>
+                                    <th class="text-start meta-label" style="color: #212529 !important;">DESCRIPCIÓN</th>
+                                    <th class="text-end meta-label" style="color: #212529 !important;">CANTIDAD</th>
+                                    <th class="text-end meta-label" style="color: #212529 !important;">PRECIO UNITARIO</th>
+                                    <th class="text-end meta-label" style="color: #212529 !important;">SUBTOTAL</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <t t-foreach="lines_to_report" t-as="line">
                                     <tr t-if="line.display_type == 'line_section'" class="o_line_section">
-                                        <td colspan="4" class="fw-bold">
+                                        <td colspan="4" class="fw-bold text-dark">
                                             <span t-field="line.name"/>
                                         </td>
                                     </tr>
                                     <tr t-if="line.display_type == 'line_note'" class="o_line_note">
-                                        <td colspan="4" class="fst-italic">
+                                        <td colspan="4" class="fst-italic" style="color: #495057;">
                                             <span t-field="line.name"/>
                                         </td>
                                     </tr>
-                                    <tr t-if="not line.display_type">
-                                        <td>
-                                            <span t-field="line.name"/>
+                                    <tr t-if="not line.display_type" style="border-bottom: 1px solid #dee2e6;">
+                                        <td style="color: #111111; font-weight: 500;">
+                                            <!-- Si es máquina, mostrar solo el nombre del modelo limpio sin duplicar la descripción -->
+                                            <span t-if="line.product_id and line.product_id.product_tmpl_id.categ_id.name == 'Maquina'"
+                                                  t-out="line.product_id.product_tmpl_id.name"/>
+                                            <span t-else="" t-field="line.name"/>
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end" style="color: #212529;">
                                             <span t-field="line.product_uom_qty"/>
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end" style="color: #212529;">
                                             <span t-field="line.price_unit"
                                                   t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                         </td>
-                                        <td class="text-end">
+                                        <td class="text-end fw-bold" style="color: #111111;">
                                             <span t-field="line.price_subtotal"
                                                   t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                         </td>
@@ -134,184 +194,206 @@
                             </tbody>
                         </table>
 
-                        <!-- Totales -->
-                        <div class="row mt-3" style="page-break-inside: avoid;">
+                        <!-- Totales Sin Cuadriculado / Limpios y con Contraste Oscuro -->
+                        <div class="row mt-2" style="page-break-inside: avoid;">
                             <div class="col-5 ms-auto">
-                                <table class="table table-sm">
-                                    <tr>
-                                        <td class="fw-bold">Subtotal sin impuestos</td>
-                                        <td class="text-end">
-                                            <span t-field="doc.amount_untaxed"
-                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>Impuestos</td>
-                                        <td class="text-end">
-                                            <span t-field="doc.amount_tax"
-                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                        </td>
-                                    </tr>
-                                    <tr class="border-top">
-                                        <td class="fw-bold">Total</td>
-                                        <td class="text-end fw-bold">
-                                            <span t-field="doc.amount_total"
-                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                        </td>
-                                    </tr>
+                                <table class="table table-sm table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <td class="text-start py-1" style="color: #333333; font-weight: 500;">Subtotal sin impuestos</td>
+                                            <td class="text-end py-1" style="color: #111111; font-weight: 600;">
+                                                <span t-field="doc.amount_untaxed"
+                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-start py-1" style="color: #333333; font-weight: 500;">Impuestos</td>
+                                            <td class="text-end py-1" style="color: #111111; font-weight: 600;">
+                                                <span t-field="doc.amount_tax"
+                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                        <tr style="border-top: 2px solid #111111;">
+                                            <td class="text-start py-2 fs-6" style="color: #000000; font-weight: 800;">Total</td>
+                                            <td class="text-end py-2 fs-6" style="color: #000000; font-weight: 800;">
+                                                <span t-field="doc.amount_total"
+                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
 
-                        <!-- ======================================= -->
-                        <!-- Planes de Pago Disponibles               -->
-                        <!-- ======================================= -->
-                        <t t-set="plan_templates" t-value="doc.env['cotizador.plan.pago.template'].search([('active', '=', True)])"/>
-                        <t t-if="plan_templates">
-                            <div class="mt-5" style="page-break-inside: avoid;">
-                                <h3><i class="fa fa-money"/> Planes de Pago Disponibles</h3>
-                                <hr class="mt-0 mb-3"/>
+                        <!-- ============================================= -->
+                        <!-- PÁGINA 2: Descripción y Planes de Pago        -->
+                        <!-- ============================================= -->
+                        <div style="page-break-before: always;">
 
-                                <t t-foreach="plan_templates" t-as="plan_tmpl">
-                                    <h5 class="mt-4 mb-2 fw-bold text-dark">
-                                        <span t-field="plan_tmpl.name"/>
-                                    </h5>
-
-                                    <!-- Canje Cereal -->
-                                    <t t-if="plan_tmpl.tipo == 'canje_cereal'">
-                                        <table class="table table-sm o_main_table table-borderless mt-2 mb-4">
-                                            <thead style="display: table-row-group">
-                                                <tr>
-                                                    <th class="text-start">Opción</th>
-                                                    <th class="text-start">Entrega</th>
-                                                    <th class="text-start">Condición</th>
-                                                    <th class="text-end">Desc. / Rec.</th>
-                                                    <th class="text-end">Total Estimado</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <t t-foreach="plan_tmpl.line_ids" t-as="pl">
-                                                    <tr>
-                                                        <td class="text-start"><span t-field="pl.opcion"/></td>
-                                                        <td class="text-start"><span t-field="pl.entrega_canje"/></td>
-                                                        <td class="text-start"><span t-field="pl.condicion"/></td>
-                                                        <td class="text-end">
-                                                            <span t-field="pl.descuento"/>%
-                                                        </td>
-                                                        <td class="text-end fw-bold">
-                                                            <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
-                                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                                        </td>
-                                                    </tr>
-                                                </t>
-                                            </tbody>
-                                        </table>
-                                    </t>
-
-                                    <!-- Cheques -->
-                                    <t t-if="plan_tmpl.tipo == 'cheques'">
-                                        <table class="table table-sm o_main_table table-borderless mt-2 mb-4">
-                                            <thead style="display: table-row-group">
-                                                <tr>
-                                                    <th class="text-start">Plan</th>
-                                                    <th class="text-end">Promedio Días</th>
-                                                    <th class="text-start">Cheques</th>
-                                                    <th class="text-end">Desc. / Rec.</th>
-                                                    <th class="text-end">Total Estimado</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <t t-foreach="plan_tmpl.line_ids" t-as="pl">
-                                                    <tr>
-                                                        <td class="text-start"><span t-field="pl.plan_cheques"/></td>
-                                                        <td class="text-end"><span t-field="pl.promedio_dias"/></td>
-                                                        <td class="text-start"><span t-field="pl.cheques_desc"/></td>
-                                                        <td class="text-end">
-                                                            <span t-field="pl.descuento"/>%
-                                                        </td>
-                                                        <td class="text-end fw-bold">
-                                                            <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
-                                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                                        </td>
-                                                    </tr>
-                                                </t>
-                                            </tbody>
-                                        </table>
-                                    </t>
-
-                                    <!-- Documentos -->
-                                    <t t-if="plan_tmpl.tipo == 'documentos'">
-                                        <table class="table table-sm o_main_table table-borderless mt-2 mb-4">
-                                            <thead style="display: table-row-group">
-                                                <tr>
-                                                    <th class="text-start">Plan</th>
-                                                    <th class="text-start">Entrega</th>
-                                                    <th class="text-start">Saldo</th>
-                                                    <th class="text-end">Desc. / Rec.</th>
-                                                    <th class="text-end">Total Estimado</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <t t-foreach="plan_tmpl.line_ids" t-as="pl">
-                                                    <tr>
-                                                        <td class="text-start"><span t-field="pl.plan_documentos"/></td>
-                                                        <td class="text-start"><span t-field="pl.entrega_pct"/></td>
-                                                        <td class="text-start"><span t-field="pl.saldo"/></td>
-                                                        <td class="text-end">
-                                                            <span t-field="pl.descuento"/>%
-                                                        </td>
-                                                        <td class="text-end fw-bold">
-                                                            <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
-                                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                                        </td>
-                                                    </tr>
-                                                </t>
-                                            </tbody>
-                                        </table>
-                                    </t>
-
-                                    <!-- Crédito Bancario -->
-                                    <t t-if="plan_tmpl.tipo == 'credito_bancario'">
-                                        <table class="table table-sm o_main_table table-borderless mt-2 mb-4">
-                                            <thead style="display: table-row-group">
-                                                <tr>
-                                                    <th class="text-start">Banco / Línea</th>
-                                                    <th class="text-start">Plazo / Tasa</th>
-                                                    <th class="text-start">Financiación</th>
-                                                    <th class="text-end">Desc. / Rec.</th>
-                                                    <th class="text-end">Total Estimado</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <t t-foreach="plan_tmpl.line_ids" t-as="pl">
-                                                    <tr>
-                                                        <td class="text-start"><span t-field="pl.banco_linea"/></td>
-                                                        <td class="text-start"><span t-field="pl.plazo_tasa"/></td>
-                                                        <td class="text-start"><span t-field="pl.financiacion"/></td>
-                                                        <td class="text-end">
-                                                            <span t-field="pl.descuento"/>%
-                                                        </td>
-                                                        <td class="text-end fw-bold">
-                                                            <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
-                                                                  t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                                        </td>
-                                                    </tr>
-                                                </t>
-                                            </tbody>
-                                        </table>
-                                    </t>
+                            <!-- Descripción de la Máquina en Texto Plano (Color Oscuro/Negro) con Título -->
+                            <t t-foreach="doc.order_line.filtered(lambda l: l.product_id and l.product_id.product_tmpl_id.categ_id.name == 'Maquina')" t-as="maquina_line">
+                                <t t-set="config_rel" t-value="doc.env['sembradora.config.rel'].search([
+                                    ('modelo_id', '=', maquina_line.product_id.product_tmpl_id.id),
+                                    ('value_ids', 'in', maquina_line.product_id.product_template_attribute_value_ids.mapped('product_attribute_value_id').ids)
+                                ], limit=1)"/>
+                                <t t-if="config_rel and config_rel.description">
+                                    <div class="mb-4 pt-2">
+                                        <h4 class="fw-bold mb-2 text-dark" style="color: #111111 !important;">Descripción</h4>
+                                        <div style="font-size: 0.95rem; line-height: 1.5; color: #212529 !important;">
+                                            <div t-field="config_rel.description"/>
+                                        </div>
+                                    </div>
                                 </t>
-                            </div>
-                        </t>
+                            </t>
 
-                        <!-- Términos y Condiciones -->
-                        <t t-if="not is_html_empty(doc.note)">
-                            <div class="mt-4">
-                                <h4>Términos y Condiciones</h4>
-                                <hr class="mt-0 mb-1"/>
-                                <em t-field="doc.note"/>
-                            </div>
-                        </t>
+                            <!-- Planes de Pago Disponibles -->
+                            <t t-set="plan_templates" t-value="doc.env['cotizador.plan.pago.template'].search([('active', '=', True)])"/>
+                            <t t-if="plan_templates">
+                                <div class="mt-4" style="page-break-inside: avoid;">
+                                    <h3 class="fw-bold text-dark" style="color: #111111 !important;">Planes de Pago Disponibles</h3>
+                                    <hr class="mt-1 mb-3" style="border-top: 2px solid #343a40;"/>
+
+                                    <t t-foreach="plan_templates" t-as="plan_tmpl">
+                                        <h5 class="mt-3 mb-2 fw-bold text-dark" style="color: #111111 !important;">
+                                            <span t-field="plan_tmpl.name"/>
+                                        </h5>
+
+                                        <!-- Canje Cereal -->
+                                        <t t-if="plan_tmpl.tipo == 'canje_cereal'">
+                                            <table class="table table-sm o_main_table table-borderless mt-2 mb-3">
+                                                <thead style="display: table-row-group; border-bottom: 2px solid #495057;">
+                                                    <tr>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">OPCIÓN</th>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">ENTREGA</th>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">CONDICIÓN</th>
+                                                        <th class="text-end meta-label" style="color: #212529 !important;">DESC. / REC.</th>
+                                                        <th class="text-end meta-label" style="color: #212529 !important;">TOTAL ESTIMADO</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <t t-foreach="plan_tmpl.line_ids" t-as="pl">
+                                                        <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
+                                                            <td class="text-start"><span t-field="pl.opcion"/></td>
+                                                            <td class="text-start"><span t-field="pl.entrega_canje"/></td>
+                                                            <td class="text-start"><span t-field="pl.condicion"/></td>
+                                                            <td class="text-end fw-semibold">
+                                                                <span t-field="pl.descuento"/>%
+                                                            </td>
+                                                            <td class="text-end fw-bold" style="color: #111111;">
+                                                                <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
+                                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                </tbody>
+                                            </table>
+                                        </t>
+
+                                        <!-- Cheques -->
+                                        <t t-if="plan_tmpl.tipo == 'cheques'">
+                                            <table class="table table-sm o_main_table table-borderless mt-2 mb-3">
+                                                <thead style="display: table-row-group; border-bottom: 2px solid #495057;">
+                                                    <tr>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">PLAN</th>
+                                                        <th class="text-end meta-label" style="color: #212529 !important;">PROMEDIO DÍAS</th>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">CHEQUES</th>
+                                                        <th class="text-end meta-label" style="color: #212529 !important;">DESC. / REC.</th>
+                                                        <th class="text-end meta-label" style="color: #212529 !important;">TOTAL ESTIMADO</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <t t-foreach="plan_tmpl.line_ids" t-as="pl">
+                                                        <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
+                                                            <td class="text-start"><span t-field="pl.plan_cheques"/></td>
+                                                            <td class="text-end"><span t-field="pl.promedio_dias"/></td>
+                                                            <td class="text-start"><span t-field="pl.cheques_desc"/></td>
+                                                            <td class="text-end fw-semibold">
+                                                                <span t-field="pl.descuento"/>%
+                                                            </td>
+                                                            <td class="text-end fw-bold" style="color: #111111;">
+                                                                <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
+                                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                </tbody>
+                                            </table>
+                                        </t>
+
+                                        <!-- Documentos -->
+                                        <t t-if="plan_tmpl.tipo == 'documentos'">
+                                            <table class="table table-sm o_main_table table-borderless mt-2 mb-3">
+                                                <thead style="display: table-row-group; border-bottom: 2px solid #495057;">
+                                                    <tr>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">PLAN</th>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">ENTREGA</th>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">SALDO</th>
+                                                        <th class="text-end meta-label" style="color: #212529 !important;">DESC. / REC.</th>
+                                                        <th class="text-end meta-label" style="color: #212529 !important;">TOTAL ESTIMADO</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <t t-foreach="plan_tmpl.line_ids" t-as="pl">
+                                                        <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
+                                                            <td class="text-start"><span t-field="pl.plan_documentos"/></td>
+                                                            <td class="text-start"><span t-field="pl.entrega_pct"/></td>
+                                                            <td class="text-start"><span t-field="pl.saldo"/></td>
+                                                            <td class="text-end fw-semibold">
+                                                                <span t-field="pl.descuento"/>%
+                                                            </td>
+                                                            <td class="text-end fw-bold" style="color: #111111;">
+                                                                <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
+                                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                </tbody>
+                                            </table>
+                                        </t>
+
+                                        <!-- Crédito Bancario -->
+                                        <t t-if="plan_tmpl.tipo == 'credito_bancario'">
+                                            <table class="table table-sm o_main_table table-borderless mt-2 mb-3">
+                                                <thead style="display: table-row-group; border-bottom: 2px solid #495057;">
+                                                    <tr>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">BANCO / LÍNEA</th>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">PLAZO / TASA</th>
+                                                        <th class="text-start meta-label" style="color: #212529 !important;">FINANCIACIÓN</th>
+                                                        <th class="text-end meta-label" style="color: #212529 !important;">DESC. / REC.</th>
+                                                        <th class="text-end meta-label" style="color: #212529 !important;">TOTAL ESTIMADO</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <t t-foreach="plan_tmpl.line_ids" t-as="pl">
+                                                        <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
+                                                            <td class="text-start"><span t-field="pl.banco_linea"/></td>
+                                                            <td class="text-start"><span t-field="pl.plazo_tasa"/></td>
+                                                            <td class="text-start"><span t-field="pl.financiacion"/></td>
+                                                            <td class="text-end fw-semibold">
+                                                                <span t-field="pl.descuento"/>%
+                                                            </td>
+                                                            <td class="text-end fw-bold" style="color: #111111;">
+                                                                <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
+                                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                </tbody>
+                                            </table>
+                                        </t>
+                                    </t>
+                                </div>
+                            </t>
+
+                            <!-- Términos y Condiciones -->
+                            <t t-if="not is_html_empty(doc.note)">
+                                <div class="mt-4">
+                                    <h4 class="fw-bold text-dark" style="color: #111111 !important;">Términos y Condiciones</h4>
+                                    <hr class="mt-1 mb-2" style="border-top: 1.5px solid #343a40;"/>
+                                    <div style="font-size: 0.9rem; color: #212529;" t-field="doc.note"/>
+                                </div>
+                            </t>
+                        </div>
                     </div>
                 </t>
             </t>
