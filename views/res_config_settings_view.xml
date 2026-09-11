@@ -12,6 +12,11 @@
                              help="Exigir la selección de un Plan de Pago antes de confirmar la cotización.">
                         <field name="cotizador_plan_pago_required"/>
                     </setting>
+                    <setting id="cotizador_use_legacy_wizard_setting"
+                             string="Configurador Clásico (Legacy)"
+                             help="Usar el wizard clásico estándar de Odoo en lugar del nuevo configurador visual interactivo en JavaScript.">
+                        <field name="cotizador_use_legacy_wizard"/>
+                    </setting>
                 </block>
             </xpath>
         </field>

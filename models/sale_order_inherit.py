@@ -122,15 +122,32 @@ class SaleOrderInherit(models.Model):
         return super().action_confirm()
 
     def action_open_config_wizard(self):
-        """Abre nuestro wizard de configuración de sembradora."""
+        """Abre el configurador de sembradora (Visual OWL o Wizard Legacy según la configuración del sistema)."""
         order_id = self.id or self.env.context.get('active_id') or self.env.context.get('params', {}).get('id')
+        use_legacy = self.env['ir.config_parameter'].sudo().get_param(
+            'cotizador.use_legacy_wizard', default='False'
+        )
+        if use_legacy == 'True':
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Configurar Sembradora (Legacy)',
+                'res_model': 'sembradora.config.wizard',
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {'default_sale_order_id': order_id},
+            }
+
         return {
-            'type': 'ir.actions.act_window',
-            'name': 'Configurar Sembradora',
-            'res_model': 'sembradora.config.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': {'default_sale_order_id': order_id},
+            'type': 'ir.actions.client',
+            'tag': 'cotizador_configurator',
+            'target': 'current',
+            'params': {
+                'order_id': order_id,
+            },
+            'context': {
+                'active_id': order_id,
+                'default_sale_order_id': order_id,
+            },
         }
 
     def action_open_plan_pago_wizard(self):

@@ -173,10 +173,8 @@
                                     </tr>
                                     <tr t-if="not line.display_type" style="border-bottom: 1px solid #dee2e6;">
                                         <td style="color: #111111; font-weight: 500;">
-                                            <!-- Si es máquina, mostrar solo el nombre del modelo limpio sin duplicar la descripción -->
-                                            <span t-if="line.product_id and line.product_id.product_tmpl_id.categ_id.name == 'Maquina'"
-                                                  t-out="line.product_id.product_tmpl_id.name"/>
-                                            <span t-else="" t-field="line.name"/>
+                                            <!-- Muestra la descripción completa del producto / variante tal como fue configurada o editada en la cotización -->
+                                            <span t-field="line.name"/>
                                         </td>
                                         <td class="text-end" style="color: #212529;">
                                             <span t-field="line.product_uom_qty"/>
@@ -232,15 +230,16 @@
 
                             <!-- Descripción de la Máquina en Texto Plano (Color Oscuro/Negro) con Título -->
                             <t t-foreach="doc.order_line.filtered(lambda l: l.product_id and l.product_id.product_tmpl_id.categ_id.name == 'Maquina')" t-as="maquina_line">
-                                <t t-set="config_rel" t-value="doc.env['sembradora.config.rel'].search([
-                                    ('modelo_id', '=', maquina_line.product_id.product_tmpl_id.id),
-                                    ('value_ids', 'in', maquina_line.product_id.product_template_attribute_value_ids.mapped('product_attribute_value_id').ids)
-                                ], limit=1)"/>
-                                <t t-if="config_rel and config_rel.description">
+                                <t t-set="attr_ids" t-value="maquina_line.product_id.product_template_attribute_value_ids.mapped('product_attribute_value_id').ids"/>
+                                <t t-set="configs" t-value="doc.env['sembradora.config.rel'].search([('modelo_id', '=', maquina_line.product_id.product_tmpl_id.id)])"/>
+                                <t t-set="config_match" t-value="configs.filtered(lambda c: set(c.value_ids.ids) == set(attr_ids))"/>
+                                <t t-set="desc_content" t-value="(config_match and config_match[0].description) or maquina_line.product_id.description_sale or maquina_line.product_id.product_tmpl_id.description_sale"/>
+                                
+                                <t t-if="desc_content">
                                     <div class="mb-4 pt-2">
                                         <h4 class="fw-bold mb-2 text-dark" style="color: #111111 !important;">Descripción</h4>
                                         <div style="font-size: 0.95rem; line-height: 1.5; color: #212529 !important;">
-                                            <div t-field="config_rel.description"/>
+                                            <div t-out="desc_content"/>
                                         </div>
                                     </div>
                                 </t>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Acción de Cliente OWL para el Configurador Visual de Sembradoras -->
+    <record id="action_cotizador_configurator" model="ir.actions.client">
+        <field name="name">Configurar Sembradora</field>
+        <field name="tag">cotizador_configurator</field>
+        <field name="target">current</field>
+    </record>
+</odoo>

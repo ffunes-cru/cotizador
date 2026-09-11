@@ -25,11 +25,13 @@
         'report/report_cotizacion_planes.xml',
         'views/portal_templates.xml',
         'views/price_wizard_views.xml',
+        'views/configurador_views.xml',
         'views/bcra_wizard_view.xml',
     ],
     'assets': {
         'web.assets_backend': [
             'cotizador/static/src/components/price_wizard/**/*',
+            'cotizador/static/src/components/configurador/**/*',
         ],
     },
     'installable': True,

@@ -13,3 +13,4 @@ from . import product_attribute_inherit
 from . import sembradora_import_wizard
 from . import res_config_settings
 from . import price_wizard_service
+from . import configurator_service

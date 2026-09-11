@@ -1,0 +1,294 @@
+/* ========================================================= */
+/* ESTILOS DE LAYOUT Y COMPONENTES (NATIVO ODOO / BOOTSTRAP) */
+/* ========================================================= */
+
+.o_cotizador_configurator {
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .fs-7 { font-size: 0.85rem; }
+    .fs-8 { font-size: 0.75rem; }
+
+    /* Badge Icono en Encabezado */
+    .brand-badge {
+        width: 38px;
+        height: 38px;
+    }
+
+    /* Stepper Desktop */
+    .stepper-nav {
+        .step-btn {
+            border: none;
+            padding: 4px 12px;
+            font-size: 0.88rem;
+            transition: all 0.2s ease;
+
+            .step-num {
+                width: 26px;
+                height: 26px;
+                font-size: 0.78rem;
+                font-weight: 700;
+                background-color: var(--bs-secondary-bg, #e9ecef);
+                color: var(--bs-secondary-color, #6c757d);
+                transition: all 0.2s ease;
+            }
+
+            &.active {
+                .step-num {
+                    background-color: var(--bs-primary);
+                    color: #fff;
+                    box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.25);
+                }
+            }
+
+            &.completed {
+                .step-num {
+                    background-color: var(--bs-success, #198754);
+                    color: #fff;
+                }
+            }
+
+            &:hover:not(:disabled) {
+                opacity: 0.9;
+            }
+
+            &:disabled {
+                opacity: 0.45;
+                cursor: not-allowed;
+            }
+        }
+    }
+
+    /* ========================================================= */
+    /* DIAGRAMA DE ÁRBOL DINÁMICO (TREE VIEW - PASO 2)           */
+    /* ========================================================= */
+
+    .config-tree-diagram {
+        position: relative;
+
+        /* Tronco conector vertical */
+        .tree-trunk-line {
+            width: 2px;
+            background-color: var(--bs-border-color);
+            z-index: 0;
+            top: 14px;
+            bottom: 24px;
+        }
+
+        .tree-node {
+            position: relative;
+            z-index: 1;
+
+            /* Conector circular en el tronco */
+            .tree-node-marker {
+                width: 28px;
+                height: 28px;
+                left: 15px; /* Centrado con el tronco */
+                z-index: 2;
+                transition: all 0.2s ease;
+
+                &.ring-active {
+                    box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.22) !important;
+                }
+            }
+
+            .tree-node-body {
+                margin-left: 10px;
+            }
+
+            /* Nodo Completado (Hoja cerrada / compacta) */
+            .tree-leaf-done {
+                transition: all 0.15s ease-in-out;
+                border-color: var(--bs-border-color) !important;
+
+                &:hover {
+                    background-color: var(--bs-tertiary-bg) !important;
+                    border-color: var(--bs-primary) !important;
+                    transform: translateX(3px);
+                }
+            }
+
+            /* Nodo Activo (Rama abierta con opciones) */
+            .tree-leaf-open {
+                border-color: var(--bs-primary) !important;
+                box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.08) !important;
+
+                .tree-branch-pill {
+                    font-size: 0.88rem;
+                    min-height: 38px;
+                    padding: 5px 14px;
+                    transition: all 0.15s ease;
+
+                    &:hover:not(.disabled):not(.active) {
+                        border-color: var(--bs-primary);
+                        color: var(--bs-primary);
+                    }
+                }
+            }
+
+            /* Nodo Pendiente (Discreto) */
+            .tree-leaf-pending {
+                border-color: var(--bs-border-color) !important;
+            }
+        }
+    }
+
+    /* Tarjetas de Modelos (Paso 1) e Imágenes */
+    .model-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+        .model-image-container {
+            img {
+                transition: transform 0.25s ease;
+            }
+        }
+
+        &:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.1) !important;
+            border-color: var(--bs-primary) !important;
+
+            .model-image-container img {
+                transform: scale(1.04);
+            }
+        }
+
+        &.ring-selected {
+            border-color: var(--bs-primary) !important;
+            box-shadow: 0 0 0 2px var(--bs-primary) !important;
+        }
+    }
+
+    /* Tarjetas de Accesorios (Paso 3) */
+    .accessory-card {
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+
+        .form-switch .form-check-input {
+            width: 2.2em;
+            height: 1.2em;
+        }
+
+        &:hover:not(.opacity-75) {
+            border-color: var(--bs-primary) !important;
+            box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06) !important;
+        }
+    }
+
+    /* Panel Lateral de Resumen (Desktop - Compacto y Refinado) */
+    .cotizador-summary-panel {
+        width: 310px;
+        min-width: 310px;
+        max-width: 310px;
+        height: 100%;
+        font-size: 0.9rem;
+
+        .summary-specs-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(120, 120, 120, 0.3) transparent;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+            }
+            &::-webkit-scrollbar-thumb {
+                background-color: rgba(120, 120, 120, 0.3);
+                border-radius: 4px;
+            }
+        }
+    }
+
+    /* ========================================================= */
+    /* RESPONSIVE MÓVIL (PANTALLAS < 992px)                      */
+    /* ========================================================= */
+
+    .mobile-bottom-bar {
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12) !important;
+    }
+
+    .mobile-summary-backdrop {
+        background-color: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(3px);
+    }
+
+    .mobile-summary-sheet {
+        animation: slideUpSheet 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideUpSheet {
+        from {
+            transform: translateY(100%);
+        }
+        to {
+            transform: translateY(0);
+        }
+    }
+
+    .animate-fade-in {
+        animation: fadeInSheet 0.2s ease-in-out forwards;
+    }
+
+    @keyframes fadeInSheet {
+        from {
+            opacity: 0;
+            transform: translateY(4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ========================================================= */
+    /* COMPONENTES Y DIÁLOGOS OFFLINE                            */
+    /* ========================================================= */
+
+    .pulse-dot {
+        width: 8px;
+        height: 8px;
+        display: inline-block;
+        animation: pulseStatus 2s infinite;
+    }
+
+    @keyframes pulseStatus {
+        0% { transform: scale(0.95); opacity: 0.8; }
+        50% { transform: scale(1.25); opacity: 1; }
+        100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .sync-center-backdrop {
+        z-index: 1050;
+    }
+
+    .sync-center-drawer {
+        animation: slideInDrawer 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideInDrawer {
+        from {
+            transform: translateX(100%);
+        }
+        to {
+            transform: translateX(0);
+        }
+    }
+
+    .modal-backdrop-custom {
+        z-index: 1060;
+    }
+
+    .modal-card-custom {
+        animation: zoomInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes zoomInModal {
+        from {
+            transform: scale(0.94);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+}
+
