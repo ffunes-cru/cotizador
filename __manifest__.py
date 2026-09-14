@@ -16,6 +16,7 @@
         'security/ir.model.access.csv',
         'views/views.xml',
         'views/config_view.xml',
+        'views/product_template_view.xml',
         'views/plan_pago_views.xml',
         'views/product_attribute_view.xml',
         'data/product_category_data.xml',

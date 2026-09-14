@@ -17,6 +17,11 @@
                              help="Usar el wizard clásico estándar de Odoo en lugar del nuevo configurador visual interactivo en JavaScript.">
                         <field name="cotizador_use_legacy_wizard"/>
                     </setting>
+                    <setting id="cotizador_modo_silencioso_setting"
+                             string="Modo Silencioso"
+                             help="Oculta el precio unitario de los accesorios en el configurador, mostrando únicamente el precio total.">
+                        <field name="cotizador_modo_silencioso"/>
+                    </setting>
                 </block>
             </xpath>
         </field>

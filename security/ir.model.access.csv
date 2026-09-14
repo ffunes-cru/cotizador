@@ -13,3 +13,4 @@ access_sembradora_accessory_rule,access.sembradora.accessory.rule,model_sembrado
 access_cotizador_bcra_wizard,access.cotizador.bcra.wizard,model_cotizador_bcra_wizard,base.group_user,1,1,1,1
 access_cotizador_bcra_wizard_deuda,access.cotizador.bcra.wizard.deuda,model_cotizador_bcra_wizard_deuda,base.group_user,1,1,1,1
 access_cotizador_bcra_wizard_cheque,access.cotizador.bcra.wizard.cheque,model_cotizador_bcra_wizard_cheque,base.group_user,1,1,1,1
+access_product_template_description_line,access.product.template.description.line,model_product_template_description_line,base.group_user,1,1,1,1

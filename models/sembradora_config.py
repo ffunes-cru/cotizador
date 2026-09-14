@@ -18,9 +18,33 @@ class SembradoraConfigRel(models.Model):
         string='Accesorios con Precio')
 
     price = fields.Float(string="Precio de Configuración")
-    description = fields.Html(string="Descripción", help="Descripción detallada de la configuración de la máquina.")
+    description = fields.Html(
+        string="Descripción",
+        compute="_compute_description",
+        store=True,
+        readonly=False,
+        help="Descripción detallada de la configuración de la máquina, calculada según el atributo rector de la plantilla."
+    )
 
     name = fields.Char(string="Configuración", compute="_compute_name", store=True)
+
+    @api.depends(
+        'modelo_id.description_line_ids.value_ids',
+        'modelo_id.description_line_ids.sequence',
+        'modelo_id.description_line_ids.description',
+        'modelo_id.description_default',
+        'value_ids'
+    )
+    def _compute_description(self):
+        for reg in self:
+            if reg.modelo_id:
+                desc = reg.modelo_id.get_config_description(reg.value_ids)
+                if desc:
+                    reg.description = desc
+                elif not reg.description:
+                    reg.description = ''
+            elif not reg.description:
+                reg.description = ''
 
     @api.depends('modelo_id', 'value_ids')
     def _compute_name(self):

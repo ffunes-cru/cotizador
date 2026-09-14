@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="product_template_only_form_view_inherit_cotizador" model="ir.ui.view">
+        <field name="name">product.template.form.inherit.cotizador.description</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Descripción Paramétrica" 
+                      name="page_cotizador_descriptions" 
+                      invisible="not is_maquina">
+                    <field name="is_maquina" invisible="1"/>
+                    <field name="available_attribute_value_ids" invisible="1"/>
+                    
+                    <separator string="Reglas de Descripción por Combinación de Atributos"/>
+                    <div class="text-muted mb-2">
+                        Defina descripciones técnicas según combinaciones de 1 o más atributos (ej: <b>Tecnología: LEAF</b> + <b>Dosificadores: Mecánico</b>).
+                        El sistema seleccionará automáticamente la regla más específica (con mayor cantidad de atributos coincidentes).
+                    </div>
+                    
+                    <field name="description_line_ids" nolabel="1">
+                        <list>
+                            <field name="sequence" widget="handle"/>
+                            <field name="name" string="Nombre / Referencia"/>
+                            <field name="value_ids" widget="many2many_tags" 
+                                   domain="[('id', 'in', parent.available_attribute_value_ids)]"
+                                   options="{'no_create': True}"
+                                   string="Atributos Requeridos"/>
+                            <field name="description" string="Vista Previa Descripción"/>
+                        </list>
+                        <form string="Regla de Descripción Paramétrica">
+                            <sheet>
+                                <group>
+                                    <group>
+                                        <field name="name" placeholder="Ej: Leaf Mecánica, Leaf Neumática..."/>
+                                        <field name="sequence"/>
+                                    </group>
+                                    <group>
+                                        <field name="value_ids" widget="many2many_tags" 
+                                               domain="[('id', 'in', parent.available_attribute_value_ids)]"
+                                               options="{'no_create': True}"/>
+                                    </group>
+                                </group>
+                                
+                                <separator string="Contenido de la Descripción Técnica (HTML / Rich Text)"/>
+                                <field name="description" 
+                                       colspan="2" 
+                                       nolabel="1" 
+                                       placeholder="Redacte o pegue aquí la descripción técnica para esta combinación (admite tablas, viñetas, títulos y texto enriquecido)..."
+                                       style="min-height: 280px; width: 100%; display: block;"/>
+                            </sheet>
+                        </form>
+                    </field>
+
+                    <separator string="Descripción General de Respaldo (Fallback)" class="mt-4"/>
+                    <div class="text-muted mb-2">
+                        Descripción general que se aplicará si la máquina configurada no coincide con ninguna de las reglas específicas de arriba.
+                    </div>
+                    <field name="description_default" 
+                           placeholder="Descripción general de la máquina si ninguna regla específica coincide..."
+                           style="min-height: 180px; width: 100%; display: block;"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -203,14 +203,27 @@
 
     .mobile-bottom-bar {
         box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12) !important;
+        position: sticky;
+        bottom: 0;
+        z-index: 100;
     }
 
     .mobile-summary-backdrop {
-        background-color: rgba(0, 0, 0, 0.55);
-        backdrop-filter: blur(3px);
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 99999 !important;
+        background-color: rgba(0, 0, 0, 0.65);
+        backdrop-filter: blur(4px);
     }
 
     .mobile-summary-sheet {
+        position: relative;
+        z-index: 100000 !important;
         animation: slideUpSheet 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
@@ -239,56 +252,124 @@
     }
 
     /* ========================================================= */
-    /* COMPONENTES Y DIÁLOGOS OFFLINE                            */
+    /* TEXTO AUTO-DESPLAZABLE CUANDO NO ENTRA EN PANTALLA       */
     /* ========================================================= */
 
-    .pulse-dot {
-        width: 8px;
-        height: 8px;
-        display: inline-block;
-        animation: pulseStatus 2s infinite;
-    }
+    .o-scroll-text {
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        max-width: 100%;
+        min-width: 0;
+        position: relative;
+        padding-right: 6px;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
 
-    @keyframes pulseStatus {
-        0% { transform: scale(0.95); opacity: 0.8; }
-        50% { transform: scale(1.25); opacity: 1; }
-        100% { transform: scale(0.95); opacity: 0.8; }
-    }
-
-    .sync-center-backdrop {
-        z-index: 1050;
-    }
-
-    .sync-center-drawer {
-        animation: slideInDrawer 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes slideInDrawer {
-        from {
-            transform: translateX(100%);
+        &::-webkit-scrollbar {
+            display: none; /* Chrome, Safari */
         }
-        to {
+
+        .o-scroll-text-content {
+            display: inline-block;
+            white-space: nowrap;
+            will-change: transform;
+        }
+
+        &.is-overflowing {
+            /* Se desvanece antes para no chocar nunca contra el botón */
+            mask-image: linear-gradient(to right, black 75%, transparent 98%);
+            -webkit-mask-image: linear-gradient(to right, black 75%, transparent 98%);
+
+            .o-scroll-text-content {
+                /* Arranca a desplazarse a los 0.4s en vez de esperar 1.2s */
+                animation: scrollTextLeft 6s ease-in-out 0.4s infinite alternate;
+            }
+
+            &:hover, &:focus, &:active {
+                .o-scroll-text-content {
+                    animation-play-state: paused;
+                }
+            }
+        }
+    }
+
+    @keyframes scrollTextLeft {
+        0%, 15% {
             transform: translateX(0);
         }
-    }
-
-    .modal-backdrop-custom {
-        z-index: 1060;
-    }
-
-    .modal-card-custom {
-        animation: zoomInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes zoomInModal {
-        from {
-            transform: scale(0.94);
-            opacity: 0;
+        85%, 100% {
+            transform: translateX(var(--scroll-offset, -35px));
         }
-        to {
-            transform: scale(1);
-            opacity: 1;
+    }
+
+    /* ========================================================= */
+    /* DESCRIPCIÓN TÉCNICA ENRIQUECIDA (HTML / TABLAS / TEXTO)   */
+    /* ========================================================= */
+
+    .config-rich-description {
+        font-size: 0.82rem;
+        line-height: 1.45;
+        color: inherit;
+
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 0.4rem;
+            margin-bottom: 0.25rem;
+            font-weight: 700;
+            color: inherit;
+        }
+
+        h1 { font-size: 1.1rem; }
+        h2 { font-size: 1.05rem; }
+        h3 { font-size: 0.95rem; }
+        h4, h5, h6 { font-size: 0.85rem; }
+
+        p {
+            margin-bottom: 0.4rem;
+        }
+
+        ul, ol {
+            padding-left: 1.2rem;
+            margin-bottom: 0.4rem;
+        }
+
+        table {
+            width: 100%;
+            margin-bottom: 0.5rem;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+
+            th, td {
+                padding: 4px 6px;
+                border: 1px solid var(--border-color, rgba(120, 120, 120, 0.25));
+                vertical-align: top;
+            }
+
+            th {
+                background-color: rgba(120, 120, 120, 0.08);
+                font-weight: 600;
+            }
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
         }
     }
 }
+
+/* Odoo HTML Editor in Dialogs / Form Modals (Parametric description) */
+.o_dialog {
+    .o_field_html,
+    .odoo-editor-editable,
+    .note-editor,
+    .o_wysiwyg_textarea,
+    [contenteditable="true"] {
+        min-height: 240px !important;
+        width: 100% !important;
+    }
+}
+
+
 

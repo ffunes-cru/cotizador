@@ -121,6 +121,14 @@ class SaleOrderInherit(models.Model):
                     )
         return super().action_confirm()
 
+    def print_quotation(self):
+        """Override del botón estándar de impresión de Odoo para emitir el reporte personalizado con planes de pago."""
+        report = self.env.ref('cotizador.action_report_cotizacion_planes', raise_if_not_found=False)
+        if report:
+            self.filtered(lambda s: s.state == 'draft').write({'state': 'sent'})
+            return report.report_action(self)
+        return super().print_quotation()
+
     def action_open_config_wizard(self):
         """Abre el configurador de sembradora (Visual OWL o Wizard Legacy según la configuración del sistema)."""
         order_id = self.id or self.env.context.get('active_id') or self.env.context.get('params', {}).get('id')
@@ -191,6 +199,7 @@ class SaleOrderLineInherit(models.Model):
             ctx = self.env.context
             parent_id = (
                 ctx.get('default_sale_order_id') or
+                ctx.get('order_id') or
                 ctx.get('active_id') or 
                 ctx.get('default_order_id') or 
                 ctx.get('params', {}).get('id')

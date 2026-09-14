@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="cotizador.ConfiguradorTemplate">
-        <div class="o_cotizador_configurator h-100 d-flex flex-column bg-view overflow-hidden">
+        <div class="o_cotizador_configurator h-100 d-flex flex-column bg-view overflow-hidden" t-ref="root">
             
             <!-- Barra Superior / Encabezado y Stepper -->
             <header class="navbar navbar-expand bg-body border-bottom px-3 px-md-4 py-2 shadow-sm flex-shrink-0 z-2">
@@ -15,17 +15,12 @@
                             <span t-if="state.order.name" class="badge bg-secondary-subtle text-body border text-truncate">
                                 <t t-esc="state.order.name"/>
                             </span>
-                            <span t-elif="state.isOfflineMode" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-truncate">
-                                Modo Local
-                            </span>
                         </div>
-                        <small t-if="state.order.partner_name || state.selectedPartner || state.clientName" class="text-muted d-block text-truncate" style="max-width: 220px;">
-                            Cliente: <span class="fw-bold text-body">
-                                <t t-if="state.order.partner_name" t-esc="state.order.partner_name"/>
-                                <t t-elif="state.selectedPartner" t-esc="state.selectedPartner.name"/>
-                                <t t-elif="state.clientName" t-esc="state.clientName"/>
-                            </span>
-                        </small>
+                        <div t-if="state.order.partner_name" class="o-scroll-text" style="max-width: 220px;">
+                            <small class="text-muted o-scroll-text-content">
+                                Cliente: <span class="fw-bold text-body"><t t-esc="state.order.partner_name"/></span>
+                            </small>
+                        </div>
                     </div>
                 </div>
 
@@ -79,50 +74,13 @@
                     </span>
                 </div>
 
-                <!-- Acciones a la derecha: Estado Red, Sincronización y Salir -->
-                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-auto ms-md-0">
-                    <!-- Estado de Red & Descargar Catálogo -->
-                    <t t-if="state.isOnline">
-                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 fs-8 d-none d-sm-inline-flex align-items-center gap-1">
-                            <span class="pulse-dot bg-success rounded-circle"/>
-                            <span>Online</span>
-                        </span>
-                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-2 py-1 fs-8 d-none d-lg-inline-flex align-items-center gap-1"
-                                t-on-click="() => this.downloadOfflineCatalog(true)"
-                                t-att-disabled="state.syncingCatalog"
-                                title="Actualizar catálogo en este dispositivo para trabajar sin conexión">
-                            <i class="fa fa-refresh" t-att-class="state.syncingCatalog ? 'fa-spin text-primary' : ''"/>
-                            <span>Actualizar Catálogo</span>
-                        </button>
-                    </t>
-                    <t t-else="">
-                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1 fs-8 d-inline-flex align-items-center gap-1"
-                              title="Sin conexión a internet. Los datos se guardan localmente.">
-                            <span class="pulse-dot bg-danger rounded-circle"/>
-                            <span>Offline</span>
-                        </span>
-                    </t>
-
-                    <!-- Botón Centro de Sincronización Offline -->
-                    <button class="btn btn-sm rounded-pill px-2 px-sm-3 py-1 fs-8 d-flex align-items-center gap-1 position-relative"
-                            t-att-class="state.pendingQuotesCount &gt; 0 ? 'btn-warning text-dark fw-bold shadow-sm' : 'btn-outline-secondary'"
-                            t-on-click="toggleSyncCenter"
-                            title="Centro de sincronización offline">
-                        <i class="fa fa-cloud-upload"/>
-                        <span class="d-none d-sm-inline">Offline</span>
-                        <span t-if="state.pendingQuotesCount &gt; 0" class="badge bg-danger text-white rounded-pill ms-1">
-                            <t t-esc="state.pendingQuotesCount"/>
-                        </span>
-                    </button>
-
-                    <!-- Botón Salir / Cerrar -->
-                    <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1 rounded-pill px-2 px-sm-3"
-                            t-on-click="closeAndReturn"
-                            title="Volver a la Cotización">
-                        <i class="fa fa-times"/>
-                        <span class="d-none d-sm-inline">Cerrar</span>
-                    </button>
-                </div>
+                <!-- Botón Salir / Volver a la Cotización -->
+                <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1 rounded-pill px-3 flex-shrink-0"
+                        t-on-click="closeAndReturn"
+                        title="Volver a la Cotización">
+                    <i class="fa fa-times"/>
+                    <span class="d-none d-sm-inline">Cerrar</span>
+                </button>
             </header>
 
             <!-- Spinner de Carga General -->
@@ -141,130 +99,10 @@
                     <!-- PASO 1: SELECCIONAR MODELO DE SEMBRADORA   -->
                     <!-- ========================================== -->
                     <div t-if="state.step === 'select_model'" class="step-container mx-auto" style="max-width: 1000px;">
-                        
-                        <!-- Panel de Cliente (Modo Offline / Standalone) -->
-                        <div t-if="state.isOfflineMode || !orderId" class="card border rounded-4 shadow-sm mb-4 bg-body">
-                            <div class="card-body p-3 p-md-4">
-                                <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-3">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="bg-primary-subtle text-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
-                                            <i class="fa fa-user fs-6"/>
-                                        </div>
-                                        <div>
-                                            <h6 class="fw-bold mb-0 text-body">Datos del Cliente</h6>
-                                            <small class="text-muted">Asigne o cree el cliente para esta cotización</small>
-                                        </div>
-                                    </div>
-                                    <!-- Selector: Buscar existente vs Nuevo contacto -->
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" 
-                                                class="btn rounded-start-pill px-3"
-                                                t-att-class="!state.isCreatingNewPartner ? 'btn-primary' : 'btn-outline-secondary'"
-                                                t-on-click="() => this.setCreateNewPartner(false)">
-                                            <i class="fa fa-search me-1"/> Buscar Existente
-                                        </button>
-                                        <button type="button" 
-                                                class="btn rounded-end-pill px-3"
-                                                t-att-class="state.isCreatingNewPartner ? 'btn-primary' : 'btn-outline-secondary'"
-                                                t-on-click="() => this.setCreateNewPartner(true)">
-                                            <i class="fa fa-user-plus me-1"/> + Nuevo Cliente
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Opción 1: Buscar contacto existente en caché local -->
-                                <div t-if="!state.isCreatingNewPartner">
-                                    <div t-if="state.selectedPartner" class="d-flex align-items-center justify-content-between p-3 bg-body-tertiary rounded-3 border">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <i class="fa fa-check-circle text-success fs-4"/>
-                                            <div>
-                                                <div class="fw-bold text-body fs-6"><t t-esc="state.selectedPartner.name"/></div>
-                                                <div class="d-flex flex-wrap gap-3 small text-muted mt-1">
-                                                    <span t-if="state.selectedPartner.vat"><i class="fa fa-id-card me-1"/>CUIT: <t t-esc="state.selectedPartner.vat"/></span>
-                                                    <span t-if="state.selectedPartner.phone"><i class="fa fa-phone me-1"/><t t-esc="state.selectedPartner.phone"/></span>
-                                                    <span t-if="state.selectedPartner.email"><i class="fa fa-envelope me-1"/><t t-esc="state.selectedPartner.email"/></span>
-                                                    <span t-if="state.selectedPartner.city"><i class="fa fa-map-marker me-1"/><t t-esc="state.selectedPartner.city"/></span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" t-on-click="clearSelectedPartner">
-                                            <i class="fa fa-pencil me-1"/> Cambiar
-                                        </button>
-                                    </div>
-
-                                    <div t-else="" class="position-relative">
-                                        <div class="position-relative">
-                                            <i class="fa fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"/>
-                                            <input type="text"
-                                                   class="form-control rounded-pill ps-5 shadow-sm"
-                                                   placeholder="Escriba nombre, CUIT o teléfono del cliente guardado..."
-                                                   t-att-value="state.partnerQuery"
-                                                   t-on-input="onSearchPartnerInput"/>
-                                        </div>
-
-                                        <div t-if="state.cachedPartners.length &gt; 0 &amp;&amp; state.partnerQuery" class="dropdown-menu show w-100 mt-1 shadow-lg border rounded-3 overflow-auto" style="max-height: 220px; z-index: 10;">
-                                            <t t-foreach="state.cachedPartners" t-as="p" t-key="p.id">
-                                                <button type="button" 
-                                                        class="dropdown-item d-flex align-items-center justify-content-between py-2 border-bottom"
-                                                        t-on-click="() => this.selectPartner(p)">
-                                                    <div>
-                                                        <strong class="text-body"><t t-esc="p.name"/></strong>
-                                                        <div class="small text-muted">
-                                                            <span t-if="p.vat" class="me-2">CUIT: <t t-esc="p.vat"/></span>
-                                                            <span t-if="p.phone"><t t-esc="p.phone"/></span>
-                                                        </div>
-                                                    </div>
-                                                    <i class="fa fa-chevron-right text-muted fs-8"/>
-                                                </button>
-                                            </t>
-                                        </div>
-                                        <div t-elif="state.partnerQuery" class="text-muted small mt-2 px-2">
-                                            No se encontraron clientes con "<t t-esc="state.partnerQuery"/>". 
-                                            <button class="btn btn-link btn-sm p-0 ms-1 fw-bold text-decoration-none" t-on-click="() => this.setCreateNewPartner(true)">
-                                                Crear como nuevo cliente
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Opción 2: Crear contacto al vuelo (Nombre, CUIT, Teléfono, Email) -->
-                                <div t-else="" class="row g-2">
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label small fw-bold text-body mb-1">Nombre o Razón Social *</label>
-                                        <input type="text" 
-                                               class="form-control rounded-3" 
-                                               placeholder="Ej: Agropecuaria El Trébol S.A."
-                                               t-model="state.clientName"/>
-                                    </div>
-                                    <div class="col-12 col-sm-6 col-md-6">
-                                        <label class="form-label small fw-bold text-body mb-1">CUIT / DNI</label>
-                                        <input type="text" 
-                                               class="form-control rounded-3" 
-                                               placeholder="30-XXXXXXXX-X"
-                                               t-model="state.clientVat"/>
-                                    </div>
-                                    <div class="col-12 col-sm-6 col-md-6">
-                                        <label class="form-label small fw-bold text-body mb-1">Teléfono / Celular (WhatsApp)</label>
-                                        <input type="tel" 
-                                               class="form-control rounded-3" 
-                                               placeholder="+54 9 341 XXX-XXXX"
-                                               t-model="state.clientPhone"/>
-                                    </div>
-                                    <div class="col-12 col-sm-6 col-md-6">
-                                        <label class="form-label small fw-bold text-body mb-1">Correo Electrónico</label>
-                                        <input type="email" 
-                                               class="form-control rounded-3" 
-                                               placeholder="contacto@cliente.com"
-                                               t-model="state.clientEmail"/>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                         <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
                             <div>
                                 <h3 class="fw-bold mb-1 text-body">Seleccione el Modelo</h3>
-                                <p class="text-muted mb-0">Elija la máquina base que desea cotizar para este cliente.</p>
+                                <p class="text-muted mb-0">Elija la máquina base que desea cotizar para este presupuesto.</p>
                             </div>
                             <div class="search-box position-relative" style="min-width: 280px;">
                                 <i class="fa fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"/>
@@ -300,9 +138,12 @@
                                         </div>
 
                                         <div class="card-body p-3 d-flex flex-column">
-                                            <h5 class="card-title fw-bold text-body mb-1">
-                                                <t t-esc="model.name"/>
-                                            </h5>
+                                            <div class="o-scroll-text w-100 mb-1">
+                                                <h5 class="card-title fw-bold text-body mb-0 o-scroll-text-content">
+                                                    <t t-esc="model.name"/>
+                                                </h5>
+                                            </div>
+
                                             <small t-if="model.default_code" class="text-muted mb-2 d-block fw-semibold">
                                                 Cód: <t t-esc="model.default_code"/>
                                             </small>
@@ -312,380 +153,398 @@
                                             </p>
                                             <div t-else="" class="flex-grow-1"/>
 
-                                            <button class="btn btn-outline-primary btn-sm rounded-pill w-100 fw-bold mt-auto d-flex align-items-center justify-content-center gap-2">
-                                                <span>Configurar</span>
-                                                <i class="fa fa-arrow-right fs-8"/>
-                                            </button>
+                                            <div class="d-flex align-items-center justify-content-between pt-2 border-top mt-auto">
+                                                <span class="text-primary fw-semibold small">Configurar</span>
+                                                <i class="fa fa-arrow-right text-primary"/>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </t>
                         </div>
-
-                        <div t-if="filteredModels.length === 0" class="text-center py-5">
-                            <i class="fa fa-search fs-1 text-muted mb-3"/>
-                            <h5 class="text-muted fw-bold">No se encontraron modelos con ese criterio.</h5>
-                        </div>
                     </div>
 
-                    <!-- =================================================== -->
-                    <!-- PASO 2: DIAGRAMA DE ÁRBOL DINÁMICO DE CONFIGURACIÓN -->
-                    <!-- =================================================== -->
-                    <div t-if="state.step === 'configure_attributes'" class="step-container mx-auto" style="max-width: 860px;">
+                    <!-- ======================================================== -->
+                    <!-- PASO 2: CONFIGURACIÓN EN ÁRBOL DINÁMICO DE DECISIÓN      -->
+                    <!-- ======================================================== -->
+                    <div t-elif="state.step === 'configure_attributes'" class="step-container mx-auto" style="max-width: 860px;">
                         
-                        <!-- Header del Paso 2 con Miniatura de Máquina -->
-                        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3 pb-2 border-bottom">
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="model-thumb-box rounded-3 border bg-body-tertiary d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 52px; height: 52px;">
+                        <!-- Barra Superior del Modelo Seleccionado con Miniatura -->
+                        <div class="d-flex align-items-center justify-content-between p-3 bg-body rounded-4 shadow-sm border mb-4">
+                            <div class="d-flex align-items-center gap-3 min-w-0 me-2">
+                                <div class="rounded-3 border bg-body-tertiary d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 54px; height: 54px;">
                                     <img t-if="state.selectedModel.has_image"
                                          t-att-src="state.selectedModel.image_url"
                                          class="img-fluid object-fit-contain h-100 w-100"
                                          t-att-alt="state.selectedModel.name"/>
-                                    <i t-else="" class="fa fa-cogs fs-4 text-secondary"/>
+                                    <i t-else="" class="fa fa-cogs fa-lg text-secondary"/>
                                 </div>
-                                <div>
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <span class="badge bg-primary text-white rounded-pill px-3 py-1 fw-bold">
+                                <div class="min-w-0">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill mb-1">
+                                        Modelo Activo
+                                    </span>
+                                    <div class="o-scroll-text">
+                                        <h4 class="fw-bold mb-0 text-body o-scroll-text-content">
                                             <t t-esc="state.selectedModel.name"/>
-                                        </span>
-                                        <span t-if="state.selectedModel.default_code" class="text-muted small fw-bold">
-                                            (<t t-esc="state.selectedModel.default_code"/>)
-                                        </span>
+                                        </h4>
                                     </div>
-                                    <h4 class="fw-bold mb-0 text-body">Árbol de Configuración</h4>
                                 </div>
                             </div>
-                            <button class="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center gap-1 align-self-start align-self-md-auto"
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-shrink-0"
                                     t-on-click="goToModelSelection">
-                                <i class="fa fa-exchange"/>
-                                <span>Cambiar Modelo</span>
+                                <i class="fa fa-exchange me-1"/> Cambiar Modelo
                             </button>
                         </div>
 
-                        <div t-if="state.loadingMatrix" class="text-center py-5">
-                            <div class="spinner-border text-primary mb-3" role="status"/>
-                            <p class="text-muted fw-bold">Calculando ramas de compatibilidad...</p>
-                        </div>
-
-                        <!-- DIAGRAMA DE ÁRBOL DINÁMICO (TREE VIEW) -->
-                        <div t-else="" class="config-tree-diagram position-relative ps-4 ps-md-5 my-3">
-                            <!-- Tronco conector vertical -->
-                            <div class="tree-trunk-line position-absolute start-0 top-0 bottom-0 ms-3 ms-md-4"/>
+                        <!-- Diagrama de Árbol de Decisión -->
+                        <div class="config-tree-diagram position-relative ps-2 ps-md-4">
+                            <!-- Tronco Conector Vertical -->
+                            <div class="tree-trunk-line position-absolute start-0 h-100 ms-3 ms-md-4"/>
 
                             <t t-foreach="state.attributes" t-as="attr" t-key="attr.id">
-                                <t t-set="attrValues" t-value="getAvailableValuesForAttribute(attr_index)"/>
+                                <t t-set="attrIndex" t-value="attr_index"/>
                                 <t t-set="selectedValueName" t-value="getSelectedValueName(attr.id)"/>
-                                <t t-set="isCompleted" t-value="!!selectedValueName"/>
-                                <t t-set="isActive" t-value="activeTreeIndex === attr_index"/>
+                                <t t-set="isNodeDone" t-value="!!selectedValueName"/>
+                                <t t-set="isNodeActive" t-value="activeTreeIndex === attrIndex"/>
+                                <t t-set="isNodePending" t-value="activeTreeIndex &lt; attrIndex"/>
 
-                                <div class="tree-node position-relative mb-3"
-                                     t-att-class="isCompleted ? 'tree-node-completed' : (isActive ? 'tree-node-active' : 'tree-node-pending')">
+                                <div class="tree-node position-relative mb-3">
                                     
-                                    <!-- Punto o conector del nodo sobre el tronco -->
-                                    <div class="tree-node-marker position-absolute start-0 top-0 translate-middle-x rounded-circle d-flex align-items-center justify-content-center shadow-sm"
-                                         t-att-class="isCompleted ? 'bg-success text-white' : (isActive ? 'bg-primary text-white ring-active' : 'bg-body border text-muted opacity-75')">
-                                        <i t-if="isCompleted" class="fa fa-check fs-8"/>
-                                        <span t-elif="isActive" class="fs-8 fw-bold"><t t-esc="attr_index + 1"/></span>
-                                        <span t-else="" class="fs-8 fw-semibold"><t t-esc="attr_index + 1"/></span>
+                                    <!-- Conector Circular en el Tronco -->
+                                    <div class="tree-node-marker position-absolute top-0 rounded-circle d-flex align-items-center justify-content-center shadow-sm"
+                                         t-att-class="isNodeDone ? 'bg-success text-white' : (isNodeActive ? 'bg-primary text-white ring-active' : 'bg-body text-muted border')">
+                                        <i t-if="isNodeDone" class="fa fa-check fs-8"/>
+                                        <span t-elif="isNodeActive" class="fs-8 fw-bold"><t t-esc="attrIndex + 1"/></span>
+                                        <span t-else="" class="fs-8"><t t-esc="attrIndex + 1"/></span>
                                     </div>
 
-                                    <!-- Cuerpo del Nodo -->
-                                    <div class="tree-node-body ps-2 ps-md-3">
+                                    <div class="tree-node-body ms-4 ps-3">
                                         
-                                        <!-- ESTADO A: NODO COMPLETADO (Fila colapsada, limpia y no invasiva) -->
-                                        <div t-if="isCompleted &amp;&amp; !isActive"
-                                             class="tree-leaf-done p-2 px-3 bg-body border rounded-3 d-flex align-items-center justify-content-between shadow-xs cursor-pointer"
-                                             t-on-click="() => this.editAttributeNode(attr_index)"
-                                             title="Haga clic para cambiar esta opción">
-                                            <div class="d-flex align-items-center gap-2 min-w-0">
-                                                <span class="text-muted small text-uppercase fw-bold"><t t-esc="attr.name"/>:</span>
-                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1 fw-bold fs-7">
-                                                    <t t-esc="selectedValueName"/>
-                                                </span>
+                                        <!-- ESTADO 1: Nodo Completado (Tira fina y compacta con auto-scroll) -->
+                                        <div t-if="isNodeDone" 
+                                             class="tree-leaf-done d-flex align-items-center justify-content-between p-2 px-3 bg-body rounded-3 border shadow-2xs cursor-pointer"
+                                             t-on-click="() => this.editAttributeNode(attrIndex)"
+                                             title="Haga clic para cambiar esta especificación">
+                                            <div class="d-flex align-items-center gap-2 me-2 overflow-hidden min-w-0">
+                                                <span class="text-muted small fw-semibold flex-shrink-0"><t t-esc="attr.name"/>:</span>
+                                                <div class="o-scroll-text">
+                                                    <span class="badge bg-primary text-white rounded-pill px-3 py-1 fs-7 fw-bold o-scroll-text-content">
+                                                        <t t-esc="selectedValueName"/>
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <button class="btn btn-link btn-sm text-secondary text-decoration-none p-0 d-flex align-items-center gap-1 fs-8">
-                                                <i class="fa fa-pencil"/>
-                                                <span>Modificar</span>
+                                            <button class="btn btn-link btn-sm text-decoration-none text-muted p-0 fs-8 flex-shrink-0">
+                                                <i class="fa fa-pencil me-1"/> Modificar
                                             </button>
                                         </div>
 
-                                        <!-- ESTADO B: NODO ACTIVO (Ramificaciones / Opciones abiertas) -->
-                                        <div t-elif="isActive" class="tree-leaf-open p-3 bg-body border border-primary rounded-4 shadow-sm animate-fade-in">
-                                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                                <label class="form-label text-uppercase fw-bold text-body fs-7 tracking-wide mb-0 d-flex align-items-center gap-2">
-                                                    <span>Paso <t t-esc="attr_index + 1"/>: Seleccione <t t-esc="attr.name"/></span>
-                                                </label>
-                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1 fs-8 fw-bold">En curso</span>
+                                        <!-- ESTADO 2: Nodo Activo (Rama abierta para elegir) -->
+                                        <div t-elif="isNodeActive" 
+                                             class="tree-leaf-open card rounded-4 border-primary shadow-sm bg-body p-3 p-md-4">
+                                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                                <div>
+                                                    <small class="text-uppercase text-primary fw-bold fs-8 tracking-wider">
+                                                        Paso <t t-esc="attrIndex + 1"/> de <t t-esc="state.attributes.length"/>
+                                                    </small>
+                                                    <h5 class="fw-bold mb-0 text-body">
+                                                        Seleccione <t t-esc="attr.name"/>
+                                                    </h5>
+                                                </div>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill fs-8">
+                                                    Rama Actual
+                                                </span>
                                             </div>
 
-                                            <!-- Ramas / Pills ordenadas naturalmente -->
+                                            <!-- Opciones en píldoras grandes interactivas (sin número de conteo) -->
                                             <div class="d-flex flex-wrap gap-2 pt-1">
-                                                <t t-foreach="attrValues" t-as="val" t-key="val.id">
+                                                <t t-foreach="getAvailableValuesForAttribute(attrIndex)" t-as="val" t-key="val.id">
                                                     <button type="button"
-                                                            class="btn tree-branch-pill d-flex align-items-center gap-2 rounded-pill px-3 py-2"
-                                                            t-att-class="val.isSelected ? 'btn-primary shadow-sm active' : (val.isAvailable ? 'btn-outline-secondary' : 'btn-light text-muted opacity-40 disabled')"
+                                                            class="btn tree-branch-pill rounded-pill fw-semibold d-flex align-items-center gap-2"
+                                                            t-att-class="val.isSelected ? 'btn-primary shadow-sm' : (val.isAvailable ? 'btn-outline-secondary' : 'btn-outline-light text-muted border-dashed disabled')"
                                                             t-att-disabled="!val.isAvailable"
                                                             t-on-click="() => this.selectAttributeValue(attr.id, val.id)">
-                                                        <span class="fw-bold"><t t-esc="val.name"/></span>
-                                                        <span t-if="val.isAvailable &amp;&amp; !val.isSelected" class="badge bg-body-secondary text-body border rounded-pill fs-8">
-                                                            <t t-esc="val.matchCount"/>
-                                                        </span>
-                                                        <i t-if="val.isSelected" class="fa fa-check fs-8"/>
+                                                        <span><t t-esc="val.name"/></span>
+                                                        <i t-if="val.isSelected" class="fa fa-check fs-8 ms-1"/>
                                                     </button>
                                                 </t>
                                             </div>
                                         </div>
 
-                                        <!-- ESTADO C: NODO PENDIENTE (Discreto, anticipa el camino sin ocupar espacio) -->
-                                        <div t-else="" class="tree-leaf-pending p-2 px-3 text-muted border border-dashed rounded-3 small opacity-60 d-flex align-items-center gap-2">
-                                            <i class="fa fa-circle-o fs-8"/>
-                                            <span><t t-esc="attr.name"/> (pendiente)</span>
+                                        <!-- ESTADO 3: Nodo Pendiente (Discreto y compacto) -->
+                                        <div t-else="" 
+                                             class="tree-leaf-pending p-2 px-3 rounded-3 bg-body-tertiary border text-muted small d-flex align-items-center justify-content-between opacity-75">
+                                            <span><t t-esc="attr.name"/></span>
+                                            <small class="fs-8">Pendiente de pasos anteriores</small>
                                         </div>
 
                                     </div>
                                 </div>
                             </t>
-
-                            <!-- NODO FINAL: CONFIGURACIÓN BASE DEFINIDA -->
-                            <div t-if="state.configFinalized" class="tree-node position-relative mb-2 animate-fade-in">
-                                <div class="tree-node-marker position-absolute start-0 top-0 translate-middle-x rounded-circle d-flex align-items-center justify-content-center shadow-sm bg-success text-white">
-                                    <i class="fa fa-flag-checkered fs-8"/>
-                                </div>
-                                <div class="tree-node-body ps-2 ps-md-3">
-                                    <div class="alert alert-success border-0 rounded-4 p-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 shadow-sm mb-0">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="badge bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center flex-shrink-0">
-                                                <i class="fa fa-check fs-5"/>
-                                            </div>
-                                            <div>
-                                                <h6 class="fw-bold text-success-emphasis mb-0">Configuración base definida</h6>
-                                                <small class="text-body d-block">
-                                                    Precio base: <strong class="text-success fs-6"><t t-esc="formatCurrency(state.basePrice)"/></strong>
-                                                </small>
-                                            </div>
-                                        </div>
-                                        <button class="btn btn-success rounded-pill px-4 py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 flex-shrink-0"
-                                                t-on-click="goToAccessories">
-                                            <span>Paso 3: Ver Accesorios</span>
-                                            <i class="fa fa-arrow-right"/>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
-                    </div>
 
-                    <!-- ========================================== -->
-                    <!-- PASO 3: ACCESORIOS COMPATIBLES             -->
-                    <!-- ========================================== -->
-                    <div t-if="state.step === 'select_accessories'" class="step-container mx-auto" style="max-width: 950px;">
-                        
-                        <!-- Header del Paso 3 -->
-                        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
-                            <div>
-                                <h3 class="fw-bold mb-1 text-body">Accesorios Compatibles</h3>
-                                <p class="text-muted mb-0">Seleccione los accesorios opcionales calculados para esta máquina.</p>
+                        <!-- Banner de Configuración Completada -->
+                        <div t-if="state.configFinalized" class="mt-4 p-3 bg-success-subtle border border-success-subtle rounded-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 shadow-sm animate-fade-in">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                                    <i class="fa fa-check fa-lg"/>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold text-success mb-0">¡Configuración base definida con éxito!</h6>
+                                    <small class="text-body">
+                                        Precio Base: <strong class="text-success"><t t-esc="formatCurrency(state.basePrice)"/></strong>
+                                    </small>
+                                </div>
                             </div>
-                            <button class="btn btn-outline-secondary btn-sm rounded-pill d-flex align-items-center gap-1 align-self-start align-self-md-auto"
-                                    t-on-click="goToAttributes">
-                                <i class="fa fa-chevron-left"/>
-                                <span>Volver a Configuración</span>
+                            <button class="btn btn-success rounded-pill px-4 fw-bold shadow-sm"
+                                    t-on-click="goToAccessories">
+                                <span>Paso Siguiente: Accesorios</span>
+                                <i class="fa fa-arrow-right ms-2"/>
                             </button>
                         </div>
 
-                        <!-- Filtros por Categoría y Buscador -->
-                        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
-                            <!-- Tabs de Categoría -->
-                            <div class="d-flex flex-wrap gap-1 p-1 bg-body rounded-pill border shadow-sm">
-                                <button class="btn btn-sm rounded-pill px-3 py-1 fw-bold"
-                                        t-att-class="state.activeCategory === 'all' ? 'btn-primary shadow-sm' : 'btn-link text-body text-decoration-none'"
-                                        t-on-click="() => this.setActiveCategory('all')">
-                                    Todos (<t t-esc="state.accessories.length"/>)
-                                </button>
-                                <t t-foreach="state.accessoryCategories" t-as="cat" t-key="cat">
-                                    <button class="btn btn-sm rounded-pill px-3 py-1 fw-bold"
-                                            t-att-class="state.activeCategory === cat ? 'btn-primary shadow-sm' : 'btn-link text-body text-decoration-none'"
-                                            t-on-click="() => this.setActiveCategory(cat)">
-                                        <t t-esc="cat"/>
-                                    </button>
-                                </t>
-                            </div>
+                    </div>
 
+                    <!-- ========================================== -->
+                    <!-- PASO 3: SELECCIONAR ACCESORIOS             -->
+                    <!-- ========================================== -->
+                    <div t-elif="state.step === 'select_accessories'" class="step-container mx-auto" style="max-width: 1000px;">
+                        
+                        <!-- Encabezado de Accesorios -->
+                        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+                            <div>
+                                <h3 class="fw-bold mb-1 text-body">Accesorios y Opciones</h3>
+                                <p class="text-muted mb-0">Personalice la sembradora con los accesorios disponibles para esta configuración.</p>
+                            </div>
+                            
                             <!-- Buscador de Accesorios -->
-                            <div class="search-box position-relative" style="min-width: 240px;">
-                                <i class="fa fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted fs-7"/>
+                            <div class="search-box position-relative" style="min-width: 260px;">
+                                <i class="fa fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"/>
                                 <input type="text"
-                                       class="form-control form-control-sm rounded-pill ps-5 shadow-sm"
+                                       class="form-control rounded-pill ps-5 shadow-sm"
                                        placeholder="Buscar accesorio..."
                                        t-model="state.searchAccessory"/>
                             </div>
                         </div>
 
-                        <!-- Spinner Accesorios -->
-                        <div t-if="state.loadingAccessories" class="text-center py-5">
-                            <div class="spinner-border text-primary mb-3" role="status"/>
-                            <p class="text-muted fw-bold">Calculando accesorios compatibles y cantidades...</p>
+                        <!-- Filtros por Categoría de Accesorios -->
+                        <div t-if="state.accessoryCategories.length > 0" class="d-flex flex-wrap gap-2 mb-4">
+                            <button class="btn btn-sm rounded-pill px-3 fw-semibold"
+                                    t-att-class="state.activeCategory === 'all' ? 'btn-primary' : 'btn-outline-secondary'"
+                                    t-on-click="() => this.setActiveCategory('all')">
+                                Todos (<t t-esc="state.accessories.length"/>)
+                            </button>
+                            <t t-foreach="state.accessoryCategories" t-as="cat" t-key="cat">
+                                <button class="btn btn-sm rounded-pill px-3 fw-semibold"
+                                        t-att-class="state.activeCategory === cat ? 'btn-primary' : 'btn-outline-secondary'"
+                                        t-on-click="() => this.setActiveCategory(cat)">
+                                    <t t-esc="cat"/>
+                                </button>
+                            </t>
                         </div>
 
-                        <!-- Lista de Accesorios con Imagen Miniatura -->
-                        <div t-else="" class="d-flex flex-column gap-3">
+                        <!-- Spinner de carga de accesorios -->
+                        <div t-if="state.loadingAccessories" class="py-5 text-center text-muted">
+                            <div class="spinner-border text-primary mb-2" role="status"/>
+                            <p class="small fw-bold">Calculando accesorios compatibles y cantidades...</p>
+                        </div>
+
+                        <!-- Mensaje si no hay accesorios -->
+                        <div t-elif="filteredAccessories.length === 0" class="card p-5 text-center text-muted rounded-4 border">
+                            <i class="fa fa-puzzle-piece fa-3x mb-3 opacity-25"/>
+                            <h5>No se encontraron accesorios</h5>
+                            <p class="small mb-0">No hay accesorios disponibles que coincidan con la búsqueda o categoría.</p>
+                        </div>
+
+                        <!-- Lista / Grilla de Accesorios -->
+                        <div t-else="" class="row row-cols-1 row-cols-md-2 g-3">
                             <t t-foreach="filteredAccessories" t-as="acc" t-key="acc.line_id">
-                                <div class="accessory-card card rounded-4 shadow-sm overflow-hidden border"
-                                     t-att-class="state.selectedAccessories[acc.line_id] ? 'bg-primary-subtle border-primary' : (acc.is_locked ? 'bg-body-tertiary text-muted opacity-75' : 'bg-body')">
-                                    <div class="card-body p-3 p-md-4 d-flex align-items-center gap-3">
+                                <t t-set="isSelected" t-value="state.selectedAccessories[acc.line_id]"/>
+                                <div class="col">
+                                    <div class="card h-100 rounded-4 border p-3 accessory-card transition shadow-2xs position-relative"
+                                         t-att-class="isSelected ? 'border-primary bg-primary-subtle bg-opacity-10' : (acc.is_locked ? 'opacity-75 bg-body-tertiary' : 'bg-body')">
                                         
-                                        <!-- Switch de Selección -->
-                                        <div class="form-check form-switch fs-4 mb-0 cursor-pointer">
-                                            <input class="form-check-input cursor-pointer"
-                                                   type="checkbox"
-                                                   role="switch"
-                                                   t-att-checked="state.selectedAccessories[acc.line_id]"
-                                                   t-att-disabled="acc.is_locked"
-                                                   t-on-change="() => this.toggleAccessory(acc.line_id)"/>
-                                        </div>
+                                        <div class="d-flex align-items-start gap-3">
+                                            <!-- Miniatura de Imagen de Accesorio -->
+                                            <div class="rounded-3 border bg-body d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 60px; height: 60px;">
+                                                <img t-if="acc.has_image"
+                                                     t-att-src="acc.image_url"
+                                                     class="img-fluid object-fit-contain h-100 w-100"
+                                                     t-att-alt="acc.product_name"/>
+                                                <i t-else="" class="fa fa-puzzle-piece fa-lg text-secondary opacity-50"/>
+                                            </div>
 
-                                        <!-- Miniatura de Imagen de Accesorio (si tiene) -->
-                                        <div t-if="acc.has_image" class="accessory-thumb-box rounded-3 border bg-body d-none d-sm-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 48px; height: 48px;">
-                                            <img t-att-src="acc.image_url"
-                                                 class="img-fluid object-fit-contain h-100 w-100"
-                                                 t-att-alt="acc.product_name"/>
-                                        </div>
+                                            <div class="flex-grow-1 min-w-0">
+                                                <div class="d-flex align-items-start justify-content-between gap-2">
+                                                    <div class="o-scroll-text flex-grow-1 min-w-0 me-3">
+                                                        <h6 class="fw-bold text-body mb-1 o-scroll-text-content" t-att-title="acc.product_name">
+                                                            <t t-esc="acc.product_name"/>
+                                                        </h6>
+                                                    </div>
+                                                    
+                                                    <!-- Switch de Activación (espacio protegido intocable) -->
+                                                    <div class="form-check form-switch p-0 m-0 flex-shrink-0" style="min-width: 44px; text-align: right;">
+                                                        <input class="form-check-input cursor-pointer float-none m-0"
+                                                               type="checkbox"
+                                                               role="switch"
+                                                               t-att-id="'switch_' + acc.line_id"
+                                                               t-att-checked="isSelected"
+                                                               t-att-disabled="acc.is_locked"
+                                                               t-on-change="() => this.toggleAccessory(acc.line_id)"/>
+                                                    </div>
+                                                </div>
 
-                                        <!-- Detalle del Accesorio -->
-                                        <div class="flex-grow-1 min-w-0 cursor-pointer"
-                                             t-on-click="() => this.toggleAccessory(acc.line_id)">
-                                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                                                <span class="badge bg-body-tertiary text-body border rounded-pill px-2 py-0 fs-8 fw-semibold">
-                                                    <t t-esc="acc.category_name"/>
-                                                </span>
-                                                <small t-if="acc.default_code" class="text-muted fw-semibold">
-                                                    Cód: <t t-esc="acc.default_code"/>
+                                                <small class="text-muted d-block text-truncate mb-2">
+                                                    <span t-if="acc.default_code" class="me-2">Cód: <t t-esc="acc.default_code"/></span>
+                                                    <span class="badge bg-body text-body border rounded-pill fs-8"><t t-esc="acc.category_name"/></span>
                                                 </small>
-                                                <span t-if="acc.is_trigger" class="badge bg-info-subtle text-info border border-info-subtle rounded-pill fs-8 fw-semibold">
-                                                    Habilitador
-                                                </span>
-                                            </div>
 
-                                            <h6 class="fw-bold mb-1 text-body text-truncate">
-                                                <t t-esc="acc.product_name"/>
-                                            </h6>
+                                                <!-- Detalle de Cantidad y Precio (Modo Silencioso oculta precio unitario) -->
+                                                <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+                                                    <span class="badge bg-secondary-subtle text-body border rounded-pill px-2 py-1 fs-8">
+                                                        Cant: <strong class="text-body"><t t-esc="acc.quantity"/></strong>
+                                                    </span>
+                                                    <div class="text-end">
+                                                        <div class="fw-bold text-body">
+                                                            <t t-esc="formatCurrency(acc.subtotal)"/>
+                                                        </div>
+                                                        <small t-if="!state.modoSilencioso &amp;&amp; acc.quantity &gt; 1" class="text-muted fs-8">
+                                                            (<t t-esc="formatCurrency(acc.price_unit)"/> c/u)
+                                                        </small>
+                                                    </div>
+                                                </div>
 
-                                            <!-- Aviso de Bloqueo por Regla -->
-                                            <div t-if="acc.is_locked" class="d-flex align-items-center gap-1 text-danger small mt-1 fw-semibold">
-                                                <i class="fa fa-lock fs-8"/>
-                                                <span><t t-esc="acc.lock_reason"/></span>
-                                            </div>
-                                        </div>
-
-                                        <!-- Cantidad y Precios -->
-                                        <div class="text-end flex-shrink-0">
-                                            <div class="badge bg-body-tertiary text-body border rounded-pill px-2 py-1 mb-1 fw-bold">
-                                                Cant: <strong><t t-esc="acc.quantity"/></strong>
-                                            </div>
-                                            <div class="text-muted fs-8 fw-semibold">
-                                                Unit: <t t-esc="formatCurrency(acc.price_unit)"/>
-                                            </div>
-                                            <div class="fw-bold text-body fs-6">
-                                                <t t-esc="formatCurrency(acc.subtotal)"/>
+                                                <!-- Motivo de Bloqueo por Regla Comercial -->
+                                                <div t-if="acc.is_locked" class="mt-2 text-danger small fs-8 d-flex align-items-center gap-1">
+                                                    <i class="fa fa-lock"/>
+                                                    <span><t t-esc="acc.lock_reason"/></span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </t>
-
-                            <div t-if="filteredAccessories.length === 0" class="text-center py-5 text-muted">
-                                <i class="fa fa-info-circle fs-3 mb-2"/>
-                                <p class="fw-bold">No hay accesorios compatibles que coincidan con la búsqueda.</p>
-                            </div>
                         </div>
                     </div>
+
                 </main>
 
                 <!-- ======================================================== -->
-                <!-- COLUMNA DERECHA: PANEL DE RESUMEN (REFINADO Y COMPACTO) -->
+                <!-- COLUMNA DERECHA: PANEL LATERAL DE RESUMEN (DESKTOP)       -->
                 <!-- ======================================================== -->
-                <aside class="cotizador-summary-panel border-start p-3 p-xl-4 d-none d-lg-flex flex-column shadow-sm bg-body">
-                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                        <h6 class="fw-bold mb-0 text-body">Resumen de Cotización</h6>
-                        <i class="fa fa-file-text-o text-muted"/>
+                <aside class="cotizador-summary-panel d-none d-lg-flex flex-column border-start bg-body flex-shrink-0 z-1">
+                    
+                    <!-- Encabezado del Resumen -->
+                    <div class="p-3 border-bottom d-flex align-items-center justify-content-between flex-shrink-0">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa fa-file-text-o text-primary"/>
+                            <span class="fw-bold text-body">Resumen de Cotización</span>
+                        </div>
+                        <span t-if="state.configFinalized" class="badge bg-success-subtle text-success border border-success-subtle rounded-pill fs-8">
+                            Configurada
+                        </span>
                     </div>
 
-                    <!-- Ficha del Modelo Seleccionado con Imagen -->
-                    <div class="mb-3">
-                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">Máquina</small>
-                        <div t-if="state.selectedModel" class="p-2 bg-body-tertiary rounded-3 border d-flex align-items-center gap-2">
-                            <div class="rounded border bg-body d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 44px; height: 44px;">
+                    <!-- Ficha de la Máquina Seleccionada con Miniatura -->
+                    <div class="p-3 border-bottom bg-body-tertiary flex-shrink-0">
+                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-2">Máquina Base</small>
+                        <div t-if="state.selectedModel" class="d-flex align-items-center gap-2">
+                            <div class="rounded-3 border bg-body d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 48px; height: 48px;">
                                 <img t-if="state.selectedModel.has_image"
                                      t-att-src="state.selectedModel.image_url"
                                      class="img-fluid object-fit-contain h-100 w-100"
                                      t-att-alt="state.selectedModel.name"/>
-                                <i t-else="" class="fa fa-cogs fs-4 text-secondary"/>
+                                <i t-else="" class="fa fa-cogs text-secondary"/>
                             </div>
-                            <div class="min-w-0">
-                                <div class="fw-bold text-body fs-6 text-truncate"><t t-esc="state.selectedModel.name"/></div>
+                            <div class="o-scroll-text min-w-0">
+                                <div class="fw-bold text-body fs-6 o-scroll-text-content"><t t-esc="state.selectedModel.name"/></div>
                                 <small t-if="state.selectedModel.default_code" class="text-muted d-block fw-semibold">
-                                    Ref: <t t-esc="state.selectedModel.default_code"/>
+                                    Cód: <t t-esc="state.selectedModel.default_code"/>
                                 </small>
                             </div>
                         </div>
-                        <div t-else="" class="p-2 bg-body-tertiary rounded-3 text-muted text-center small border border-dashed fw-semibold">
-                            Ningún modelo seleccionado
+                        <div t-else="" class="text-muted small fst-italic">
+                            Seleccione un modelo para comenzar
                         </div>
                     </div>
 
-                    <!-- Especificaciones Seleccionadas y Accesorios (Scroll Natural de Altura Completa) -->
-                    <div class="summary-specs-scroll mb-3 flex-grow-1 overflow-y-auto pe-1">
-                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">
-                            Especificaciones (<t t-esc="selectedAttributesSummary.length"/>)
-                        </small>
+                    <!-- Lista de Especificaciones y Accesorios Seleccionados -->
+                    <div class="flex-grow-1 overflow-y-auto p-3 summary-specs-scroll">
                         
-                        <div t-if="selectedAttributesSummary.length > 0" class="d-flex flex-column gap-1">
-                            <t t-foreach="selectedAttributesSummary" t-as="spec" t-key="spec.attr_id">
-                                <div class="d-flex align-items-center justify-content-between p-1 px-2 bg-body-tertiary border rounded-2 fs-8">
-                                    <span class="text-muted fw-semibold text-truncate me-1"><t t-esc="spec.attr_name"/>:</span>
-                                    <span class="fw-bold text-body text-end flex-shrink-0"><t t-esc="spec.value_name"/></span>
-                                </div>
-                            </t>
-                        </div>
-                        <div t-else="" class="text-muted small italic fw-semibold">
-                            Seleccione opciones para armar la máquina.
-                        </div>
-
-                        <!-- Lista de Accesorios Seleccionados -->
-                        <div t-if="selectedAccessoriesList.length > 0" class="mt-2">
-                            <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">
-                                Accesorios (<t t-esc="selectedAccessoriesList.length"/>)
-                            </small>
-                            <div class="d-flex flex-column gap-1">
-                                <t t-foreach="selectedAccessoriesList" t-as="acc" t-key="acc.line_id">
-                                    <div class="d-flex align-items-center justify-content-between py-1 border-bottom fs-8">
-                                        <span class="text-truncate me-2 text-body fw-semibold" style="max-width: 160px;">
-                                            • <t t-esc="acc.product_name"/>
-                                        </span>
-                                        <span class="fw-bold text-body flex-shrink-0">
-                                            <t t-esc="formatCurrency(acc.subtotal)"/>
-                                        </span>
+                        <!-- Especificaciones Técnicas Elegidas -->
+                        <div class="mb-3">
+                            <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-2">Especificaciones</small>
+                            <div t-if="selectedAttributesSummary.length > 0" class="d-flex flex-column gap-1">
+                                <t t-foreach="selectedAttributesSummary" t-as="spec" t-key="spec.attr_id">
+                                    <div class="d-flex justify-content-between align-items-center small py-1 border-bottom fs-8">
+                                        <span class="text-muted fw-semibold text-truncate me-2"><t t-esc="spec.attr_name"/>:</span>
+                                        <span class="text-body fw-bold text-end flex-shrink-0"><t t-esc="spec.value_name"/></span>
                                     </div>
                                 </t>
                             </div>
+                            <div t-else="" class="text-muted small fst-italic">
+                                Ninguna especificación seleccionada
+                            </div>
                         </div>
+
+                        <!-- Descripción Técnica / Paramétrica -->
+                        <div t-if="activeDescription" class="mb-3">
+                            <div class="border rounded-3 p-2 bg-body-tertiary">
+                                <div class="d-flex align-items-center justify-content-between cursor-pointer"
+                                     t-on-click="toggleDescriptionCollapse"
+                                     title="Ver descripción técnica configurada">
+                                    <div class="d-flex align-items-center gap-2 min-w-0">
+                                        <i class="fa fa-file-text-o text-primary flex-shrink-0"/>
+                                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider text-truncate">Descripción Técnica</small>
+                                    </div>
+                                    <i class="fa text-muted fs-8 flex-shrink-0" t-att-class="state.showDescriptionCollapse ? 'fa-chevron-up' : 'fa-chevron-down'"/>
+                                </div>
+                                <div t-if="state.showDescriptionCollapse" class="mt-2 pt-2 border-top config-rich-description overflow-auto" style="max-height: 250px;">
+                                    <t t-out="activeDescription"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Accesorios Seleccionados -->
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider">Accesorios Elegidos</small>
+                                <span class="badge bg-secondary-subtle text-body border rounded-pill fs-8">
+                                    <t t-esc="selectedAccessoriesList.length"/>
+                                </span>
+                            </div>
+
+                            <div t-if="selectedAccessoriesList.length > 0" class="d-flex flex-column gap-1">
+                                <t t-foreach="selectedAccessoriesList" t-as="acc" t-key="acc.line_id">
+                                    <div class="d-flex justify-content-between align-items-center small py-1 border-bottom fs-8">
+                                        <div class="o-scroll-text min-w-0 me-2">
+                                            <span class="o-scroll-text-content text-body fw-semibold">• <t t-esc="acc.product_name"/></span>
+                                            <small class="text-muted ms-1">(x<t t-esc="acc.quantity"/>)</small>
+                                        </div>
+                                        <span class="text-body fw-bold flex-shrink-0"><t t-esc="formatCurrency(acc.subtotal)"/></span>
+                                    </div>
+                                </t>
+                            </div>
+                            <div t-else="" class="text-muted small fst-italic">
+                                No se han seleccionado accesorios adicionales
+                            </div>
+                        </div>
+
                     </div>
 
-                    <!-- Desglose Económico Compacto -->
-                    <div class="border-top pt-2 mt-auto">
-                        <div class="d-flex justify-content-between mb-1 fs-8">
-                            <span class="text-muted fw-semibold">Precio Base:</span>
-                            <span class="fw-bold text-body"><t t-esc="formatCurrency(state.basePrice)"/></span>
+                    <!-- Totales y Botón de Confirmación -->
+                    <div class="p-3 border-top bg-body flex-shrink-0">
+                        <div class="d-flex justify-content-between small text-muted mb-1 fs-8">
+                            <span>Precio Base Máquina:</span>
+                            <span class="text-body fw-bold"><t t-esc="formatCurrency(state.basePrice)"/></span>
                         </div>
-                        <div class="d-flex justify-content-between mb-2 fs-8">
-                            <span class="text-muted fw-semibold">Total Accesorios:</span>
-                            <span class="fw-bold text-body"><t t-esc="formatCurrency(state.accessoriesTotal)"/></span>
+                        <div class="d-flex justify-content-between small text-muted mb-2 fs-8">
+                            <span>Total Accesorios:</span>
+                            <span class="text-body fw-bold"><t t-esc="formatCurrency(state.accessoriesTotal)"/></span>
                         </div>
-
-                        <!-- Total Refinado y Más Chico -->
-                        <div class="p-2 px-3 bg-body-tertiary border rounded-3 mb-2 d-flex align-items-center justify-content-between">
+                        
+                        <div class="d-flex justify-content-between align-items-center border-top pt-2 mb-3">
                             <div>
-                                <span class="text-muted small fw-bold d-block fs-8">Total Estimado</span>
+                                <span class="fw-bold text-body fs-6 d-block">Total Estimado</span>
                                 <small class="text-muted fs-8 d-none d-xl-block">IVA 10.5% en cotización</small>
                             </div>
                             <span class="fw-bold text-success fs-5"><t t-esc="formatCurrency(state.totalPrice)"/></span>
@@ -694,17 +553,12 @@
                         <!-- Botón de Confirmación Principal -->
                         <div class="d-grid gap-2">
                             <button t-if="state.step === 'select_accessories' || state.configFinalized"
-                                    class="btn rounded-pill fw-bold shadow-sm py-2 d-flex align-items-center justify-content-center gap-2"
-                                    t-att-class="(state.isOfflineMode || !orderId) ? 'btn-primary' : 'btn-success'"
+                                    class="btn btn-success rounded-pill fw-bold shadow-sm py-2 d-flex align-items-center justify-content-center gap-2"
                                     t-att-disabled="!state.configFinalized || state.saving"
                                     t-on-click="confirmConfiguration">
                                 <span t-if="state.saving" class="spinner-border spinner-border-sm" role="status"/>
-                                <t t-else="">
-                                    <i t-if="state.isOfflineMode || !orderId" class="fa fa-save fs-6"/>
-                                    <i t-else="" class="fa fa-check fs-6"/>
-                                </t>
-                                <span t-if="state.isOfflineMode || !orderId">Guardar Cotización Local</span>
-                                <span t-else="">Añadir a la Cotización</span>
+                                <i t-else="" class="fa fa-check fs-6"/>
+                                <span>Añadir a la Cotización</span>
                             </button>
 
                             <button t-elif="state.step === 'select_model'"
@@ -749,17 +603,12 @@
 
                             <!-- Botón de acción según paso -->
                             <button t-if="state.step === 'select_accessories' || state.configFinalized"
-                                    class="btn btn-sm rounded-pill px-3 py-1 fw-bold shadow-sm d-flex align-items-center gap-1"
-                                    t-att-class="(state.isOfflineMode || !orderId) ? 'btn-primary' : 'btn-success'"
+                                    class="btn btn-success btn-sm rounded-pill px-3 py-1 fw-bold shadow-sm d-flex align-items-center gap-1"
                                     t-att-disabled="!state.configFinalized || state.saving"
                                     t-on-click="confirmConfiguration">
                                 <span t-if="state.saving" class="spinner-border spinner-border-sm" role="status"/>
-                                <t t-else="">
-                                    <i t-if="state.isOfflineMode || !orderId" class="fa fa-save"/>
-                                    <i t-else="" class="fa fa-check"/>
-                                </t>
-                                <span t-if="state.isOfflineMode || !orderId">Guardar</span>
-                                <span t-else="">Confirmar</span>
+                                <i t-else="" class="fa fa-check"/>
+                                <span>Confirmar</span>
                             </button>
                             <button t-elif="state.step === 'select_model'"
                                     class="btn btn-primary btn-sm rounded-pill px-3 py-1 fw-bold shadow-sm d-flex align-items-center gap-1"
@@ -779,290 +628,123 @@
                     </div>
                 </div>
 
-                <!-- ========================================== -->
-                <!-- MODAL / DRAWER DE RESUMEN EN MOBILE        -->
-                <!-- ========================================== -->
-                <div t-if="state.showMobileSummary" class="mobile-summary-backdrop position-fixed top-0 start-0 w-100 h-100 z-4 d-flex flex-column justify-content-end animate-fade-in"
-                     t-on-click.self="closeMobileSummary">
-                    <div class="mobile-summary-sheet bg-body rounded-top-4 p-3 p-md-4 shadow-lg border-top w-100 overflow-auto" style="max-height: 80vh;">
-                        <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- MODAL / DRAWER DE RESUMEN EN MOBILE (NIVEL ROOT Z-INDEX) -->
+            <!-- ======================================================== -->
+            <div t-if="state.showMobileSummary" 
+                 class="mobile-summary-backdrop position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-end animate-fade-in"
+                 t-on-click.self="closeMobileSummary">
+                <div class="mobile-summary-sheet bg-body rounded-top-4 p-3 p-md-4 shadow-lg border-top w-100 overflow-auto" style="max-height: 82vh;">
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa fa-file-text-o text-primary"/>
                             <h6 class="fw-bold mb-0 text-body">Detalle de Cotización</h6>
-                            <button class="btn btn-sm btn-outline-secondary rounded-circle p-1 px-2" t-on-click="closeMobileSummary">
-                                <i class="fa fa-times"/>
-                            </button>
                         </div>
-
-                        <!-- Máquina con Miniatura -->
-                        <div class="mb-2">
-                            <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">Máquina</small>
-                            <div t-if="state.selectedModel" class="d-flex align-items-center gap-2 p-2 bg-body-tertiary rounded border">
-                                <div class="rounded border bg-body d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 40px; height: 40px;">
-                                    <img t-if="state.selectedModel.has_image"
-                                         t-att-src="state.selectedModel.image_url"
-                                         class="img-fluid object-fit-contain h-100 w-100"
-                                         t-att-alt="state.selectedModel.name"/>
-                                    <i t-else="" class="fa fa-cogs text-secondary"/>
-                                </div>
-                                <div class="min-w-0">
-                                    <div class="fw-bold text-body fs-6 text-truncate"><t t-esc="state.selectedModel.name"/></div>
-                                    <small t-if="state.selectedModel.default_code" class="text-muted d-block fw-semibold">
-                                        Ref: <t t-esc="state.selectedModel.default_code"/>
-                                    </small>
-                                </div>
-                            </div>
-                            <div t-else="" class="text-muted small">No seleccionada</div>
-                        </div>
-
-                        <!-- Especificaciones -->
-                        <div class="mb-2">
-                            <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">Especificaciones</small>
-                            <div class="d-flex flex-column gap-1">
-                                <t t-foreach="selectedAttributesSummary" t-as="spec" t-key="spec.attr_id">
-                                    <div class="d-flex justify-content-between small py-1 border-bottom fs-8">
-                                        <span class="text-muted fw-semibold"><t t-esc="spec.attr_name"/>:</span>
-                                        <span class="text-body fw-bold"><t t-esc="spec.value_name"/></span>
-                                    </div>
-                                </t>
-                            </div>
-                        </div>
-
-                        <!-- Accesorios -->
-                        <div t-if="selectedAccessoriesList.length > 0" class="mb-2">
-                            <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">
-                                Accesorios Elegidos (<t t-esc="selectedAccessoriesList.length"/>)
-                            </small>
-                            <div class="d-flex flex-column gap-1">
-                                <t t-foreach="selectedAccessoriesList" t-as="acc" t-key="acc.line_id">
-                                    <div class="d-flex justify-content-between small py-1 border-bottom fs-8">
-                                        <span class="text-body fw-semibold text-truncate me-2">• <t t-esc="acc.product_name"/></span>
-                                        <span class="text-body fw-bold flex-shrink-0"><t t-esc="formatCurrency(acc.subtotal)"/></span>
-                                    </div>
-                                </t>
-                            </div>
-                        </div>
-
-                        <!-- Totales Compactos -->
-                        <div class="p-2 px-3 bg-body-tertiary border rounded-3 mb-3">
-                            <div class="d-flex justify-content-between small mb-1 fs-8">
-                                <span class="text-muted fw-semibold">Precio Base:</span>
-                                <span class="text-body fw-bold"><t t-esc="formatCurrency(state.basePrice)"/></span>
-                            </div>
-                            <div class="d-flex justify-content-between small mb-1 fs-8">
-                                <span class="text-muted fw-semibold">Total Accesorios:</span>
-                                <span class="text-body fw-bold"><t t-esc="formatCurrency(state.accessoriesTotal)"/></span>
-                            </div>
-                            <div class="d-flex justify-content-between fs-6 fw-bold border-top pt-1">
-                                <span class="text-body">Total Final:</span>
-                                <span class="text-success"><t t-esc="formatCurrency(state.totalPrice)"/></span>
-                            </div>
-                        </div>
-
-                        <button t-if="state.configFinalized"
-                                class="btn w-100 rounded-pill py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
-                                t-att-class="(state.isOfflineMode || !orderId) ? 'btn-primary' : 'btn-success'"
-                                t-att-disabled="state.saving"
-                                t-on-click="confirmConfiguration">
-                            <span t-if="state.saving" class="spinner-border spinner-border-sm" role="status"/>
-                            <t t-else="">
-                                <i t-if="state.isOfflineMode || !orderId" class="fa fa-save"/>
-                                <i t-else="" class="fa fa-check-circle"/>
-                            </t>
-                            <span t-if="state.isOfflineMode || !orderId">Guardar Cotización Local</span>
-                            <span t-else="">Añadir a la Cotización</span>
+                        <button class="btn btn-sm btn-outline-secondary rounded-circle p-1 px-2" t-on-click="closeMobileSummary">
+                            <i class="fa fa-times"/>
                         </button>
                     </div>
-                </div>
 
-                <!-- ========================================== -->
-                <!-- MODAL: COTIZACIÓN GUARDADA OFFLINE         -->
-                <!-- ========================================== -->
-                <div t-if="state.showOfflineSavedModal &amp;&amp; state.lastSavedQuote"
-                     class="modal-backdrop-custom position-fixed top-0 start-0 w-100 h-100 z-5 d-flex align-items-center justify-content-center p-3 animate-fade-in"
-                     style="background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px);">
-                    <div class="modal-card-custom bg-body rounded-4 shadow-lg border p-4 w-100" style="max-width: 520px;">
-                        <div class="text-center mb-3">
-                            <div class="bg-success-subtle text-success rounded-circle d-inline-flex align-items-center justify-content-center p-3 mb-2" style="width: 64px; height: 64px;">
-                                <i class="fa fa-check-circle fa-3x"/>
+                    <!-- Máquina con Miniatura -->
+                    <div class="mb-3">
+                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">Máquina</small>
+                        <div t-if="state.selectedModel" class="d-flex align-items-center gap-2 p-2 bg-body-tertiary rounded border">
+                            <div class="rounded border bg-body d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 44px; height: 44px;">
+                                <img t-if="state.selectedModel.has_image"
+                                     t-att-src="state.selectedModel.image_url"
+                                     class="img-fluid object-fit-contain h-100 w-100"
+                                     t-att-alt="state.selectedModel.name"/>
+                                <i t-else="" class="fa fa-cogs text-secondary"/>
                             </div>
-                            <h4 class="fw-bold text-body mb-1">¡Cotización Guardada Offline!</h4>
-                            <p class="text-muted small mb-0">Guardada en la memoria local. Podrá subirla a Odoo cuando tenga conexión.</p>
-                        </div>
-
-                        <div class="bg-body-tertiary rounded-3 p-3 border mb-3">
-                            <div class="d-flex justify-content-between small mb-1">
-                                <span class="text-muted">Referencia:</span>
-                                <span class="fw-bold font-monospace text-body"><t t-esc="state.lastSavedQuote.uuid"/></span>
-                            </div>
-                            <div class="d-flex justify-content-between small mb-1">
-                                <span class="text-muted">Cliente:</span>
-                                <span class="fw-bold text-body"><t t-esc="state.lastSavedQuote.client_name"/></span>
-                            </div>
-                            <div class="d-flex justify-content-between small mb-1">
-                                <span class="text-muted">Modelo:</span>
-                                <span class="fw-bold text-body"><t t-esc="state.lastSavedQuote.model_name"/></span>
-                            </div>
-                            <div class="d-flex justify-content-between fs-6 fw-bold border-top pt-2 mt-2">
-                                <span class="text-body">Total Cotizado:</span>
-                                <span class="text-success"><t t-esc="formatCurrency(state.lastSavedQuote.total_price)"/></span>
+                            <div class="o-scroll-text min-w-0">
+                                <div class="fw-bold text-body fs-6 o-scroll-text-content"><t t-esc="state.selectedModel.name"/></div>
+                                <small t-if="state.selectedModel.default_code" class="text-muted d-block fw-semibold">
+                                    Ref: <t t-esc="state.selectedModel.default_code"/>
+                                </small>
                             </div>
                         </div>
+                        <div t-else="" class="text-muted small">No seleccionada</div>
+                    </div>
 
-                        <div class="d-flex flex-column gap-2">
-                            <!-- Botón WhatsApp -->
-                            <button class="btn btn-success rounded-pill fw-bold py-2 d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                                    t-on-click="() => this.copyWhatsAppText(state.lastSavedQuote)">
-                                <i class="fa fa-whatsapp fs-5"/>
-                                <span>Copiar Resumen para WhatsApp</span>
-                            </button>
+                    <!-- Especificaciones -->
+                    <div class="mb-3">
+                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">Especificaciones</small>
+                        <div class="d-flex flex-column gap-1">
+                            <t t-foreach="selectedAttributesSummary" t-as="spec" t-key="spec.attr_id">
+                                <div class="d-flex justify-content-between align-items-center small py-1 border-bottom fs-8">
+                                    <span class="text-muted fw-semibold text-truncate me-2"><t t-esc="spec.attr_name"/>:</span>
+                                    <span class="text-body fw-bold flex-shrink-0"><t t-esc="spec.value_name"/></span>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
 
-                            <div class="row g-2 mt-1">
-                                <div class="col-6">
-                                    <button class="btn btn-primary w-100 rounded-pill fw-semibold py-2 d-flex align-items-center justify-content-center gap-1"
-                                            t-on-click="startNewOfflineQuote">
-                                        <i class="fa fa-plus"/>
-                                        <span>Nueva Cotización</span>
-                                    </button>
+                    <!-- Descripción Técnica / Paramétrica -->
+                    <div t-if="activeDescription" class="mb-3">
+                        <div class="border rounded-3 p-2 bg-body-tertiary">
+                            <div class="d-flex align-items-center justify-content-between cursor-pointer"
+                                 t-on-click="toggleDescriptionCollapse">
+                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                    <i class="fa fa-file-text-o text-primary flex-shrink-0"/>
+                                    <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider text-truncate">Descripción Técnica</small>
                                 </div>
-                                <div class="col-6">
-                                    <button class="btn btn-outline-secondary w-100 rounded-pill fw-semibold py-2"
-                                            t-on-click="closeOfflineSavedModal">
-                                        <span>Cerrar</span>
-                                    </button>
-                                </div>
+                                <i class="fa text-muted fs-8 flex-shrink-0" t-att-class="state.showDescriptionCollapse ? 'fa-chevron-up' : 'fa-chevron-down'"/>
+                            </div>
+                            <div t-if="state.showDescriptionCollapse" class="mt-2 pt-2 border-top config-rich-description overflow-auto" style="max-height: 220px;">
+                                <t t-out="activeDescription"/>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- ========================================== -->
-                <!-- DRAWER: CENTRO DE SINCRONIZACIÓN OFFLINE    -->
-                <!-- ========================================== -->
-                <div t-if="state.showSyncCenter" 
-                     class="sync-center-backdrop position-fixed top-0 start-0 w-100 h-100 z-5 d-flex justify-content-end animate-fade-in"
-                     style="background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px);"
-                     t-on-click.self="toggleSyncCenter">
-                    <div class="sync-center-drawer bg-body h-100 shadow-lg border-start d-flex flex-column w-100" style="max-width: 500px;">
-                        
-                        <!-- Header Drawer -->
-                        <div class="p-3 border-bottom d-flex align-items-center justify-content-between flex-shrink-0">
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="brand-badge bg-primary text-white rounded-3 p-2 d-flex align-items-center justify-content-center shadow-sm" style="width: 34px; height: 34px;">
-                                    <i class="fa fa-cloud-upload fs-6"/>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold mb-0 text-body">Centro de Sincronización</h6>
-                                    <small class="text-muted">Cotizaciones y catálogo offline</small>
-                                </div>
-                            </div>
-                            <button class="btn btn-sm btn-outline-secondary rounded-circle p-1 px-2" t-on-click="toggleSyncCenter">
-                                <i class="fa fa-times"/>
-                            </button>
+                    <!-- Accesorios -->
+                    <div t-if="selectedAccessoriesList.length > 0" class="mb-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider">
+                                Accesorios Elegidos (<t t-esc="selectedAccessoriesList.length"/>)
+                            </small>
                         </div>
-
-                        <!-- Body Drawer -->
-                        <div class="p-3 flex-grow-1 overflow-y-auto">
-                            
-                            <!-- Estado de Conexión y Catálogo -->
-                            <div class="card border rounded-3 p-3 mb-3 bg-body-tertiary">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <span class="small fw-bold text-muted">ESTADO DE CONEXIÓN</span>
-                                    <span t-if="state.isOnline" class="badge bg-success text-white rounded-pill px-2 py-1 fs-8">
-                                        <i class="fa fa-circle me-1" style="font-size: 7px;"/> En línea (Conectado)
-                                    </span>
-                                    <span t-else="" class="badge bg-danger text-white rounded-pill px-2 py-1 fs-8">
-                                        <i class="fa fa-circle me-1" style="font-size: 7px;"/> Sin conexión
-                                    </span>
-                                </div>
-                                <div class="small text-muted mb-3">
-                                    Última actualización de catálogo: <strong class="text-body"><t t-esc="state.lastSyncDate || 'Nunca'"/></strong>
-                                </div>
-                                <button class="btn btn-outline-primary btn-sm rounded-pill w-100 fw-semibold d-flex align-items-center justify-content-center gap-2"
-                                        t-att-disabled="!state.isOnline || state.syncingCatalog"
-                                        t-on-click="() => this.downloadOfflineCatalog(true)">
-                                    <i class="fa fa-refresh" t-att-class="state.syncingCatalog ? 'fa-spin' : ''"/>
-                                    <span t-if="state.syncingCatalog">Descargando Catálogo...</span>
-                                    <span t-else="">Actualizar Catálogo Local</span>
-                                </button>
-                            </div>
-
-                            <!-- Alerta de Cotizaciones Pendientes -->
-                            <div t-if="state.pendingQuotesCount &gt; 0" class="alert alert-warning border-warning rounded-3 p-3 mb-3">
-                                <div class="d-flex align-items-center justify-content-between mb-1">
-                                    <strong class="text-dark"><i class="fa fa-exclamation-triangle me-1"/> <t t-esc="state.pendingQuotesCount"/> pendientes de subir</strong>
-                                </div>
-                                <p class="small text-dark mb-3">Cotizaciones creadas en campo que aún no se registraron como órdenes en Odoo.</p>
-                                <button class="btn btn-warning text-dark w-100 fw-bold rounded-pill shadow-sm d-flex align-items-center justify-content-center gap-2"
-                                        t-att-disabled="!state.isOnline || state.syncingQuotes"
-                                        t-on-click="syncPendingQuotes">
-                                    <span t-if="state.syncingQuotes" class="spinner-border spinner-border-sm" role="status"/>
-                                    <i t-else="" class="fa fa-cloud-upload"/>
-                                    <span t-if="state.syncingQuotes">Subiendo a Odoo...</span>
-                                    <span t-else="">Subir Cotizaciones a Odoo</span>
-                                </button>
-                            </div>
-
-                            <!-- Historial de Cotizaciones en el Dispositivo -->
-                            <h6 class="fw-bold text-body mb-2 d-flex align-items-center justify-content-between">
-                                <span>Historial en Dispositivo</span>
-                                <span class="badge bg-secondary-subtle text-body border fs-8"><t t-esc="state.offlineQuotesList.length"/></span>
-                            </h6>
-
-                            <div t-if="state.offlineQuotesList.length === 0" class="text-center py-4 text-muted">
-                                <i class="fa fa-inbox fa-3x opacity-25 mb-2"/>
-                                <p class="small mb-0">No hay cotizaciones registradas localmente.</p>
-                            </div>
-
-                            <div t-else="" class="d-flex flex-column gap-2">
-                                <t t-foreach="state.offlineQuotesList" t-as="q" t-key="q.uuid">
-                                    <div class="card border rounded-3 p-3 bg-body shadow-sm">
-                                        <div class="d-flex align-items-start justify-content-between mb-1">
-                                            <div>
-                                                <span class="font-monospace fs-8 text-muted d-block"><t t-esc="q.uuid"/></span>
-                                                <strong class="text-body"><t t-esc="q.client_name"/></strong>
-                                            </div>
-                                            <div>
-                                                <span t-if="q.status === 'synced'" class="badge bg-success-subtle text-success border border-success-subtle rounded-pill fs-8">
-                                                    <i class="fa fa-check me-1"/> <t t-esc="q.order_name || 'Subida'"/>
-                                                </span>
-                                                <span t-else="" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill fs-8">
-                                                    <i class="fa fa-clock-o me-1"/> Pendiente
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div class="d-flex justify-content-between align-items-center small text-muted my-1">
-                                            <span><t t-esc="q.model_name"/></span>
-                                            <span class="fw-bold text-success fs-6"><t t-esc="formatCurrency(q.total_price)"/></span>
-                                        </div>
-
-                                        <div class="d-flex align-items-center justify-content-between pt-2 mt-1 border-top">
-                                            <small class="text-muted fs-8">
-                                                <i class="fa fa-calendar me-1"/><t t-esc="new Date(q.created_at).toLocaleDateString('es-AR')"/>
-                                            </small>
-                                            <div class="d-flex gap-1">
-                                                <button class="btn btn-sm btn-outline-success rounded-pill px-2 py-0 fs-8 d-flex align-items-center gap-1"
-                                                        t-on-click="() => this.copyWhatsAppText(q)"
-                                                        title="Copiar texto para WhatsApp">
-                                                    <i class="fa fa-whatsapp"/> <span>WhatsApp</span>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-danger rounded-circle p-0 d-flex align-items-center justify-content-center"
-                                                        style="width: 24px; height: 24px;"
-                                                        t-on-click="() => this.deleteOfflineQuote(q.uuid)"
-                                                        title="Eliminar de la memoria local">
-                                                    <i class="fa fa-trash fs-8"/>
-                                                </button>
-                                            </div>
-                                        </div>
+                        <div class="d-flex flex-column gap-1">
+                            <t t-foreach="selectedAccessoriesList" t-as="acc" t-key="acc.line_id">
+                                <div class="d-flex justify-content-between align-items-center small py-1 border-bottom fs-8">
+                                    <div class="o-scroll-text min-w-0 me-2">
+                                        <span class="o-scroll-text-content text-body fw-semibold">• <t t-esc="acc.product_name"/></span>
+                                        <small class="text-muted ms-1">(x<t t-esc="acc.quantity"/>)</small>
                                     </div>
-                                </t>
-                            </div>
-
+                                    <span class="text-body fw-bold flex-shrink-0"><t t-esc="formatCurrency(acc.subtotal)"/></span>
+                                </div>
+                            </t>
                         </div>
-
                     </div>
-                </div>
 
+                    <!-- Totales Compactos -->
+                    <div class="p-3 bg-body-tertiary border rounded-3 mb-3">
+                        <div class="d-flex justify-content-between small mb-1 fs-8">
+                            <span class="text-muted fw-semibold">Precio Base:</span>
+                            <span class="text-body fw-bold"><t t-esc="formatCurrency(state.basePrice)"/></span>
+                        </div>
+                        <div class="d-flex justify-content-between small mb-1 fs-8">
+                            <span class="text-muted fw-semibold">Total Accesorios:</span>
+                            <span class="text-body fw-bold"><t t-esc="formatCurrency(state.accessoriesTotal)"/></span>
+                        </div>
+                        <div class="d-flex justify-content-between fs-6 fw-bold border-top pt-2 mt-1">
+                            <span class="text-body">Total Final:</span>
+                            <span class="text-success"><t t-esc="formatCurrency(state.totalPrice)"/></span>
+                        </div>
+                    </div>
+
+                    <button t-if="state.configFinalized"
+                            class="btn btn-success w-100 rounded-pill py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
+                            t-att-disabled="state.saving"
+                            t-on-click="confirmConfiguration">
+                        <span t-if="state.saving" class="spinner-border spinner-border-sm" role="status"/>
+                        <i t-else="" class="fa fa-check-circle"/>
+                        <span>Añadir a la Cotización</span>
+                    </button>
+                </div>
             </div>
+
         </div>
     </t>
 </templates>

@@ -12,6 +12,10 @@
                         <field name="price"/>
                     </group>
                     <group string="Descripción de la Configuración">
+                        <div class="text-muted small mb-2" colspan="2">
+                            <i class="fa fa-info-circle me-1"/>
+                            Esta descripción se calcula automáticamente según las reglas de la solapa <i>Descripción Paramétrica</i> en la ficha del Modelo.
+                        </div>
                         <field name="description" nolabel="1" colspan="2"/>
                     </group>
                     <separator string="Accesorios Compatibles con Precio"/>

@@ -42,6 +42,10 @@ class CotizadorConfiguratorService(models.AbstractModel):
                 'image_url': f'/web/image/product.template/{t.id}/image_512' if t.image_128 else False,
             })
 
+        modo_silencioso = self.env['ir.config_parameter'].sudo().get_param(
+            'cotizador.modo_silencioso', default='False'
+        ) == 'True'
+
         return {
             'order': {
                 'id': order.id,
@@ -51,6 +55,7 @@ class CotizadorConfiguratorService(models.AbstractModel):
                 'state': order.state,
             },
             'models': models_data,
+            'modo_silencioso': modo_silencioso,
         }
 
     @api.model
@@ -355,135 +360,3 @@ class CotizadorConfiguratorService(models.AbstractModel):
             'order_name': order.name,
         }
 
-    @api.model
-    def get_full_offline_package(self):
-        """
-        Descarga el paquete completo para operar 100% offline:
-        - Catálogo de modelos
-        - Matriz de cada modelo
-        - Accesorios calculados por configuración
-        - Directorio de clientes para cotizar sin conexión
-        """
-        cat_maquina = self.env['product.category'].search([('name', '=', 'Maquina')], limit=1)
-        domain = [('categ_id', '=', cat_maquina.id)] if cat_maquina else []
-        templates = self.env['product.template'].search(domain, order='name asc')
-
-        configs_grouped = self.env['sembradora.config.rel'].read_group(
-            domain=[('modelo_id', 'in', templates.ids)],
-            fields=['modelo_id'],
-            groupby=['modelo_id']
-        )
-        config_count_by_model = {c['modelo_id'][0]: c['modelo_id_count'] for c in configs_grouped}
-
-        models_data = []
-        matrix_by_model = {}
-        accessories_by_config = {}
-
-        for t in templates:
-            models_data.append({
-                'id': t.id,
-                'name': t.name,
-                'default_code': t.default_code or '',
-                'config_count': config_count_by_model.get(t.id, 0),
-                'description': t.description_sale or '',
-                'has_image': bool(t.image_128),
-                'image_url': f'/web/image/product.template/{t.id}/image_512' if t.image_128 else False,
-            })
-            # Matriz del modelo
-            matrix = self.get_model_matrix(t.id)
-            matrix_by_model[t.id] = matrix
-
-            # Accesorios de cada config del modelo
-            for cfg in matrix.get('configs', []):
-                cfg_id = cfg['id']
-                if cfg_id not in accessories_by_config:
-                    accessories_by_config[cfg_id] = self.get_config_accessories(cfg_id)
-
-        # Directorio de clientes para cotizar offline
-        partners = self.env['res.partner'].search_read(
-            [('active', '=', True)],
-            ['id', 'name', 'vat', 'phone', 'email', 'city'],
-            limit=500,
-            order='write_date desc'
-        )
-
-        return {
-            'models': models_data,
-            'matrix_by_model': matrix_by_model,
-            'accessories_by_config': accessories_by_config,
-            'partners': partners,
-            'sync_date': fields.Datetime.now().isoformat(),
-        }
-
-    @api.model
-    def sync_offline_quotes(self, quotes):
-        """
-        Sincroniza un lote de cotizaciones creadas en modo offline.
-        Crea clientes nuevos si no existen (con permisos sudo seguros para vendedores),
-        crea los presupuestos sale.order y sus variantes de producto.
-        """
-        results = []
-
-        for q in quotes:
-            uuid = q.get('uuid')
-            try:
-                # 1. Determinar o crear contacto / cliente
-                partner_id = q.get('partner_id')
-                partner = False
-                if partner_id:
-                    partner = self.env['res.partner'].browse(partner_id)
-                    if not partner.exists():
-                        partner = False
-
-                if not partner:
-                    cuit = (q.get('client_vat') or '').strip()
-                    if cuit:
-                        partner = self.env['res.partner'].sudo().search([('vat', '=', cuit)], limit=1)
-
-                if not partner:
-                    nombre_cliente = (q.get('client_name') or '').strip() or _('Cliente Offline')
-                    partner = self.env['res.partner'].sudo().create({
-                        'name': nombre_cliente,
-                        'vat': q.get('client_vat') or False,
-                        'phone': q.get('client_phone') or False,
-                        'email': q.get('client_email') or False,
-                        'customer_rank': 1,
-                    })
-
-                # 2. Crear Orden de Venta
-                order_vals = {
-                    'partner_id': partner.id,
-                    'origin': f"Cotizador Offline ({uuid})",
-                    'note': _("Cotización generada offline en campo el %s.\nNotas: %s") % (
-                        q.get('created_at', ''),
-                        q.get('notes', '')
-                    ),
-                }
-                order = self.env['sale.order'].create(order_vals)
-
-                # 3. Confirmar configuración de sembradora y accesorios
-                config_id = q.get('config_id')
-                selected_accs = q.get('accessories', [])
-
-                self.confirm_configuration(
-                    order_id=order.id,
-                    config_id=config_id,
-                    selected_accessories=selected_accs
-                )
-
-                results.append({
-                    'uuid': uuid,
-                    'success': True,
-                    'order_id': order.id,
-                    'order_name': order.name,
-                })
-
-            except Exception as e:
-                _logger.exception("Error al sincronizar cotización offline %s: %s", uuid, e)
-                results.append({
-                    'uuid': uuid,
-                    'success': False,
-                    'error': str(e),
-                })
-
-        return results

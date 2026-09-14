@@ -1,3 +1,4 @@
+from . import product_template_inherit
 from . import sembradora_config
 from . import sembradora_accessory_rule
 from . import sembradora_config_acc_line

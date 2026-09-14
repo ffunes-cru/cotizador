@@ -14,3 +14,9 @@ class ResConfigSettings(models.TransientModel):
         help='Si se activa, el botón de configurar sembradora abrirá el wizard estándar de Odoo en lugar de la nueva interfaz visual interactiva en OWL.',
         config_parameter='cotizador.use_legacy_wizard',
     )
+    cotizador_modo_silencioso = fields.Boolean(
+        string='Modo Silencioso (Configurador)',
+        help='Oculta el precio unitario de los accesorios en el configurador interactivo, mostrando únicamente el precio total.',
+        config_parameter='cotizador.modo_silencioso',
+    )
+
