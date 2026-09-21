@@ -5,6 +5,21 @@
         <field name="model">product.template</field>
         <field name="inherit_id" ref="product.product_template_only_form_view"/>
         <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="is_maquina" invisible="1"/>
+                <button name="action_open_in_studio"
+                        type="object"
+                        string="Configurador Studio"
+                        class="oe_stat_button"
+                        icon="fa-sliders"
+                        invisible="not is_maquina"/>
+                <button name="action_open_engineering_wizard"
+                        type="object"
+                        string="Códigos Teamcenter"
+                        class="oe_stat_button"
+                        icon="fa-cogs"
+                        invisible="not is_maquina"/>
+            </xpath>
             <xpath expr="//notebook" position="inside">
                 <page string="Descripción Paramétrica" 
                       name="page_cotizador_descriptions" 

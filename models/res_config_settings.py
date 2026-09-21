@@ -11,7 +11,7 @@ class ResConfigSettings(models.TransientModel):
     )
     cotizador_use_legacy_wizard = fields.Boolean(
         string='Usar Configurador Clásico (Legacy)',
-        help='Si se activa, el botón de configurar sembradora abrirá el wizard estándar de Odoo en lugar de la nueva interfaz visual interactiva en OWL.',
+        help='Si se activa, el botón de configurar equipo abrirá el wizard estándar de Odoo en lugar de la nueva interfaz visual interactiva en OWL.',
         config_parameter='cotizador.use_legacy_wizard',
     )
     cotizador_modo_silencioso = fields.Boolean(

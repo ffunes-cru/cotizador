@@ -138,7 +138,7 @@ class SaleOrderInherit(models.Model):
         if use_legacy == 'True':
             return {
                 'type': 'ir.actions.act_window',
-                'name': 'Configurar Sembradora (Legacy)',
+                'name': 'Configurar Equipo (Legacy)',
                 'res_model': 'sembradora.config.wizard',
                 'view_mode': 'form',
                 'target': 'new',

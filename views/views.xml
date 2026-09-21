@@ -4,7 +4,7 @@
         <field name="name">sembradora.config.wizard.form</field>
         <field name="model">sembradora.config.wizard</field>
         <field name="arch" type="xml">
-            <form string="Configurar Sembradora">
+            <form string="Configurar Equipo">
                 <sheet>
                     <group>
                         <field name="modelo_id" options="{'no_create': True}"/>
@@ -65,7 +65,7 @@
     </record>
 
     <record id="action_open_sembradora_wizard" model="ir.actions.act_window">
-        <field name="name">Configurar Sembradora</field>
+        <field name="name">Configurar Equipo</field>
         <field name="res_model">sembradora.config.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field> <field name="context">{'default_sale_order_id': active_id}</field>
@@ -118,17 +118,14 @@
                 <field name="user_id" widget="many2one_avatar_user" string="Concesionario"/>
             </xpath>
 
-            <!-- Interceptar "Add a product" en order_line para abrir nuestro wizard si es categoría Maquina (Desktop) -->
+            <!-- Interceptar "Add a product" en order_line para mostrar únicamente Configurar Equipo (Desktop) -->
             <xpath expr="//field[@name='order_line']//list//control" position="replace">
                 <control>
                     <button name="action_open_config_wizard" 
                             type="object"
-                            string="Configurar Sembradora"
+                            string="Configurar Equipo"
                             class="px-4 btn-link"
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
-                    <create name="add_product_control" string="Añadir otro producto"/>
-                    <create name="add_section_control" string="Add a section" context="{'default_display_type': 'line_section'}"/>
-                    <create name="add_note_control" string="Add a note" context="{'default_display_type': 'line_note'}"/>
                 </control>
             </xpath>
 
@@ -137,18 +134,9 @@
                 <control>
                     <button name="action_open_config_wizard" 
                             type="object" 
-                            string="Configurar Sembradora" 
+                            string="Configurar Equipo" 
                             class="btn-primary" 
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
-                    <create name="add_product_control" string="Añadir otro producto"/>
-                    <create name="add_section_control" string="Add section" context="{'default_display_type': 'line_section'}"/>
-                    <create name="add_note_control" string="Add note" context="{'default_display_type': 'line_note'}"/>
-                    <button
-                        string="Catalog"
-                        name="action_add_from_catalog"
-                        type="object"
-                        class="btn-secondary"
-                        context="{'order_id': parent.id}"/>
                 </control>
             </xpath>
         </field>

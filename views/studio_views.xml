@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Acción de Cliente OWL para Configurador Studio -->
+    <record id="action_cotizador_configurator_studio" model="ir.actions.client">
+        <field name="name">Configurador Studio</field>
+        <field name="tag">cotizador_configurator_studio</field>
+        <field name="target">current</field>
+    </record>
+
+    <!-- Menú Principal: Configurador Studio como punto de entrada operativo -->
+    <menuitem id="menu_cotizador_configurator_studio"
+              name="Configurador Studio"
+              parent="menu_sembradora_config_root"
+              action="action_cotizador_configurator_studio"
+              sequence="5"/>
+
+    <!-- Menú: Sincronizar Códigos de Ingeniería (Teamcenter) -->
+    <menuitem id="menu_engineering_code_wizard"
+              name="Códigos de Ingeniería (Teamcenter)"
+              parent="menu_sembradora_config_root"
+              action="action_engineering_code_wizard"
+              sequence="15"/>
+</odoo>

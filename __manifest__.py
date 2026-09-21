@@ -28,11 +28,14 @@
         'views/price_wizard_views.xml',
         'views/configurador_views.xml',
         'views/bcra_wizard_view.xml',
+        'views/engineering_code_wizard_view.xml',
+        'views/studio_views.xml',
     ],
     'assets': {
         'web.assets_backend': [
             'cotizador/static/src/components/price_wizard/**/*',
             'cotizador/static/src/components/configurador/**/*',
+            'cotizador/static/src/components/configurador_studio/**/*',
         ],
     },
     'installable': True,

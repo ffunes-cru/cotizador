@@ -15,3 +15,5 @@ from . import sembradora_import_wizard
 from . import res_config_settings
 from . import price_wizard_service
 from . import configurator_service
+from . import engineering_code_wizard
+from . import studio_service

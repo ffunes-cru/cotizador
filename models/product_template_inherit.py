@@ -75,6 +75,25 @@ class ProductTemplate(models.Model):
 
         return self.description_default or self.description_sale or ''
 
+    def action_open_in_studio(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'cotizador_configurator_studio',
+            'name': f'Studio: {self.name}',
+            'context': {'default_modelo_id': self.id},
+        }
+
+    def action_open_engineering_wizard(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'engineering.code.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_modelo_id': self.id},
+        }
+
 
 class ProductTemplateDescriptionLine(models.Model):
     _name = 'product.template.description.line'

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_engineering_code_wizard_form" model="ir.ui.view">
+        <field name="name">engineering.code.wizard.form</field>
+        <field name="model">engineering.code.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Sincronización de Códigos de Ingeniería (Teamcenter)">
+                <field name="state" invisible="1"/>
+                <field name="template_filename" invisible="1"/>
+                <field name="import_filename" invisible="1"/>
+                <field name="matched_data_json" invisible="1"/>
+                <field name="matched_count" invisible="1"/>
+                <field name="template_file" invisible="1"/>
+
+                <!-- PASO 1: DESCARGA DE PLANTILLA Y CARGA DE ARCHIVO -->
+                <div invisible="state != 'upload'">
+                    <div class="alert alert-info d-flex align-items-center mb-3" role="status">
+                        <i class="fa fa-info-circle fa-2x me-3" title="Información"/>
+                        <div>
+                            <strong>Flujo de sincronización con Teamcenter:</strong>
+                            <ol class="mb-0 ps-3">
+                                <li>Seleccione el modelo de máquina y haga clic en <b>Generar Plantilla Espejo</b>.</li>
+                                <li>Envíe esa planilla a Ingeniería para que completen la columna de código de Teamcenter.</li>
+                                <li>Suba el archivo completado y presione <b>Analizar y Simular</b> para validar el cruce sin riesgo.</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <group>
+                        <field name="modelo_id" options="{'no_create': True, 'no_open': True}"/>
+                    </group>
+
+                    <div class="row g-3 mb-3">
+                        <!-- Columna 1: Descargar Plantilla -->
+                        <div class="col-md-6">
+                            <div class="card h-100 p-3 bg-light border">
+                                <h6 class="fw-bold text-dark"><i class="fa fa-download me-1 text-primary"/> 1. Plantilla para Ingeniería</h6>
+                                <p class="text-muted small mb-2">
+                                    Genera un archivo con todas las variantes físicas de este modelo generadas en Odoo para que Ingeniería agregue sus códigos.
+                                </p>
+                                <button name="action_generate_template" 
+                                        type="object" 
+                                        string="Generar Plantilla Espejo" 
+                                        class="btn btn-outline-primary w-100 mb-2"
+                                        icon="fa-file-excel-o"/>
+                                <div invisible="not template_file" class="mt-2 text-center">
+                                    <field name="template_file" filename="template_filename" widget="binary" readonly="1"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Columna 2: Cargar Archivo de Ingeniería -->
+                        <div class="col-md-6">
+                            <div class="card h-100 p-3 bg-light border">
+                                <h6 class="fw-bold text-dark"><i class="fa fa-upload me-1 text-danger"/> 2. Archivo de Teamcenter</h6>
+                                <p class="text-muted small mb-2">
+                                    Suba el archivo Excel (.xlsx) o CSV completado por Ingeniería.
+                                </p>
+                                <field name="import_file" filename="import_filename" widget="binary"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASO 2: SIMULACIÓN Y VALIDACIÓN (DRY-RUN) -->
+                <div invisible="state != 'preview'">
+                    <field name="preview_html" widget="html" nolabel="1"/>
+                </div>
+
+                <!-- PASO 3: FINALIZADO -->
+                <div invisible="state != 'done'">
+                    <field name="preview_html" widget="html" nolabel="1"/>
+                </div>
+
+                <footer>
+                    <!-- Botones Paso 1 -->
+                    <button name="action_analyze_file" 
+                            type="object" 
+                            string="Analizar y Simular Coincidencias" 
+                            class="btn-primary" 
+                            invisible="state != 'upload'"/>
+                    
+                    <!-- Botones Paso 2 -->
+                    <button name="action_apply_codes" 
+                            type="object" 
+                            string="Aplicar Códigos en Firme" 
+                            class="btn-success fw-bold" 
+                            invisible="state != 'preview' or matched_count == 0"/>
+                    <button name="action_back_to_upload" 
+                            type="object" 
+                            string="Subir otro archivo" 
+                            class="btn-secondary" 
+                            invisible="state != 'preview'"/>
+
+                    <!-- Botón Cerrar -->
+                    <button string="Cerrar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_engineering_code_wizard" model="ir.actions.act_window">
+        <field name="name">Sincronizar Códigos de Ingeniería</field>
+        <field name="res_model">engineering.code.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

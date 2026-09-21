@@ -57,9 +57,9 @@
               sequence="100"/>
 
     <menuitem id="menu_sembradora_config_matriz"
-              name="Matriz de Configuración"
+              name="Matriz Base (Datos Raw)"
               parent="menu_sembradora_config_root"
-              sequence="10"
+              sequence="40"
               action="action_sembradora_config_rel"/>
 
     <!-- Vista lista para importar accesorios por configuración -->
