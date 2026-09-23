@@ -184,11 +184,26 @@ class SaleOrderInherit(models.Model):
             'target': 'new',
         }
 
+    def action_open_equipo_usado_wizard(self):
+        """Abre el wizard para tomar un equipo usado como forma de pago."""
+        order_id = self.id or self.env.context.get('active_id') or self.env.context.get('params', {}).get('id') or self.env.context.get('default_sale_order_id')
+        if not order_id:
+            raise ValidationError("No se pudo identificar la orden de venta activa. Por favor, guarde la cotización antes de continuar.")
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Añadir Equipo Usado',
+            'res_model': 'equipo.usado.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_sale_order_id': order_id},
+        }
+
 
 class SaleOrderLineInherit(models.Model):
     _inherit = 'sale.order.line'
 
     is_plan_pago = fields.Boolean(default=False)
+    is_equipo_usado = fields.Boolean(default=False)
 
     def action_open_config_wizard(self):
         """Delegación del botón del listado de líneas al sale.order padre."""
@@ -211,3 +226,25 @@ class SaleOrderLineInherit(models.Model):
             raise ValidationError("No se pudo identificar la orden de venta activa. Por favor, guarde la cotización antes de configurar.")
 
         return order_id.action_open_config_wizard()
+
+    def action_open_equipo_usado_wizard(self):
+        """Delegación del botón del listado de líneas al sale.order padre."""
+        order_id = False
+        if self.order_id:
+            order_id = self.order_id
+        else:
+            ctx = self.env.context
+            parent_id = (
+                ctx.get('default_sale_order_id') or
+                ctx.get('order_id') or
+                ctx.get('active_id') or 
+                ctx.get('default_order_id') or 
+                ctx.get('params', {}).get('id')
+            )
+            if parent_id:
+                order_id = self.env['sale.order'].browse(parent_id)
+
+        if not order_id:
+            raise ValidationError("No se pudo identificar la orden de venta activa. Por favor, guarde la cotización antes de continuar.")
+
+        return order_id.action_open_equipo_usado_wizard()

@@ -118,12 +118,17 @@
                 <field name="user_id" widget="many2one_avatar_user" string="Concesionario"/>
             </xpath>
 
-            <!-- Interceptar "Add a product" en order_line para mostrar únicamente Configurar Equipo (Desktop) -->
+            <!-- Interceptar "Add a product" en order_line para mostrar Configurar Equipo y Añadir Equipo Usado (Desktop) -->
             <xpath expr="//field[@name='order_line']//list//control" position="replace">
                 <control>
                     <button name="action_open_config_wizard" 
                             type="object"
                             string="Configurar Equipo"
+                            class="px-4 btn-link"
+                            context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
+                    <button name="action_open_equipo_usado_wizard" 
+                            type="object"
+                            string="Añadir Equipo Usado"
                             class="px-4 btn-link"
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                 </control>
@@ -136,6 +141,11 @@
                             type="object" 
                             string="Configurar Equipo" 
                             class="btn-primary" 
+                            context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
+                    <button name="action_open_equipo_usado_wizard" 
+                            type="object" 
+                            string="Añadir Equipo Usado" 
+                            class="btn-secondary" 
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                 </control>
             </xpath>

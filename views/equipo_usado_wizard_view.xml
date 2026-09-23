@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_equipo_usado_wizard_form" model="ir.ui.view">
+        <field name="name">equipo.usado.wizard.form</field>
+        <field name="model">equipo.usado.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Añadir Equipo Usado (Forma de Pago)">
+                <sheet>
+                    <div class="alert alert-info d-flex align-items-center mb-3" role="status">
+                        <i class="fa fa-info-circle fa-2x me-3 text-primary" title="Información"/>
+                        <div>
+                            <strong>Toma de Equipo Usado como Forma de Pago</strong>
+                            <p class="mb-0 small text-muted">
+                                Ingrese la descripción libre del equipo tomado y el monto acordado. Se incorporará como un renglón negativo bajo la sección <b>Equipo Usado</b> para descontar del importe total.
+                            </p>
+                        </div>
+                    </div>
+                    <group>
+                        <field name="sale_order_id" invisible="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="monto" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                    </group>
+                    <group string="Descripción del Equipo Usado">
+                        <field name="descripcion" placeholder="Ej: Sembradora Crucianelli Gringa V 24 líneas, año 2018, rodado estándar, con monitor de siembra..." nolabel="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm" 
+                            string="Añadir como Pago" 
+                            type="object" 
+                            class="btn-primary" 
+                            icon="fa-plus-circle"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_open_equipo_usado_wizard" model="ir.actions.act_window">
+        <field name="name">Añadir Equipo Usado</field>
+        <field name="res_model">equipo.usado.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

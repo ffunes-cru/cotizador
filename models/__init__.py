@@ -17,3 +17,4 @@ from . import price_wizard_service
 from . import configurator_service
 from . import engineering_code_wizard
 from . import studio_service
+from . import equipo_usado_wizard
