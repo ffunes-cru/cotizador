@@ -16,3 +16,4 @@ access_cotizador_bcra_wizard_cheque,access.cotizador.bcra.wizard.cheque,model_co
 access_product_template_description_line,access.product.template.description.line,model_product_template_description_line,base.group_user,1,1,1,1
 access_engineering_code_wizard,access.engineering.code.wizard,model_engineering_code_wizard,base.group_user,1,1,1,1
 access_equipo_usado_wizard,access.equipo.usado.wizard,model_equipo_usado_wizard,base.group_user,1,1,1,1
+access_cotizador_descuento_wizard,access.cotizador.descuento.wizard,model_cotizador_descuento_wizard,base.group_user,1,1,1,1

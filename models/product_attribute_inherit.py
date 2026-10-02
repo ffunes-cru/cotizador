@@ -3,7 +3,10 @@ from odoo import models, fields
 
 class ProductAttributeInherit(models.Model):
     _inherit = 'product.attribute'
-
+    show_incompatible_alternatives = fields.Boolean(
+        string='Mostrar Alternativas Incompatibles',
+        default=True,
+        help='Si está activo, se mostraran las alternativas incompatibles en el wizard de configuración.')
     show_in_description = fields.Boolean(
         string='Mostrar en Descripción',
         default=True,

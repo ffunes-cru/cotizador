@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- ============================================= -->
+    <!-- Formulario CRM: Campos de Equipo y Líder      -->
+    <!-- ============================================= -->
+    <record id="crm_lead_view_form_inherit_cotizador" model="ir.ui.view">
+        <field name="name">crm.lead.form.inherit.cotizador</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="before">
+                <field name="equipo_cotizado_id" options="{'no_create': True}"/>
+                <field name="lider_equipo_id" options="{'no_create': True}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- =================================================== -->
+    <!-- Creación Rápida Kanban CRM: Selección de Modelo    -->
+    <!-- =================================================== -->
+    <record id="quick_create_opportunity_form_inherit_cotizador" model="ir.ui.view">
+        <field name="name">crm.lead.quick_create.inherit.cotizador</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.quick_create_opportunity_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']/parent::div" position="after">
+                <div class="d-flex align-items-center" colspan="2">
+                    <i class="fa fa-truck" title="Equipo (Sembradora/Ferti)"/>
+                    <field name="equipo_cotizado_id" placeholder="Modelo de Máquina" nolabel="1" class="o_field_highlight w-100 mb-0" options="{'no_create': True}"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ============================================= -->
+    <!-- Vista Kanban CRM: 5 Datos Estrictos           -->
+    <!-- ============================================= -->
+    <record id="crm_case_kanban_view_leads_inherit_cotizador" model="ir.ui.view">
+        <field name="name">crm.lead.kanban.inherit.cotizador</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_case_kanban_view_leads"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <!-- Declarar campos en kanban -->
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="equipo_cotizado_id"/>
+                <field name="lider_equipo_id"/>
+            </xpath>
+
+            <!-- Ocultar elementos estándar innecesarios de forma precisa -->
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//t[@t-name='card']//div[@invisible='not partner_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='contact_name']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_name']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='tag_ids']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='lead_properties']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- 1. Empresa como título principal y 2. Equipo debajo -->
+            <xpath expr="//field[@name='name']" position="before">
+                <div class="fw-bold fs-5 text-truncate mb-1" title="Empresa">
+                    <t t-if="record.partner_id and record.partner_id.value">
+                        <field name="partner_id"/>
+                    </t>
+                    <t t-else="">
+                        <span class="text-muted fst-italic">Sin Empresa</span>
+                    </t>
+                </div>
+                <div class="d-flex align-items-center text-muted mb-2 small" title="Equipo (Sembradora/Ferti)">
+                    <i class="fa fa-truck me-1 text-primary"/>
+                    <t t-if="record.equipo_cotizado_id and record.equipo_cotizado_id.value">
+                        <field name="equipo_cotizado_id" class="fw-semibold text-dark text-truncate"/>
+                    </t>
+                    <t t-else="">
+                        <span class="fst-italic text-muted">Sin Equipo</span>
+                    </t>
+                </div>
+            </xpath>
+
+            <!-- 3. Monto estándar de Odoo en o_kanban_card_crm_lead_revenue -->
+            <xpath expr="//div[hasclass('o_kanban_card_crm_lead_revenue')]" position="attributes">
+                <attribute name="class">o_kanban_card_crm_lead_revenue fw-bold text-success mb-2</attribute>
+            </xpath>
+
+            <!-- 4 y 5. Footer nativo de Odoo con Líder de Equipo y Vendedor Concesionario -->
+            <xpath expr="//t[@t-name='card']//footer//div[hasclass('mt-auto')]" position="replace">
+                <div class="d-flex align-items-center text-muted small text-truncate me-2" title="Líder de Equipo">
+                    <i class="fa fa-user-circle me-1 text-secondary"/>
+                    <t t-if="record.lider_equipo_id and record.lider_equipo_id.value">
+                        <field name="lider_equipo_id" class="text-truncate"/>
+                    </t>
+                    <t t-else="">
+                        <span class="fst-italic text-muted">Sin Líder</span>
+                    </t>
+                </div>
+            </xpath>
+            <xpath expr="//t[@t-name='card']//footer//div[hasclass('ms-auto')]" position="replace">
+                <div class="ms-auto d-flex align-items-center text-muted small text-truncate" title="Concesionario / Vendedor">
+                    <field name="user_id" widget="many2one_avatar_user" domain="[('share', '=', False)]" class="me-1"/>
+                    <t t-if="record.user_id and record.user_id.value">
+                        <field name="user_id" class="text-truncate"/>
+                    </t>
+                    <t t-else="">
+                        <span class="fst-italic text-muted">Sin Vendedor</span>
+                    </t>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

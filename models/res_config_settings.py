@@ -19,4 +19,8 @@ class ResConfigSettings(models.TransientModel):
         help='Oculta el precio unitario de los accesorios en el configurador interactivo, mostrando únicamente el precio total.',
         config_parameter='cotizador.modo_silencioso',
     )
-
+    cotizador_condiciones_generales_default = fields.Text(
+        string='Condiciones Generales Predeterminadas',
+        help='Texto constante estándar de condiciones comerciales que se incluirá automáticamente en todas las nuevas cotizaciones.',
+        config_parameter='cotizador.condiciones_generales_default',
+    )

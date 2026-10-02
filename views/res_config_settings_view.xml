@@ -22,6 +22,11 @@
                              help="Oculta el precio unitario de los accesorios en el configurador, mostrando únicamente el precio total.">
                         <field name="cotizador_modo_silencioso"/>
                     </setting>
+                    <setting id="cotizador_condiciones_generales_default_setting"
+                             string="Condiciones Generales Predeterminadas"
+                             help="Texto comercial constante que aparecerá automáticamente en todas las nuevas cotizaciones y al pie de su reporte PDF.">
+                        <field name="cotizador_condiciones_generales_default" widget="text" class="w-100"/>
+                    </setting>
                 </block>
             </xpath>
         </field>

@@ -31,6 +31,8 @@
         'views/engineering_code_wizard_view.xml',
         'views/studio_views.xml',
         'views/equipo_usado_wizard_view.xml',
+        'views/descuento_wizard_view.xml',
+        'views/crm_lead_view.xml',
     ],
     'assets': {
         'web.assets_backend': [

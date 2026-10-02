@@ -109,6 +109,7 @@ class CotizadorConfiguratorService(models.AbstractModel):
                 'id': attr.id,
                 'name': attr.name,
                 'show_in_description': getattr(attr, 'show_in_description', True),
+                'show_incompatible_alternatives': getattr(attr, 'show_incompatible_alternatives', True),
                 'values': [{
                     'id': v.id,
                     'name': v.name,

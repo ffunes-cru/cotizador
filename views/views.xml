@@ -115,10 +115,21 @@
             </xpath>
 
             <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="equipo_cotizado_id" options="{'no_create': True}"/>
                 <field name="user_id" widget="many2one_avatar_user" string="Concesionario"/>
             </xpath>
 
-            <!-- Interceptar "Add a product" en order_line para mostrar Configurar Equipo y Añadir Equipo Usado (Desktop) -->
+            <!-- Ocultar columna estándar de porcentaje de descuento en líneas para evitar conflictos con los descuentos en cascada -->
+            <xpath expr="//field[@name='order_line']//list//field[@name='discount']" position="attributes">
+                <attribute name="column_invisible">1</attribute>
+            </xpath>
+
+            <!-- Ocultar botón nativo de Descuento flotante debajo de las líneas para unificar en 'Añadir Descuento' -->
+            <xpath expr="//div[@name='so_button_below_order_lines']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Interceptar "Add a product" en order_line para mostrar Configurar Equipo, Añadir Equipo Usado y Añadir Descuento (Desktop) -->
             <xpath expr="//field[@name='order_line']//list//control" position="replace">
                 <control>
                     <button name="action_open_config_wizard" 
@@ -129,6 +140,11 @@
                     <button name="action_open_equipo_usado_wizard" 
                             type="object"
                             string="Añadir Equipo Usado"
+                            class="px-4 btn-link"
+                            context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
+                    <button name="action_open_descuento_wizard" 
+                            type="object"
+                            string="Añadir Descuento"
                             class="px-4 btn-link"
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                 </control>
@@ -147,7 +163,48 @@
                             string="Añadir Equipo Usado" 
                             class="btn-secondary" 
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
+                    <button name="action_open_descuento_wizard" 
+                            type="object" 
+                            string="Añadir Descuento" 
+                            class="btn-secondary" 
+                            context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                 </control>
+            </xpath>
+
+            <!-- Pestaña Condiciones Generales y Planes de Pago -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Condiciones y Planes de Pago" name="cotizador_terminos_planes">
+                    <group>
+                        <group string="Planes de Pago a Imprimir">
+                            <p class="text-muted">
+                                Seleccione qué planes de pago específicos se incluirán en la hoja de planes de pago de esta cotización. Si deja el campo vacío, se imprimirán todos los del catálogo.
+                            </p>
+                            <field name="plan_pago_line_ids" widget="many2many_tags" options="{'no_create': True}" nolabel="1"/>
+                        </group>
+                        <group string="Condiciones Generales Constantes">
+                            <p class="text-muted">
+                                Texto constante que se imprime automáticamente en el pie de página de la cotización.
+                            </p>
+                            <field name="condiciones_generales" nolabel="1" widget="text" class="w-100"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+
+            <!-- Reemplazo del Bloque de Totales para mostrar Cascada Financiera (Imagen 1) -->
+            <xpath expr="//group[@name='sale_total']" position="replace">
+                <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
+                    <field name="amount_subtotal_productos" widget="monetary" string="SUB TOTAL" options="{'currency_field': 'currency_id'}"/>
+                    <field name="amount_iva_productos" widget="monetary" string="IVA" options="{'currency_field': 'currency_id'}"/>
+                    <field name="amount_total_base" widget="monetary" string="TOTAL" class="fw-bold" options="{'currency_field': 'currency_id'}"/>
+                    <field name="amount_descuentos" widget="monetary" string="Descuentos" class="text-danger fw-semibold" options="{'currency_field': 'currency_id'}" invisible="amount_descuentos == 0"/>
+                    <field name="amount_total_con_descuentos" widget="monetary" string="TOTAL CON DESCUENTOS" class="fw-bold" options="{'currency_field': 'currency_id'}" invisible="amount_descuentos == 0"/>
+                    <field name="amount_usados" widget="monetary" string="Medios de pago (Usados)" class="text-danger fw-semibold" options="{'currency_field': 'currency_id'}" invisible="amount_usados == 0"/>
+                    <div class="oe_subtotal_footer_separator oe_inline o_td_label">
+                        <label for="amount_saldo_cancelar" string="SALDO A CANCELAR"/>
+                    </div>
+                    <field name="amount_saldo_cancelar" nolabel="1" class="oe_subtotal_footer_separator fw-bold fs-4" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                </group>
             </xpath>
         </field>
     </record>

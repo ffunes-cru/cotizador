@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_cotizador_descuento_wizard_form" model="ir.ui.view">
+        <field name="name">cotizador.descuento.wizard.form</field>
+        <field name="model">cotizador.descuento.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Añadir Descuento Comercial">
+                <sheet>
+                    <div class="alert alert-info d-flex align-items-center mb-3" role="status">
+                        <i class="fa fa-percent fa-2x me-3 text-primary" title="Descuento"/>
+                        <div>
+                            <strong>Bonificación Comercial en Cascada</strong>
+                            <p class="mb-0 small text-muted">
+                                Puede aplicar un porcentaje calculado sobre el saldo vigente con IVA o un monto fijo. Se agregará como renglón bajo la sección <b>Descuentos</b>.
+                            </p>
+                        </div>
+                    </div>
+                    <group>
+                        <field name="sale_order_id" invisible="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="tipo_calculo" widget="radio" options="{'horizontal': true}"/>
+                    </group>
+                    <group>
+                        <group string="Cálculo">
+                            <field name="base_saldo" widget="monetary" options="{'currency_field': 'currency_id'}" invisible="tipo_calculo != 'porcentaje'"/>
+                            <field name="porcentaje" invisible="tipo_calculo != 'porcentaje'"/>
+                            <field name="monto_fijo" widget="monetary" options="{'currency_field': 'currency_id'}" invisible="tipo_calculo != 'monto'"/>
+                        </group>
+                        <group string="Renglón en Cotización">
+                            <field name="nombre"/>
+                            <field name="monto_descuento" widget="monetary" options="{'currency_field': 'currency_id'}" class="fw-bold fs-5 text-primary"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm" 
+                            string="Aplicar Descuento" 
+                            type="object" 
+                            class="btn-primary" 
+                            icon="fa-check-circle"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_open_descuento_wizard" model="ir.actions.act_window">
+        <field name="name">Añadir Descuento Comercial</field>
+        <field name="res_model">cotizador.descuento.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

@@ -150,4 +150,23 @@
               parent="menu_sembradora_config_root"
               sequence="40"
               action="action_plan_pago"/> -->
+
+    <!-- Configuración de Planes de Pago Favoritos en Ficha de Usuario -->
+    <record id="view_users_form_inherit_cotizador_planes" model="ir.ui.view">
+        <field name="name">res.users.form.inherit.cotizador.planes</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Cotizador - Planes de Pago" name="cotizador_planes">
+                    <group>
+                        <p class="text-muted">
+                            Seleccione qué planes de pago estarán activos por defecto para este usuario al emitir e imprimir cotizaciones. Si no selecciona ninguno, se incluirán todos los del catálogo.
+                        </p>
+                        <field name="plan_pago_template_line_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
 </odoo>

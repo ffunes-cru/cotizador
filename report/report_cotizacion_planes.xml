@@ -20,15 +20,42 @@
     </record>
 
     <!-- ============================================= -->
-    <!-- Acción de Reporte: Cotización con Planes      -->
+    <!-- Acciones de Reporte: Opciones de Impresión     -->
     <!-- ============================================= -->
+    <!-- 1. Cotización con Planes de Pago (Filtrados) -->
     <record id="action_report_cotizacion_planes" model="ir.actions.report">
-        <field name="name">Cotización con Planes de Pago</field>
+        <field name="name">Cotización (Planes Filtrados)</field>
         <field name="model">sale.order</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">cotizador.report_cotizacion_planes_document</field>
         <field name="report_file">cotizador.report_cotizacion_planes_document</field>
         <field name="print_report_name">'Cotización - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_cotizacion_compacta"/>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- 2. Cotización con Todos los Planes de Pago -->
+    <record id="action_report_cotizacion_planes_todos" model="ir.actions.report">
+        <field name="name">Cotización (Todos los Planes)</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cotizador.report_cotizacion_planes_todos_document</field>
+        <field name="report_file">cotizador.report_cotizacion_planes_todos_document</field>
+        <field name="print_report_name">'Cotización (Todos los Planes) - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_cotizacion_compacta"/>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- 3. Cotización sin Hoja de Planes de Pago -->
+    <record id="action_report_cotizacion_sin_planes" model="ir.actions.report">
+        <field name="name">Cotización (Sin Planes de Pago)</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cotizador.report_cotizacion_sin_planes_document</field>
+        <field name="report_file">cotizador.report_cotizacion_sin_planes_document</field>
+        <field name="print_report_name">'Cotización (Sin Planes) - %s' % (object.name)</field>
         <field name="paperformat_id" ref="paperformat_cotizacion_compacta"/>
         <field name="binding_model_id" ref="sale.model_sale_order"/>
         <field name="binding_type">report</field>
@@ -317,38 +344,114 @@
                             </tbody>
                         </table>
 
-                        <!-- TOTALES Y TÉRMINOS (MAQUETADO CON DIVS SIN BORDES EXTERNOS) -->
-                        <div style="width: 100%; margin-top: 10px; margin-bottom: 15px; clear: both; overflow: hidden;">
-                            <!-- Izquierda: Notas y Términos de Pago -->
-                            <div style="float: left; width: 50%; padding-right: 20px;">
-                                <div t-if="doc.note and not is_html_empty(doc.note)" style="font-size: 13.5px; color: #333333; margin-bottom: 6px;">
-                                    <div t-field="doc.note"/>
-                                </div>
-                                <div t-if="doc.payment_term_id" style="font-size: 14px; color: #333333;">
-                                    <strong>Términos de pago:</strong> <span t-field="doc.payment_term_id.name"/>
+                        <!-- TOTALES Y CONDICIONES GENERALES -->
+                        <div style="width: 100%; margin-top: 15px; margin-bottom: 15px; clear: both; overflow: hidden; page-break-inside: avoid;">
+                            <!-- Izquierda: Condiciones Generales Constantes -->
+                            <div style="float: left; width: 48%; padding-right: 15px;">
+                                <div style="font-size: 12px; line-height: 1.4;">
+                                    <div class="meta-label" style="margin-bottom: 4px; border-bottom: 1.5px solid #dee2e6; padding-bottom: 2px;">
+                                        Condiciones Generales
+                                    </div>
+                                    <div t-if="doc.condiciones_generales" style="color: #495057; white-space: pre-line;">
+                                        <span t-field="doc.condiciones_generales"/>
+                                    </div>
+                                    <div t-elif="doc.note and not is_html_empty(doc.note)" style="color: #495057;">
+                                        <div t-field="doc.note"/>
+                                    </div>
+                                    <div t-if="doc.payment_term_id" style="margin-top: 6px; font-size: 12px; color: #212529;">
+                                        <strong>Términos de pago:</strong> <span t-field="doc.payment_term_id.name"/>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Derecha: Cuadro de Totales -->
-                            <div style="float: right; width: 48%;">
-                                <table class="table table-sm table-borderless" style="width: 100%; font-size: 14.5px; margin: 0; border: none !important;">
+                            <!-- Derecha: Cascada de Totales integrada con el estilo del reporte -->
+                            <div style="float: right; width: 50%;">
+                                <table class="table table-sm table-borderless" style="width: 100%; margin: 0; font-size: 13.5px; border-collapse: collapse;">
                                     <tbody>
-                                        <tr style="background-color: #f8f9fa;">
-                                            <td class="text-start py-1 px-3" style="color: #333333; font-weight: 600;">Subtotal sin impuestos</td>
-                                            <td class="text-end py-1 px-3" style="color: #111111; font-weight: 700;">
-                                                <span t-field="doc.amount_untaxed" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                            </td>
-                                        </tr>
+                                        <!-- 1. SUB TOTAL -->
                                         <tr>
-                                            <td class="text-start py-1 px-3" style="color: #333333; font-weight: 600;">Impuestos</td>
-                                            <td class="text-end py-1 px-3" style="color: #111111; font-weight: 700;">
-                                                <span t-field="doc.amount_tax" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                            <td class="text-start py-1" style="color: #495057; font-weight: 700;">SUB TOTAL</td>
+                                            <td class="text-end py-1 text-muted" style="font-weight: 600; width: 25px;">$</td>
+                                            <td class="text-end py-1 fw-bold" style="color: #111111; width: 130px;">
+                                                <span t-out="'{:,.2f}'.format(doc.amount_subtotal_productos).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
                                             </td>
                                         </tr>
-                                        <tr style="border-top: 2px solid #222222; background-color: #f1f3f5;">
-                                            <td class="text-start py-2 px-3 fs-6" style="color: #000000; font-weight: 800;">Total</td>
-                                            <td class="text-end py-2 px-3 fs-6" style="color: #000000; font-weight: 800;">
-                                                <span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                        <!-- 2. IVA -->
+                                        <tr>
+                                            <td class="text-start py-1" style="color: #495057; font-weight: 700;">IVA</td>
+                                            <td class="text-end py-1 text-muted" style="font-weight: 600;">$</td>
+                                            <td class="text-end py-1 fw-bold" style="color: #111111;">
+                                                <span t-out="'{:,.2f}'.format(doc.amount_iva_productos).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                            </td>
+                                        </tr>
+                                        <!-- 3. TOTAL -->
+                                        <tr style="border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
+                                            <td class="text-start py-1" style="color: #111111; font-weight: 800;">TOTAL</td>
+                                            <td class="text-end py-1 text-muted" style="font-weight: 700;">$</td>
+                                            <td class="text-end py-1 fw-bold" style="color: #111111; font-size: 14px;">
+                                                <span t-out="'{:,.2f}'.format(doc.amount_total_base).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                            </td>
+                                        </tr>
+
+                                        <!-- 4. Descuentos -->
+                                        <t t-set="desc_lines" t-value="doc.order_line.filtered(lambda l: l.is_descuento)"/>
+                                        <t t-if="desc_lines">
+                                            <tr>
+                                                <td colspan="3" class="pt-2 pb-1 meta-label" style="text-transform: uppercase; letter-spacing: 0.5px;">
+                                                    Descuentos
+                                                </td>
+                                            </tr>
+                                            <t t-foreach="desc_lines" t-as="dl">
+                                                <tr>
+                                                    <td class="text-start py-1 ps-2" style="color: #495057;">
+                                                        <span t-field="dl.name"/>
+                                                    </td>
+                                                    <td class="text-end py-1" style="font-weight: 600; color: #dc3545;">-$</td>
+                                                    <td class="text-end py-1 fw-bold" style="color: #dc3545;">
+                                                        <span t-out="'{:,.2f}'.format(abs(dl.price_subtotal)).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                            <tr style="border-top: 1px solid #dee2e6;">
+                                                <td class="text-end py-1 pe-2" style="color: #111111; font-weight: 700; font-size: 13.5px;">
+                                                    TOTAL CON DESCUENTOS
+                                                </td>
+                                                <td class="text-end py-1 text-muted" style="font-weight: 700;">$</td>
+                                                <td class="text-end py-1 fw-bold" style="color: #111111; font-size: 14px;">
+                                                    <span t-out="'{:,.2f}'.format(doc.amount_total_con_descuentos).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                                </td>
+                                            </tr>
+                                        </t>
+
+                                        <!-- 5. Medios de pago -->
+                                        <t t-set="usado_lines" t-value="doc.order_line.filtered(lambda l: l.is_equipo_usado)"/>
+                                        <t t-if="usado_lines">
+                                            <tr>
+                                                <td colspan="3" class="pt-2 pb-1 meta-label" style="text-transform: uppercase; letter-spacing: 0.5px;">
+                                                    Medios de pago (Usados)
+                                                </td>
+                                            </tr>
+                                            <t t-foreach="usado_lines" t-as="ul">
+                                                <tr>
+                                                    <td class="text-start py-1 ps-2" style="color: #495057;">
+                                                        <span t-field="ul.name"/>
+                                                    </td>
+                                                    <td class="text-end py-1" style="font-weight: 600; color: #dc3545;">-$</td>
+                                                    <td class="text-end py-1 fw-bold" style="color: #dc3545;">
+                                                        <span t-out="'{:,.2f}'.format(abs(ul.price_subtotal)).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </t>
+
+                                        <!-- 6. SALDO A CANCELAR -->
+                                        <tr style="border-top: 2px solid #212529;">
+                                            <td class="text-end py-2 pe-2" style="color: #111111; font-weight: 800; font-size: 15px;">
+                                                SALDO A CANCELAR
+                                            </td>
+                                            <td class="text-end py-2 align-middle text-muted" style="font-weight: 800; font-size: 15px;">$</td>
+                                            <td class="text-end py-2 align-middle fw-bold" style="color: #111111; font-size: 16px;">
+                                                <span t-out="'{:,.2f}'.format(doc.amount_saldo_cancelar).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -388,8 +491,12 @@
                         <!-- ============================================= -->
                         <!-- HOJA COMPLETA DEDICADA: PLANES DE PAGO        -->
                         <!-- ============================================= -->
-                        <t t-set="plan_templates" t-value="doc.env['cotizador.plan.pago.template'].search([('active', '=', True)])"/>
-                        <t t-if="plan_templates">
+                        <t t-set="current_planes_mode" t-value="override_planes_mode or env.context.get('print_planes_mode') or ('filtered' if doc.plan_pago_line_ids else 'all')"/>
+                        <t t-if="current_planes_mode != 'none'">
+                            <t t-set="all_plan_templates" t-value="doc.env['cotizador.plan.pago.template'].search([('active', '=', True)])"/>
+                            <t t-set="selected_line_ids" t-value="doc.plan_pago_line_ids.ids if current_planes_mode == 'filtered' and doc.plan_pago_line_ids else False"/>
+                            <t t-set="monto_base_plan" t-value="doc.amount_saldo_cancelar if doc.amount_saldo_cancelar else doc.amount_total"/>
+
                             <div style="page-break-before: always; page-break-inside: avoid !important; clear: both;" class="pt-2">
                                 <div style="width: 100%; border-bottom: 2px solid #c0282d; margin-bottom: 12px; padding-bottom: 4px; clear: both; overflow: hidden;">
                                     <div style="float: left;">
@@ -402,136 +509,139 @@
                                     </div>
                                 </div>
 
-                                <t t-foreach="plan_templates" t-as="plan_tmpl">
-                                    <div class="mb-3" style="page-break-inside: avoid;">
-                                        <h5 class="mt-2 mb-1 fw-bold text-dark" style="font-size: 14.5px; color: #111111 !important;">
-                                            <span t-field="plan_tmpl.name"/>
-                                        </h5>
+                                <t t-foreach="all_plan_templates" t-as="plan_tmpl">
+                                    <t t-set="active_lines" t-value="plan_tmpl.line_ids.filtered(lambda l: l.id in selected_line_ids) if selected_line_ids else plan_tmpl.line_ids"/>
+                                    <t t-if="active_lines">
+                                        <div class="mb-3" style="page-break-inside: avoid;">
+                                            <h5 class="mt-2 mb-1 fw-bold text-dark" style="font-size: 14.5px; color: #111111 !important;">
+                                                <span t-field="plan_tmpl.name"/>
+                                            </h5>
 
-                                        <!-- Canje Cereal -->
-                                        <t t-if="plan_tmpl.tipo == 'canje_cereal'">
-                                            <table class="table table-sm table-borderless mb-2" style="font-size: 13px;">
-                                                <thead style="border-bottom: 2px solid #495057;">
-                                                    <tr>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">OPCIÓN</th>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">ENTREGA</th>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">CONDICIÓN</th>
-                                                        <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">DESC. / REC.</th>
-                                                        <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">TOTAL ESTIMADO</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <t t-foreach="plan_tmpl.line_ids" t-as="pl">
-                                                        <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.opcion"/></td>
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.entrega_canje"/></td>
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.condicion"/></td>
-                                                            <td class="text-end fw-semibold" style="padding: 4px 6px;">
-                                                                <span t-field="pl.descuento"/>%
-                                                            </td>
-                                                            <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
-                                                                <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
-                                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                                            </td>
+                                            <!-- Canje Cereal -->
+                                            <t t-if="plan_tmpl.tipo == 'canje_cereal'">
+                                                <table class="table table-sm table-borderless mb-2" style="font-size: 13px;">
+                                                    <thead style="border-bottom: 2px solid #495057;">
+                                                        <tr>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">OPCIÓN</th>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">ENTREGA</th>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">CONDICIÓN</th>
+                                                            <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">DESC. / REC.</th>
+                                                            <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">TOTAL ESTIMADO</th>
                                                         </tr>
-                                                    </t>
-                                                </tbody>
-                                            </table>
-                                        </t>
+                                                    </thead>
+                                                    <tbody>
+                                                        <t t-foreach="active_lines" t-as="pl">
+                                                            <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.opcion"/></td>
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.entrega_canje"/></td>
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.condicion"/></td>
+                                                                <td class="text-end fw-semibold" style="padding: 4px 6px;">
+                                                                    <span t-field="pl.descuento"/>%
+                                                                </td>
+                                                                <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
+                                                                    <span t-out="monto_base_plan * (1 + pl.descuento / 100)"
+                                                                          t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                                                </td>
+                                                            </tr>
+                                                        </t>
+                                                    </tbody>
+                                                </table>
+                                            </t>
 
-                                        <!-- Cheques -->
-                                        <t t-if="plan_tmpl.tipo == 'cheques'">
-                                            <table class="table table-sm table-borderless mb-2" style="font-size: 13px;">
-                                                <thead style="border-bottom: 2px solid #495057;">
-                                                    <tr>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">PLAN</th>
-                                                        <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">PROMEDIO DÍAS</th>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">CHEQUES</th>
-                                                        <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">DESC. / REC.</th>
-                                                        <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">TOTAL ESTIMADO</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <t t-foreach="plan_tmpl.line_ids" t-as="pl">
-                                                        <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.plan_cheques"/></td>
-                                                            <td class="text-end" style="padding: 4px 6px;"><span t-field="pl.promedio_dias"/></td>
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.cheques_desc"/></td>
-                                                            <td class="text-end fw-semibold" style="padding: 4px 6px;">
-                                                                <span t-field="pl.descuento"/>%
-                                                            </td>
-                                                            <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
-                                                                <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
-                                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                                            </td>
+                                            <!-- Cheques -->
+                                            <t t-if="plan_tmpl.tipo == 'cheques'">
+                                                <table class="table table-sm table-borderless mb-2" style="font-size: 13px;">
+                                                    <thead style="border-bottom: 2px solid #495057;">
+                                                        <tr>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">PLAN</th>
+                                                            <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">PROMEDIO DÍAS</th>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">CHEQUES</th>
+                                                            <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">DESC. / REC.</th>
+                                                            <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">TOTAL ESTIMADO</th>
                                                         </tr>
-                                                    </t>
-                                                </tbody>
-                                            </table>
-                                        </t>
+                                                    </thead>
+                                                    <tbody>
+                                                        <t t-foreach="active_lines" t-as="pl">
+                                                            <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.plan_cheques"/></td>
+                                                                <td class="text-end" style="padding: 4px 6px;"><span t-field="pl.promedio_dias"/></td>
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.cheques_desc"/></td>
+                                                                <td class="text-end fw-semibold" style="padding: 4px 6px;">
+                                                                    <span t-field="pl.descuento"/>%
+                                                                </td>
+                                                                <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
+                                                                    <span t-out="monto_base_plan * (1 + pl.descuento / 100)"
+                                                                          t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                                                </td>
+                                                            </tr>
+                                                        </t>
+                                                    </tbody>
+                                                </table>
+                                            </t>
 
-                                        <!-- Documentos -->
-                                        <t t-if="plan_tmpl.tipo == 'documentos'">
-                                            <table class="table table-sm table-borderless mb-2" style="font-size: 13px;">
-                                                <thead style="border-bottom: 2px solid #495057;">
-                                                    <tr>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">PLAN</th>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">ENTREGA</th>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">SALDO</th>
-                                                        <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">DESC. / REC.</th>
-                                                        <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">TOTAL ESTIMADO</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <t t-foreach="plan_tmpl.line_ids" t-as="pl">
-                                                        <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.plan_documentos"/></td>
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.entrega_pct"/></td>
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.saldo"/></td>
-                                                            <td class="text-end fw-semibold" style="padding: 4px 6px;">
-                                                                <span t-field="pl.descuento"/>%
-                                                            </td>
-                                                            <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
-                                                                <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
-                                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                                            </td>
+                                            <!-- Documentos -->
+                                            <t t-if="plan_tmpl.tipo == 'documentos'">
+                                                <table class="table table-sm table-borderless mb-2" style="font-size: 13px;">
+                                                    <thead style="border-bottom: 2px solid #495057;">
+                                                        <tr>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">PLAN</th>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">ENTREGA</th>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">SALDO</th>
+                                                            <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">DESC. / REC.</th>
+                                                            <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">TOTAL ESTIMADO</th>
                                                         </tr>
-                                                    </t>
-                                                </tbody>
-                                            </table>
-                                        </t>
+                                                    </thead>
+                                                    <tbody>
+                                                        <t t-foreach="active_lines" t-as="pl">
+                                                            <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.plan_documentos"/></td>
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.entrega_pct"/></td>
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.saldo"/></td>
+                                                                <td class="text-end fw-semibold" style="padding: 4px 6px;">
+                                                                    <span t-field="pl.descuento"/>%
+                                                                </td>
+                                                                <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
+                                                                    <span t-out="monto_base_plan * (1 + pl.descuento / 100)"
+                                                                          t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                                                </td>
+                                                            </tr>
+                                                        </t>
+                                                    </tbody>
+                                                </table>
+                                            </t>
 
-                                        <!-- Crédito Bancario -->
-                                        <t t-if="plan_tmpl.tipo == 'credito_bancario'">
-                                            <table class="table table-sm table-borderless mb-2" style="font-size: 13px;">
-                                                <thead style="border-bottom: 2px solid #495057;">
-                                                    <tr>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">BANCO / LÍNEA</th>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">PLAZO / TASA</th>
-                                                        <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">FINANCIACIÓN</th>
-                                                        <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">DESC. / REC.</th>
-                                                        <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">TOTAL ESTIMADO</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <t t-foreach="plan_tmpl.line_ids" t-as="pl">
-                                                        <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.banco_linea"/></td>
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.plazo_tasa"/></td>
-                                                            <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.financiacion"/></td>
-                                                            <td class="text-end fw-semibold" style="padding: 4px 6px;">
-                                                                <span t-field="pl.descuento"/>%
-                                                            </td>
-                                                            <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
-                                                                <span t-out="doc.amount_total * (1 + pl.descuento / 100)"
-                                                                      t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                                            </td>
+                                            <!-- Crédito Bancario -->
+                                            <t t-if="plan_tmpl.tipo == 'credito_bancario'">
+                                                <table class="table table-sm table-borderless mb-2" style="font-size: 13px;">
+                                                    <thead style="border-bottom: 2px solid #495057;">
+                                                        <tr>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">BANCO / LÍNEA</th>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">PLAZO / TASA</th>
+                                                            <th class="text-start" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">FINANCIACIÓN</th>
+                                                            <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">DESC. / REC.</th>
+                                                            <th class="text-end" style="color: #212529 !important; font-weight: 700; font-size: 12px; padding: 4px 6px;">TOTAL ESTIMADO</th>
                                                         </tr>
-                                                    </t>
-                                                </tbody>
-                                            </table>
-                                        </t>
-                                    </div>
+                                                    </thead>
+                                                    <tbody>
+                                                        <t t-foreach="active_lines" t-as="pl">
+                                                            <tr style="border-bottom: 1px solid #dee2e6; color: #212529;">
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.banco_linea"/></td>
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.plazo_tasa"/></td>
+                                                                <td class="text-start" style="padding: 4px 6px;"><span t-field="pl.financiacion"/></td>
+                                                                <td class="text-end fw-semibold" style="padding: 4px 6px;">
+                                                                    <span t-field="pl.descuento"/>%
+                                                                </td>
+                                                                <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
+                                                                    <span t-out="monto_base_plan * (1 + pl.descuento / 100)"
+                                                                          t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                                                </td>
+                                                            </tr>
+                                                        </t>
+                                                    </tbody>
+                                                </table>
+                                            </t>
+                                        </div>
+                                    </t>
                                 </t>
                             </div>
                         </t>
@@ -540,5 +650,16 @@
                 </t>
             </t>
         </t>
+    </template>
+
+    <!-- Templates de Reporte Especializados -->
+    <template id="report_cotizacion_planes_todos_document">
+        <t t-set="override_planes_mode" t-value="'all'"/>
+        <t t-call="cotizador.report_cotizacion_planes_document"/>
+    </template>
+
+    <template id="report_cotizacion_sin_planes_document">
+        <t t-set="override_planes_mode" t-value="'none'"/>
+        <t t-call="cotizador.report_cotizacion_planes_document"/>
     </template>
 </odoo>

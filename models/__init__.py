@@ -18,3 +18,5 @@ from . import configurator_service
 from . import engineering_code_wizard
 from . import studio_service
 from . import equipo_usado_wizard
+from . import descuento_wizard
+from . import res_users_inherit

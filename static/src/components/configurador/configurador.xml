@@ -255,12 +255,12 @@
                                                 </span>
                                             </div>
 
-                                            <!-- Opciones en píldoras grandes interactivas (sin número de conteo) -->
+                                            <!-- Opciones en píldoras grandes interactivas -->
                                             <div class="d-flex flex-wrap gap-2 pt-1">
                                                 <t t-foreach="getAvailableValuesForAttribute(attrIndex)" t-as="val" t-key="val.id">
                                                     <button type="button"
                                                             class="btn tree-branch-pill rounded-pill fw-semibold d-flex align-items-center gap-2"
-                                                            t-att-class="val.isSelected ? 'btn-primary shadow-sm' : (val.isAvailable ? 'btn-outline-secondary' : 'btn-outline-light text-muted border-dashed disabled')"
+							    t-att-class="val.isSelected ? 'btn-primary shadow-sm' : (val.isAvailable ? 'btn-outline-secondary' : (state.attributes[attrIndex].show_incompatible_alternatives ? 'btn-outline-light text-muted border-dashed disabled' : 'd-none'))"
                                                             t-att-disabled="!val.isAvailable"
                                                             t-on-click="() => this.selectAttributeValue(attr.id, val.id)">
                                                         <span><t t-esc="val.name"/></span>

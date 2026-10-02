@@ -9,6 +9,8 @@
             <xpath expr="//group[@name='sale_main_fields']" position="inside">
                 <field name="show_in_description"
                        help="Si está activo, este atributo se mostrará en la descripción de la línea de cotización y será visible en el wizard de configuración aunque sea opción única."/>
+                <field name="show_incompatible_alternatives"
+                       help="Si está activo, se mostraran las alternativas incompatibles en el wizard de configuración."/>
             </xpath>
         </field>
     </record>
