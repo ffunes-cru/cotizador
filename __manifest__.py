@@ -11,6 +11,7 @@
         'portal',
         'crm',
         'sale_crm',
+        'website_sale',
     ],
     'data': [
         'security/ir.model.access.csv',
@@ -25,6 +26,7 @@
         'views/res_config_settings_view.xml',
         'report/report_cotizacion_planes.xml',
         'views/portal_templates.xml',
+        'views/website_sale_templates.xml',
         'views/price_wizard_views.xml',
         'views/configurador_views.xml',
         'views/bcra_wizard_view.xml',
@@ -39,6 +41,10 @@
             'cotizador/static/src/components/price_wizard/**/*',
             'cotizador/static/src/components/configurador/**/*',
             'cotizador/static/src/components/configurador_studio/**/*',
+        ],
+        'web.assets_frontend': [
+            'cotizador/static/src/css/cotizador_sequential_configurator.css',
+            'cotizador/static/src/js/cotizador_sequential_configurator.js',
         ],
     },
     'installable': True,

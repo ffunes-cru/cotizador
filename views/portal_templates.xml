@@ -1,76 +1,252 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!-- ============================================= -->
-    <!-- Herencia del Portal: Planes de Pago           -->
-    <!-- ============================================= -->
-    <template id="sale_order_portal_plan_pago"
-              name="Planes de Pago en Portal"
+    <!-- ============================================================== -->
+    <!-- Vista Enriquecida de la Cotización en el Portal del Cliente   -->
+    <!-- (Reemplaza la selección de planes y muestra Cascada y Equipo)  -->
+    <!-- ============================================================== -->
+    <template id="sale_order_portal_content_cotizador"
+              name="Detalle de Cotización Crucianelli en Portal"
               inherit_id="sale.sale_order_portal_content">
-        <!-- Inyectar la sección de planes de pago después de los totales -->
-        <xpath expr="//div[@id='total']" position="after">
-            <t t-if="plan_templates and sale_order.state in ('draft', 'sent')">
-                <section id="plan_pago_portal" class="mt-4">
-                    <h4><i class="fa fa-money"/> Planes de Pago Disponibles</h4>
-                    <hr class="mt-0 mb-3"/>
 
-                    <!-- Mensaje de confirmación si el plan fue seleccionado -->
-                    <t t-if="message == 'plan_selected'">
-                        <div class="alert alert-success" role="alert">
-                            <i class="fa fa-check-circle"/> El plan de pago fue seleccionado exitosamente. El vendedor será notificado.
+        <!-- Mensaje de confirmación y banner de equipo cotizado antes del contenido -->
+        <xpath expr="//div[@id='introduction']" position="after">
+            <t t-if="request.params.get('quote_requested')">
+                <div class="alert alert-success alert-dismissible fade show shadow-sm mt-3 mb-4" role="alert">
+                    <h5 class="alert-heading fw-bold mb-1">
+                        <i class="fa fa-check-circle me-1"/> ¡Solicitud de Cotización Recibida!
+                    </h5>
+                    <p class="mb-0">
+                        Hemos registrado su pedido de cotización para el modelo <strong><span t-field="sale_order.equipo_cotizado_id.name"/></strong>.
+                        Un asesor comercial de Crucianelli se comunicará con usted a la brevedad con la propuesta técnica y comercial definitiva.
+                    </p>
+                    <div class="mt-3 d-flex gap-2 flex-wrap">
+                        <a href="/my/quotes" class="btn btn-sm btn-danger fw-bold">
+                            <i class="fa fa-list me-1"/> Ver todas mis cotizaciones
+                        </a>
+                        <a href="/my" class="btn btn-sm btn-outline-secondary">
+                            <i class="fa fa-user me-1"/> Ir a Mi Cuenta
+                        </a>
+                        <a href="/shop" class="btn btn-sm btn-outline-secondary">
+                            <i class="fa fa-shopping-cart me-1"/> Volver a la Tienda
+                        </a>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </t>
+
+            <div t-if="sale_order.equipo_cotizado_id" class="card bg-light border-0 shadow-sm mt-3 mb-4">
+                <div class="card-body py-3 px-4">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <span class="text-muted small text-uppercase fw-bold">Equipo Configurado</span>
+                            <h4 class="mb-0 text-dark fw-bold">
+                                <i class="fa fa-cogs text-primary me-2"/>
+                                <span t-field="sale_order.equipo_cotizado_id.name"/>
+                            </h4>
+                        </div>
+                        <div t-if="sale_order.user_id" class="text-end">
+                            <span class="text-muted small text-uppercase fw-bold">Concesionario / Asesor</span>
+                            <div class="fw-bold text-dark"><span t-field="sale_order.user_id.name"/></div>
+                        </div>
+                    </div>
+                    <!-- Estado de Aceptación / Revisión Comercial -->
+                    <t t-set="p_mode" t-value="sale_order.portal_confirmation_mode or 'salesman_enables'"/>
+                    <t t-if="sale_order.state in ['draft', 'sent']">
+                        <div class="mt-3 pt-2 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <span t-if="p_mode == 'salesman_only'" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                                    <i class="fa fa-lock me-1"/> Presupuesto Informativo No Vinculante
+                                </span>
+                                <span t-elif="p_mode == 'salesman_enables' and not sale_order.portal_confirmation_allowed" class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1">
+                                    <i class="fa fa-clock-o text-warning me-1"/> Propuesta Preliminar en Revisión Comercial
+                                </span>
+                                <span t-elif="p_mode == 'salesman_enables' and sale_order.portal_confirmation_allowed" class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    <i class="fa fa-check-circle me-1"/> Propuesta Definitiva Habilitada para Firma
+                                </span>
+                            </div>
+                            <div class="small text-muted">
+                                <t t-if="p_mode == 'salesman_only'">
+                                    <em>La confirmación oficial es realizada por su asesor comercial.</em>
+                                </t>
+                                <t t-elif="p_mode == 'salesman_enables' and not sale_order.portal_confirmation_allowed">
+                                    <em>Propuesta técnica sujeta a revisión. Su asesor habilitará la firma tras consensuar los requerimientos.</em>
+                                </t>
+                                <t t-elif="p_mode == 'salesman_enables' and sale_order.portal_confirmation_allowed">
+                                    <strong class="text-success">Ya puede aceptar y firmar esta cotización online.</strong>
+                                </t>
+                            </div>
                         </div>
                     </t>
+                </div>
+            </div>
+        </xpath>
 
-                    <!-- Verificar si ya tiene un plan -->
-                    <t t-set="has_plan" t-value="sale_order.order_line.filtered(lambda l: l.is_plan_pago)"/>
-
-                    <t t-if="has_plan">
-                        <div class="alert alert-info" role="alert">
-                            <i class="fa fa-info-circle"/> Ya tiene un plan de pago seleccionado en esta cotización. Contacte al vendedor si desea modificarlo.
+        <!-- Reemplazo del bloque de Totales por la Cascada Financiera -->
+        <xpath expr="//div[@id='total']" position="replace">
+            <div id="total" class="row justify-content-end my-4">
+                <div class="col-12 col-md-7 col-lg-6 col-xl-5">
+                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+                        <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+                            <span class="fw-bold text-dark fs-6 d-flex align-items-center">
+                                <i class="fa fa-calculator text-danger me-2"/>Resumen de Cotización
+                            </span>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 small">
+                                Crucianelli Oficial
+                            </span>
                         </div>
-                    </t>
-
-                    <t t-foreach="plan_templates" t-as="plan_tmpl">
-                        <h5 class="mt-3 mb-2" style="color: #495057;">
-                            <span t-out="plan_tmpl.name"/>
-                        </h5>
-
-                        <table class="table table-sm table-bordered align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 55%;">Detalle</th>
-                                    <th class="text-end text-nowrap" style="width: 15%;">Desc/Rec (%)</th>
-                                    <th class="text-end text-nowrap" style="width: 18%;">Total Estimado</th>
-                                    <th t-if="not has_plan" class="text-center text-nowrap" style="width: 12%;">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <t t-foreach="plan_tmpl.line_ids" t-as="pl">
-                                    <tr>
-                                        <td><span t-out="pl.name"/></td>
-                                        <td class="text-end text-nowrap">
-                                            <span t-out="pl.descuento"/>%
-                                        </td>
-                                        <td class="text-end text-nowrap fw-bold">
-                                            <span t-out="sale_order.amount_total * (1 + pl.descuento / 100)"
+                        <div class="card-body p-0">
+                            <table class="table table-borderless table-sm mb-0">
+                                <tbody>
+                                    <!-- 1. SUB TOTAL -->
+                                    <tr class="border-bottom border-light">
+                                        <td class="text-start text-muted py-2 px-4 fw-medium">Subtotal Lista</td>
+                                        <td class="text-end fw-bold text-dark py-2 px-4">
+                                            <span t-field="sale_order.amount_subtotal_productos"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
-                                        <td t-if="not has_plan" class="text-center text-nowrap">
-                                            <form t-att-action="sale_order.get_portal_url(suffix='/select_plan')"
-                                                  method="POST" class="d-inline">
-                                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                                                <input type="hidden" name="access_token" t-att-value="sale_order._portal_ensure_token()"/>
-                                                <input type="hidden" name="plan_line_id" t-att-value="pl.id"/>
-                                                <button type="submit" class="btn btn-sm btn-primary">
-                                                    <i class="fa fa-check"/> Elegir
-                                                </button>
-                                            </form>
+                                    </tr>
+                                    <!-- 2. IVA -->
+                                    <tr class="border-bottom border-light">
+                                        <td class="text-start text-muted py-2 px-4 fw-medium">IVA</td>
+                                        <td class="text-end fw-bold text-dark py-2 px-4">
+                                            <span t-field="sale_order.amount_iva_productos"
+                                                  t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
-                                </t>
-                            </tbody>
-                        </table>
-                    </t>
-                </section>
+                                    <!-- 3. TOTAL BASE -->
+                                    <tr class="border-bottom">
+                                        <td class="text-start fw-bold text-dark py-2 px-4">Total con IVA</td>
+                                        <td class="text-end fw-bold text-dark py-2 px-4 fs-6">
+                                            <span t-field="sale_order.amount_total_base"
+                                                  t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                        </td>
+                                    </tr>
+
+                                    <!-- 4. Descuentos -->
+                                    <t t-if="sale_order.amount_descuentos">
+                                        <tr class="bg-danger-subtle bg-opacity-25">
+                                            <td class="text-start text-danger py-2 px-4 fw-medium">
+                                                <i class="fa fa-tag me-1"/> Descuentos
+                                            </td>
+                                            <td class="text-end text-danger fw-bold py-2 px-4">
+                                                - <span t-field="sale_order.amount_descuentos"
+                                                        t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                        <tr class="border-bottom">
+                                            <td class="text-start fw-bold text-dark py-2 px-4">Total con Descuentos</td>
+                                            <td class="text-end fw-bold text-dark py-2 px-4">
+                                                <span t-field="sale_order.amount_total_con_descuentos"
+                                                      t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                    </t>
+
+                                    <!-- 5. Medios de pago (Usados) -->
+                                    <t t-if="sale_order.amount_usados">
+                                        <tr class="bg-danger-subtle bg-opacity-25 border-bottom">
+                                            <td class="text-start text-danger py-2 px-4 fw-medium">
+                                                <i class="fa fa-truck me-1"/> Toma de Usados / Canje
+                                            </td>
+                                            <td class="text-end text-danger fw-bold py-2 px-4">
+                                                - <span t-field="sale_order.amount_usados"
+                                                        t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+
+                            <!-- 6. SALDO A CANCELAR Destacado -->
+                            <div class="p-3 px-4 bg-light border-top d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="d-block fw-bold text-dark text-uppercase small">Saldo a Cancelar</span>
+                                    <small class="text-muted">Propuesta económica estimada</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="fs-3 fw-bolder text-danger"
+                                          t-field="sale_order.amount_saldo_cancelar"
+                                          t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Condiciones Comerciales y Generales con espaciado amplio -->
+            <div t-if="sale_order.condiciones_generales" class="card border-0 shadow-sm rounded-4 bg-light my-5">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-danger-subtle text-danger p-2 rounded-3">
+                            <i class="fa fa-file-text-o fs-6"/>
+                        </span>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0">Condiciones Comerciales y Generales</h6>
+                            <small class="text-muted">Pautas comerciales aplicables a la presente cotización</small>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-white rounded-3 border border-light-subtle text-secondary small"
+                         style="white-space: pre-line; line-height: 1.65;"
+                         t-field="sale_order.condiciones_generales"/>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- Tarjeta permanente de 'Sus cotizaciones' en Mi Cuenta (/my) -->
+    <template id="portal_my_home_sale_cotizaciones" inherit_id="sale.portal_my_home_sale" priority="25">
+        <xpath expr="//div[@id='portal_client_category']" position="inside">
+            <div class="o_portal_index_card col-12 col-md-6 order-2">
+                <a href="/my/quotes" title="Sus cotizaciones" class="d-flex gap-2 gap-md-3 py-3 pe-2 px-md-3 h-100 rounded text-decoration-none bg-100 border border-light-subtle shadow-sm">
+                    <div class="o_portal_icon my-auto">
+                        <i class="fa fa-file-text-o fa-2x text-danger"/>
+                    </div>
+                    <div>
+                        <div class="mt-0 mb-1 fs-5 fw-bold lh-1 text-dark d-flex gap-2 align-items-center">
+                            <span data-placeholder_count="quotation_count"/>
+                            <span>Sus cotizaciones</span>
+                        </div>
+                        <div class="text-muted small">
+                            Revise, descargue o consulte sus presupuestos oficiales
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- Indicador explicativo en la barra lateral del portal -->
+    <template id="sale_order_portal_sidebar_cotizador" inherit_id="sale.sale_order_portal_template">
+        <xpath expr="//div[@id='sale_order_sidebar_button']" position="inside">
+            <t t-if="sale_order.state in ['draft', 'sent'] and not sale_order._has_to_be_signed() and not sale_order._has_to_be_paid()">
+                <t t-set="p_mode" t-value="sale_order.portal_confirmation_mode or 'salesman_enables'"/>
+                <div t-if="p_mode == 'salesman_only'" class="alert alert-light border shadow-sm rounded-3 py-2 px-3 small mb-0 text-start">
+                    <div class="fw-bold text-dark mb-1">
+                        <i class="fa fa-lock text-muted me-1"/> Presupuesto Informativo
+                    </div>
+                    <p class="mb-0 text-muted" style="font-size: 0.8rem; line-height: 1.35;">
+                        Esta propuesta preliminar no requiere firma online. La confirmación oficial es gestionada directamente por su asesor comercial.
+                    </p>
+                </div>
+                <div t-elif="p_mode == 'salesman_enables' and not sale_order.portal_confirmation_allowed" class="alert alert-warning-subtle border border-warning-subtle shadow-sm rounded-3 py-2 px-3 small mb-0 text-start">
+                    <div class="fw-bold text-dark mb-1">
+                        <i class="fa fa-hourglass-half text-warning me-1"/> En Revisión Comercial
+                    </div>
+                    <p class="mb-0 text-dark-emphasis" style="font-size: 0.8rem; line-height: 1.35;">
+                        Esta cotización es una estimación inicial. Su asesor comercial analizará sus requerimientos y habilitará el botón de firma una vez acordada la propuesta definitiva.
+                    </p>
+                </div>
+            </t>
+            <t t-elif="sale_order.state in ['draft', 'sent'] and sale_order.portal_confirmation_mode == 'salesman_enables' and sale_order.portal_confirmation_allowed">
+                <div class="alert alert-success-subtle border border-success-subtle shadow-sm rounded-3 py-2 px-3 small mb-0 text-start">
+                    <div class="fw-bold text-success mb-1">
+                        <i class="fa fa-check-circle me-1"/> Propuesta Habilitada
+                    </div>
+                    <p class="mb-0 text-dark" style="font-size: 0.8rem; line-height: 1.35;">
+                        Su asesor ha validado esta cotización. Ya puede aceptarla y firmarla online mediante el botón superior.
+                    </p>
+                </div>
             </t>
         </xpath>
     </template>

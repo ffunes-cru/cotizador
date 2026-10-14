@@ -83,6 +83,20 @@
                 <attribute name="type">object</attribute>
             </xpath>
 
+            <!-- Botones de Habilitación de Firma en Portal -->
+            <xpath expr="//header" position="inside">
+                <button name="action_enable_portal_confirmation" 
+                        type="object" 
+                        string="Habilitar Firma del Cliente" 
+                        class="btn-success"
+                        invisible="state not in ('draft', 'sent') or portal_confirmation_mode != 'salesman_enables' or portal_confirmation_allowed"/>
+                <button name="action_disable_portal_confirmation" 
+                        type="object" 
+                        string="Revocar Firma del Cliente" 
+                        class="btn-outline-secondary"
+                        invisible="state not in ('draft', 'sent') or portal_confirmation_mode != 'salesman_enables' or not portal_confirmation_allowed"/>
+            </xpath>
+
             <!-- Botón Configurar en button_box -->
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_open_config_wizard" 
@@ -186,6 +200,22 @@
                                 Texto constante que se imprime automáticamente en el pie de página de la cotización.
                             </p>
                             <field name="condiciones_generales" nolabel="1" widget="text" class="w-100"/>
+                        </group>
+                    </group>
+                    <group string="Aceptación y Firma en el Portal Web">
+                        <group>
+                            <field name="portal_confirmation_mode" widget="radio"/>
+                        </group>
+                        <group invisible="portal_confirmation_mode != 'salesman_enables'">
+                            <field name="portal_confirmation_allowed" widget="boolean_toggle"/>
+                            <div class="text-muted small mt-2">
+                                <i class="fa fa-info-circle me-1"/> Mientras este interruptor esté apagado, el cliente verá la cotización como una <strong>propuesta preliminar en revisión</strong> sin botón de firma. Al encenderlo (o presionar <em>Habilitar Firma del Cliente</em> en la cabecera), el cliente podrá firmar y aceptar en la web.
+                            </div>
+                        </group>
+                        <group invisible="portal_confirmation_mode != 'salesman_only'">
+                            <div class="text-muted small">
+                                <i class="fa fa-lock me-1"/> <strong>Modo Solo Vendedor:</strong> El cliente nunca podrá firmar ni aceptar esta cotización online desde el portal. La venta debe ser confirmada internamente por la empresa / asesor.
+                            </div>
                         </group>
                     </group>
                 </page>

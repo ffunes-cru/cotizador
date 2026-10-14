@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- ============================================================== -->
+    <!-- Configurador Secuencial Guiado para Máquinas                   -->
+    <!-- ============================================================== -->
+    <template id="cotizador_variants_sequential"
+              name="Configurador Secuencial de Máquinas"
+              inherit_id="website_sale.variants">
+        <!-- Ocultar lista desordenada nativa de variantes si es máquina -->
+        <xpath expr="//ul[contains(@t-attf-class, 'o_wsale_product_page_variants')][1]" position="attributes">
+            <attribute name="t-att-style">'display: none !important;' if product.is_maquina else None</attribute>
+        </xpath>
+
+        <!-- Insertar el Asistente Secuencial de Pasos para Máquinas -->
+        <xpath expr="//ul[contains(@t-attf-class, 'o_wsale_product_page_variants')][1]" position="before">
+            <t t-if="product.is_maquina">
+                <div id="cotizador_sequential_wizard" class="cotizador-wizard-wrapper my-3">
+                    <!-- Encabezado con Título y Barra de Progreso Moderna -->
+                    <div class="cotizador-wizard-header">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="cotizador-wizard-title">
+                                <i class="fa fa-sliders text-danger me-2"/>Configuración Técnica
+                            </span>
+                            <span id="cotizador_step_badge" class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 fw-semibold">
+                                Paso 1 de 4
+                            </span>
+                        </div>
+                        <!-- Barra de progreso limpia sin textos amontonados -->
+                        <div class="progress cotizador-progress-track">
+                            <div id="cotizador_progress_bar" class="progress-bar cotizador-progress-fill" role="progressbar" style="width: 25%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Fila de Especificaciones Seleccionadas (Chips compactos clicables) -->
+                    <div id="cotizador_selected_chips" class="cotizador-chips-container d-none mb-3"></div>
+
+                    <!-- Contenedor Principal: Paso Activo con Espacio y Confort -->
+                    <div id="cotizador_active_step_container" class="cotizador-active-step"></div>
+
+                    <!-- Resumen de Configuración Completada (solo al 100%) -->
+                    <div id="cotizador_summary_box" class="d-none mb-3"></div>
+
+                    <!-- Próximos pasos sutiles (sin cajas vacías que saturen el espacio) -->
+                    <div id="cotizador_upcoming_steps" class="cotizador-upcoming-steps mb-3"></div>
+
+                    <!-- Pie de navegación espacioso -->
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <button type="button" id="btn_cotizador_prev" class="btn btn-outline-secondary btn-sm d-none">
+                            <i class="fa fa-arrow-left me-1"/> Paso anterior
+                        </button>
+                        <button type="button" id="btn_cotizador_reset" class="btn btn-link text-muted btn-sm text-decoration-none">
+                            <i class="fa fa-refresh me-1"/> Reiniciar todo
+                        </button>
+                    </div>
+
+                    <!-- JSON de Ingeniería Embebido de forma segura -->
+                    <script type="application/json" id="cotizador_config_data">
+                        <t t-out="product.get_sequential_configurator_json()"/>
+                    </script>
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- ============================================================== -->
+    <!-- Botón y Modal de Solicitud de Cotización en Ficha de Producto  -->
+    <!-- ============================================================== -->
+    <template id="cotizador_product_cta_quote"
+              name="Botón Solicitar Cotización en Tienda"
+              inherit_id="website_sale.cta_wrapper">
+        <xpath expr="//div[@id='add_to_cart_wrap']" position="replace">
+            <t t-set="ecommerce_mode" t-value="request.env['ir.config_parameter'].sudo().get_param('cotizador.ecommerce_mode', 'quote_only')"/>
+            
+            <!-- Si está en modo quote_only o es una máquina, mostrar botón Solicitar Cotización -->
+            <t t-if="ecommerce_mode == 'quote_only' or product.is_maquina">
+                <div id="add_to_cart_wrap" class="d-flex flex-column flex-grow-1 flex-lg-grow-0 flex-wrap align-items-stretch gap-2 w-100">
+                    <!-- Aviso de estado de configuración si es máquina -->
+                    <div t-if="product.is_maquina" id="cotizador_action_notice" class="alert alert-warning py-2 px-3 small d-flex align-items-center mb-1">
+                        <i class="fa fa-exclamation-circle me-2 fs-6"/>
+                        <span id="cotizador_action_notice_text">Complete la configuración paso a paso para habilitar la cotización.</span>
+                    </div>
+
+                    <button type="button"
+                            id="btn_solicitar_cotizacion"
+                            t-attf-class="btn btn-primary btn-lg flex-grow-1 shadow-sm #{'disabled opacity-50' if product.is_maquina else ''}"
+                            data-bs-toggle="modal"
+                            data-bs-target="#modal_solicitar_cotizacion"
+                            t-att-disabled="'disabled' if product.is_maquina else None">
+                        <i class="fa fa-file-text-o me-2"/>
+                        Solicitar Cotización
+                    </button>
+                </div>
+            </t>
+            <!-- Si no, mantener botón estándar de agregar al carrito -->
+            <t t-else="">
+                <div id="add_to_cart_wrap" t-attf-class="{{'d-none' if combination_info['prevent_zero_price_sale'] else 'd-flex'}} flex-grow-1 flex-lg-grow-0 flex-wrap align-items-center gap-2 {{'' if is_50_pc else ' w-100'}}">
+                    <a id="add_to_cart" role="button" href="#" t-attf-class="btn btn-primary js_check_product a-submit flex-grow-1" t-att-data-show-quantity="is_view_active('website_sale.product_quantity')" data-animation-selector=".o_wsale_product_images">
+                        <i class="fa fa-shopping-cart me-2"/>
+                        Agregar al carrito
+                    </a>
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- Modal de Formulario de Solicitud de Cotización -->
+    <template id="cotizador_product_quote_modal"
+              name="Modal Solicitar Cotización"
+              inherit_id="website_sale.product">
+        <xpath expr="//div[@id='wrap']" position="after">
+            <t t-set="ecommerce_mode" t-value="request.env['ir.config_parameter'].sudo().get_param('cotizador.ecommerce_mode', 'quote_only')"/>
+            <t t-if="ecommerce_mode == 'quote_only' or product.is_maquina">
+                <div class="modal fade" id="modal_solicitar_cotizacion" tabindex="-1" aria-labelledby="modalSolicitarCotizacionLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg my-2" style="max-height: calc(100vh - 2rem);">
+                        <form action="/cotizador/solicitar_cotizacion" method="POST" class="modal-content shadow-lg border-0 rounded-4 overflow-hidden d-flex flex-column" style="max-height: calc(100vh - 2rem);">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <input type="hidden" name="product_template_id" t-att-value="product.id"/>
+                            <input type="hidden" class="o_not_editable product_id" name="product_id" t-att-value="product_variant.id if product_variant else ''"/>
+                            <input type="hidden" name="config_id" id="modal_input_config_id" value=""/>
+                            <!-- Honeypot anti-bot oculto para seguridad -->
+                            <input type="text" name="website_quick_check" style="display:none !important;" tabindex="-1" autocomplete="off" aria-hidden="true"/>
+
+                            <div class="modal-header bg-white border-bottom py-3 px-4 flex-shrink-0">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalSolicitarCotizacionLabel">
+                                            <i class="fa fa-file-text-o text-danger me-2"/>Solicitar Cotización Oficial
+                                        </h5>
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle small px-2 py-1">
+                                            Crucianelli
+                                        </span>
+                                    </div>
+                                    <p class="text-muted small mb-0 mt-1">
+                                        Equipo base: <strong class="text-dark" t-out="product.name"/>
+                                    </p>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+
+                            <div class="modal-body py-3 px-4 flex-grow-1" style="overflow-y: auto; min-height: 0; max-height: calc(100vh - 230px);">
+                                <!-- Resumen de Configuración Seleccionada -->
+                                <div id="modal_config_summary_box" class="p-3 mb-3 bg-light rounded-3 border">
+                                    <span class="text-muted small d-block mb-1">
+                                        <i class="fa fa-cogs text-danger me-1"/>Configuración técnica seleccionada:
+                                    </span>
+                                    <div id="modal_config_summary_text" class="fw-bold text-dark fs-6">
+                                        <span t-out="product.name"/>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-info py-2 px-3 small d-flex align-items-center mb-3">
+                                    <i class="fa fa-info-circle fs-5 me-2 text-info flex-shrink-0"/>
+                                    <div>
+                                        Complete sus datos de contacto y un representante comercial de Crucianelli se comunicará con usted con la propuesta económica y opciones de financiamiento.
+                                    </div>
+                                </div>
+
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                            Nombre y Apellido <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-user text-muted"/></span>
+                                            <input type="text"
+                                                   name="contact_name"
+                                                   class="form-control border-start-0 ps-0"
+                                                   required="required"
+                                                   maxlength="100"
+                                                   placeholder="Ej. Juan Pérez"
+                                                   t-att-value="request.env.user.name if not request.env.user._is_public() else ''"/>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                            Empresa / Razón Social
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-building text-muted"/></span>
+                                            <input type="text"
+                                                   name="company_name"
+                                                   class="form-control border-start-0 ps-0"
+                                                   maxlength="100"
+                                                   placeholder="Ej. Agropecuaria del Sur S.A."
+                                                   t-att-value="request.env.user.partner_id.commercial_company_name if not request.env.user._is_public() else ''"/>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                            Teléfono / WhatsApp <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-phone text-muted"/></span>
+                                            <input type="tel"
+                                                   name="phone"
+                                                   class="form-control border-start-0 ps-0"
+                                                   required="required"
+                                                   maxlength="40"
+                                                   placeholder="Ej. +54 9 341 555-1234"
+                                                   t-att-value="request.env.user.partner_id.phone if not request.env.user._is_public() else ''"/>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                            Correo Electrónico <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-envelope text-muted"/></span>
+                                            <input type="email"
+                                                   name="email"
+                                                   class="form-control border-start-0 ps-0"
+                                                   required="required"
+                                                   maxlength="100"
+                                                   placeholder="Ej. juan@ejemplo.com"
+                                                   t-att-value="request.env.user.partner_id.email if not request.env.user._is_public() else ''"/>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                            Localidad / Provincia
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-map-marker text-muted"/></span>
+                                            <input type="text"
+                                                   name="city"
+                                                   class="form-control border-start-0 ps-0"
+                                                   maxlength="100"
+                                                   placeholder="Ej. Armstrong, Santa Fe"
+                                                   t-att-value="request.env.user.partner_id.city if not request.env.user._is_public() else ''"/>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                            Comentarios / Consulta Específica
+                                        </label>
+                                        <textarea name="notes"
+                                                  class="form-control"
+                                                  rows="2"
+                                                  maxlength="1500"
+                                                  placeholder="Indique opciones deseadas, fecha estimada de siembra, toma de usado o cualquier detalle relevante..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="modal-footer bg-light py-3 px-4 border-top" style="flex-shrink: 0; position: sticky; bottom: 0; z-index: 10;">
+                                <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="btn btn-danger px-4 py-2 fw-bold shadow-sm">
+                                    <i class="fa fa-paper-plane me-2"/> Enviar Solicitud de Cotización
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </t>
+        </xpath>
+    </template>
+</odoo>

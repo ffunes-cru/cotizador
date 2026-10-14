@@ -50,6 +50,33 @@ class SaleOrderInherit(models.Model):
         help='Seleccione qué planes de pago se imprimirán en la hoja de planes de pago de esta cotización.',
     )
 
+    # --- Modalidad de Aceptación y Firma en Portal ---
+
+    def _default_portal_confirmation_mode(self):
+        return self.env['ir.config_parameter'].sudo().get_param(
+            'cotizador.portal_confirmation_mode', default='salesman_enables'
+        )
+
+    portal_confirmation_mode = fields.Selection(
+        selection=[
+            ('standard', 'Estándar Odoo'),
+            ('salesman_enables', 'Habilitado por el Vendedor'),
+            ('salesman_only', 'Solo el Vendedor puede confirmar'),
+        ],
+        string='Modo de Aceptación Portal',
+        default=_default_portal_confirmation_mode,
+        required=True,
+        tracking=True,
+        help='Determina si el cliente puede firmar/aceptar esta cotización desde el portal web o si requiere habilitación del comercial.',
+    )
+    portal_confirmation_allowed = fields.Boolean(
+        string='Firma del Cliente Habilitada',
+        default=False,
+        tracking=True,
+        copy=False,
+        help='Si el modo es "Habilitado por el Vendedor", active esta casilla para que el cliente pueda ver el botón "Aceptar y Firmar" en el portal web.',
+    )
+
     # --- Equipo Cotizado (Categoría Máquina) ---
     equipo_cotizado_id = fields.Many2one(
         'product.template',
@@ -255,6 +282,8 @@ class SaleOrderInherit(models.Model):
 
     def _sync_with_crm(self):
         """Sincroniza automáticamente la cotización con el CRM."""
+        if self.env.context.get('skip_crm_sync'):
+            return
         for order in self:
             modelo_maquina = order.equipo_cotizado_id
             if not modelo_maquina:
@@ -307,8 +336,27 @@ class SaleOrderInherit(models.Model):
                 if update_vals:
                     order.opportunity_id.write(update_vals)
 
+    @api.onchange('equipo_cotizado_id')
+    def _onchange_equipo_cotizado_id_pricelist(self):
+        """Asigna automáticamente la lista de precios en USD si el equipo cotizado es una máquina."""
+        if self.equipo_cotizado_id and self.equipo_cotizado_id.is_maquina:
+            usd_pl = self.env['product.pricelist'].search([('currency_id.name', '=', 'USD')], limit=1)
+            if usd_pl:
+                self.pricelist_id = usd_pl.id
+
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get('portal_confirmation_mode'):
+                vals['portal_confirmation_mode'] = self.env['ir.config_parameter'].sudo().get_param(
+                    'cotizador.portal_confirmation_mode', default='salesman_enables'
+                )
+            if vals.get('equipo_cotizado_id') and not vals.get('pricelist_id'):
+                equipo = self.env['product.template'].browse(vals['equipo_cotizado_id'])
+                if equipo.exists() and equipo.is_maquina:
+                    usd_pl = self.env['product.pricelist'].search([('currency_id.name', '=', 'USD')], limit=1)
+                    if usd_pl:
+                        vals['pricelist_id'] = usd_pl.id
         orders = super().create(vals_list)
         for order in orders:
             order._sync_with_crm()
@@ -319,6 +367,53 @@ class SaleOrderInherit(models.Model):
         if any(f in vals for f in ('amount_untaxed', 'amount_total', 'amount_saldo_cancelar', 'order_line', 'state', 'partner_id', 'user_id')):
             self._sync_with_crm()
         return res
+
+    def action_enable_portal_confirmation(self):
+        """Habilita la firma del cliente en el portal."""
+        self.ensure_one()
+        self.write({
+            'portal_confirmation_allowed': True,
+            'require_signature': True,
+        })
+        self.message_post(
+            body=_("El asesor comercial ha <strong>habilitado</strong> la aceptación y firma online de esta cotización para el cliente en el portal."),
+            message_type='notification',
+            subtype_xmlid='mail.mt_note'
+        )
+
+    def action_disable_portal_confirmation(self):
+        """Deshabilita la firma del cliente en el portal."""
+        self.ensure_one()
+        self.write({
+            'portal_confirmation_allowed': False,
+        })
+        self.message_post(
+            body=_("El asesor comercial ha <strong>deshabilitado</strong> la aceptación y firma online de esta cotización en el portal."),
+            message_type='notification',
+            subtype_xmlid='mail.mt_note'
+        )
+
+    def _has_to_be_signed(self):
+        self.ensure_one()
+        mode = self.portal_confirmation_mode or self.env['ir.config_parameter'].sudo().get_param(
+            'cotizador.portal_confirmation_mode', default='salesman_enables'
+        )
+        if mode == 'salesman_only':
+            return False
+        if mode == 'salesman_enables' and not self.portal_confirmation_allowed:
+            return False
+        return super()._has_to_be_signed()
+
+    def _has_to_be_paid(self):
+        self.ensure_one()
+        mode = self.portal_confirmation_mode or self.env['ir.config_parameter'].sudo().get_param(
+            'cotizador.portal_confirmation_mode', default='salesman_enables'
+        )
+        if mode == 'salesman_only':
+            return False
+        if mode == 'salesman_enables' and not self.portal_confirmation_allowed:
+            return False
+        return super()._has_to_be_paid()
 
     def _confirmation_error_message(self):
         """Permite confirmar órdenes con líneas descriptivas del cotizador (descuentos, usados, planes)."""

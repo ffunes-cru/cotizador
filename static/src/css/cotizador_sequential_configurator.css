@@ -1,0 +1,233 @@
+/* ============================================================== */
+/* Configurador Secuencial Guiado Crucianelli - Diseño Espacioso */
+/* ============================================================== */
+
+.cotizador-wizard-wrapper {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.cotizador-wizard-header {
+    margin-bottom: 1.25rem;
+}
+
+.cotizador-wizard-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Barra de progreso moderna y delgada */
+.cotizador-progress-track {
+    height: 6px !important;
+    background-color: #f1f5f9;
+    border-radius: 999px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.cotizador-progress-fill {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+    border-radius: 999px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fila de Especificaciones Seleccionadas (Chips compactos) */
+.cotizador-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.cotizador-chip {
+    display: inline-flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.84rem;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cotizador-chip:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #b91c1c;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(220, 38, 38, 0.1);
+}
+
+/* Paso Activo - Espacioso y Confortable */
+.cotizador-active-step {
+    padding: 0.5rem 0 1rem 0;
+}
+
+.cotizador-step-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.2rem;
+}
+
+.cotizador-step-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+/* Grilla de opciones en Columnas Limpias y Compactas */
+.cotizador-options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 10px;
+    margin-top: 1rem;
+}
+
+.cotizador-option-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    text-align: left;
+}
+
+.cotizador-option-card:hover {
+    border-color: #dc2626;
+    background: #fffafa;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px -2px rgba(220, 38, 38, 0.12);
+}
+
+.cotizador-option-card:hover .cotizador-option-name {
+    color: #dc2626;
+}
+
+.cotizador-option-card:hover .cotizador-option-price {
+    color: #b91c1c;
+}
+
+.cotizador-option-card:active {
+    transform: translateY(0);
+}
+
+.cotizador-option-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.3;
+}
+
+.cotizador-option-price {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #64748b;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+
+/* Próximos pasos sutiles */
+.cotizador-upcoming-steps {
+    padding: 0.6rem 0.85rem;
+    background-color: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #f1f5f9;
+}
+
+/* Tarjeta de Resumen al completar */
+.cotizador-summary-card {
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-radius: 12px;
+    padding: 1.25rem;
+    animation: cotizadorFadeIn 0.35s ease;
+}
+
+@keyframes cotizadorFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================================== */
+/* Modal de Solicitud de Cotización: Scrollable & Pinned Footer   */
+/* ============================================================== */
+
+#modal_solicitar_cotizacion .modal-dialog {
+    max-height: calc(100vh - 2rem);
+    margin: 1rem auto;
+    display: flex;
+    flex-direction: column;
+}
+
+#modal_solicitar_cotizacion .modal-content {
+    max-height: calc(100vh - 2rem);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 1rem;
+}
+
+#modal_solicitar_cotizacion .modal-header {
+    flex-shrink: 0;
+    z-index: 5;
+    background: #ffffff;
+}
+
+#modal_solicitar_cotizacion .modal-body {
+    flex: 1 1 auto;
+    min-height: 0; /* Imprescindible para que el flex-child haga scroll en vez de desbordar */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1.25rem 1.5rem;
+}
+
+/* Scrollbar estilizada y limpia para el cuerpo del modal */
+#modal_solicitar_cotizacion .modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+#modal_solicitar_cotizacion .modal-body::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+#modal_solicitar_cotizacion .modal-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+#modal_solicitar_cotizacion .modal-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+#modal_solicitar_cotizacion .modal-footer {
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background-color: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
+}
+
