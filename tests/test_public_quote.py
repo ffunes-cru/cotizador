@@ -2,6 +2,7 @@ import time
 
 from odoo import http
 from odoo.tests import HttpCase, new_test_user, tagged
+from odoo.tests.common import JsonRpcException
 
 from odoo.addons.cotizador.controllers.main import FORM_TOKEN_SCOPE
 from odoo.tools.misc import hmac as hmac_sign
@@ -94,3 +95,15 @@ class TestPublicQuote(HttpCase):
         response = self.url_open('/cotizador/solicitud_recibida')
         self.assertEqual(response.status_code, 200)
         self.assertIn('Solicitud de cotización recibida', response.text)
+
+    def test_quote_only_mode_blocks_payment(self):
+        self.env['ir.config_parameter'].sudo().set_param('cotizador.ecommerce_mode', 'quote_only')
+        for route, params in (
+            ('/shop/payment/transaction/1', {'access_token': 'x'}),
+            ('/shop/express_checkout', {'billing_address': {}}),
+        ):
+            with self.assertRaises(JsonRpcException, msg=route) as error:
+                self.make_jsonrpc_request(route, params)
+            self.assertEqual(error.exception.args[0], 'odoo.exceptions.UserError', route)
+        response = self.url_open('/shop/checkout', allow_redirects=False)
+        self.assertTrue(response.headers['Location'].endswith('/shop'))

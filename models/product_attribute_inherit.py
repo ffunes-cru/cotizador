@@ -1,8 +1,12 @@
-from odoo import models, fields
+"""@file
+Atributos y valores de atributo: opciones de visualización y cantidad para accesorios."""
+from odoo import fields, models
 
 
 class ProductAttributeInherit(models.Model):
+    """Atributo (`product.attribute`): cómo se muestra en el configurador y en la cotización."""
     _inherit = 'product.attribute'
+
     show_incompatible_alternatives = fields.Boolean(
         string='Mostrar Alternativas Incompatibles',
         default=True,
@@ -16,6 +20,12 @@ class ProductAttributeInherit(models.Model):
 
 
 class ProductAttributeValue(models.Model):
+    """Valor de atributo (`product.attribute.value`): número para los accesorios por cantidad.
+
+    Ejemplo: el valor "16 Líneas" guarda `cotizador_qty = 16`; un accesorio cuya categoría tiene
+    ese atributo como *Atributo de Cantidad* se cotiza 16 veces
+    (ver sembradora.config.rel._get_accessory_offer()).
+    """
     _inherit = 'product.attribute.value'
 
     cotizador_qty = fields.Float(

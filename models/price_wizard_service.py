@@ -1,19 +1,35 @@
+"""@file
+Servicio RPC del Asistente de Precios (componente OWL `cotizador_price_wizard`).
+
+Edición masiva de precios de la matriz de un modelo, en tres vistas:
+- **precios base**: el precio de cada configuración;
+- **accesorios globales**: accesorios de una subcategoría de *Accesorio* (los de cantidad por
+  atributo); su precio se aplica a todas las configuraciones del modelo;
+- **accesorios específicos**: el resto; precio por configuración (agrupable por atributos).
+
+Los precios se escriben en la matriz, en la Moneda del Cotizador de cada producto; nunca en
+el precio de venta del producto. Solo para el grupo Administrador del Configurador.
+"""
 from odoo import api, models
 
 from .sembradora_config import check_configurator_manager
 
 
 class CotizadorPriceWizardService(models.AbstractModel):
+    """Servicio `cotizador.price.wizard.service` (sin tabla)."""
     _name = 'cotizador.price.wizard.service'
     _description = 'Servicio RPC para Asistente de Modificación de Precios'
 
     @api.model
     def get_models(self):
-        """Retorna todas las máquinas (product.template con is_maquina)."""
+        """Máquinas para elegir en el asistente.
+
+        @return Lista de dicts `{id, name, default_code, currency, config_count}`.
+        @throws AccessError Si el usuario no es administrador del configurador.
+        """
         check_configurator_manager(self.env)
         templates = self.env['product.template'].search([('is_maquina', '=', True)], order='name asc')
         
-        # Contar configs por modelo
         config_count_by_model = {
             modelo.id: count for modelo, count in self.env['sembradora.config.rel']._read_group(
                 [('modelo_id', 'in', templates.ids)], ['modelo_id'], ['__count'],
@@ -30,9 +46,12 @@ class CotizadorPriceWizardService(models.AbstractModel):
 
     @api.model
     def get_base_configs_data(self, modelo_id):
-        """
-        Retorna las configuraciones base para un modelo dado, incluyendo
-        la lista ordenada de atributos dinámicos con sus valores disponibles para filtros.
+        """Configuraciones de un modelo con sus precios, y los atributos para filtrar.
+
+        @param modelo_id Id de la máquina.
+        @return dict `{attributes: [{id, name, options}], configs: [{id, ext_id, name, price,
+                attr_values, row_values}]}`.
+        @throws AccessError Si el usuario no es administrador del configurador.
         """
         check_configurator_manager(self.env)
         configs = self.env['sembradora.config.rel'].search([
@@ -45,7 +64,6 @@ class CotizadorPriceWizardService(models.AbstractModel):
                 'configs': [],
             }
 
-        # Recolectar todos los atributos involucrados en orden
         all_attr_ids = set()
         attr_values_map = {}  # attr_id -> set of value names
 
@@ -90,9 +108,11 @@ class CotizadorPriceWizardService(models.AbstractModel):
 
     @api.model
     def save_base_prices(self, updates):
-        """
-        Guarda las actualizaciones de precios base.
-        updates: [{ 'id': config_id, 'price': new_price }]
+        """Guarda precios de configuraciones.
+
+        @param updates Lista de dicts `{'id': id de configuración, 'price': nuevo precio}`.
+        @return dict `{success, updated_count}`.
+        @throws AccessError Si el usuario no es administrador del configurador.
         """
         check_configurator_manager(self.env)
         ConfigRel = self.env['sembradora.config.rel']
@@ -111,23 +131,27 @@ class CotizadorPriceWizardService(models.AbstractModel):
 
     @api.model
     def get_accessory_data(self, modelo_id):
-        """
-        Retorna los accesorios disponibles en las configuraciones de este modelo,
-        clasificados en:
-        - global_accessories: Accesorios con subcategoría (ej. Cantidad de Líneas, Distancia, etc.)
-        - specific_accessories: Accesorios de categoría base pura "Accesorio" (precio por configuración).
-        - attributes: Lista de atributos y opciones del modelo para poder filtrar también.
+        """Accesorios de las configuraciones de un modelo, separados en globales y específicos.
+
+        Un accesorio es *global* si su categoría es hija directa de *Accesorio* (las categorías
+        de cantidad que crea el importador); el resto es *específico*.
+
+        @param modelo_id Id de la máquina.
+        @return dict `{attributes, global_accessories: [{product_id, product_name, default_code,
+                category_name, currency, price, configs_count}], specific_accessories:
+                [{line_id, config_id, config_name, product_id, product_name, default_code,
+                category_name, currency, price, attr_values}]}`. El precio de un global es el
+                de su primera línea.
+        @throws AccessError Si el usuario no es administrador del configurador.
         """
         check_configurator_manager(self.env)
         cat_base = self.env.ref('cotizador.cat_accesorio_base')
 
-        # Buscar todas las configs y accessory lines del modelo
         configs = self.env['sembradora.config.rel'].search([('modelo_id', '=', modelo_id)], order='id asc')
         acc_lines = self.env['sembradora.config.accessory.line'].search([
             ('config_id', 'in', configs.ids)
         ])
 
-        # Recolectar atributos de las configs
         all_attr_ids = set()
         attr_values_map = {}
         config_attr_map = {}  # config_id -> {attr_id: val_name}
@@ -147,7 +171,6 @@ class CotizadorPriceWizardService(models.AbstractModel):
             'options': sorted(list(attr_values_map.get(a.id, set()))),
         } for a in attributes]
 
-        # Agrupar productos
         products = acc_lines.mapped('product_id')
 
         global_acc_map = {}
@@ -199,10 +222,12 @@ class CotizadorPriceWizardService(models.AbstractModel):
 
     @api.model
     def save_global_accessory_prices(self, modelo_id, updates):
-        """
-        Actualiza el precio de un accesorio con subcategoría para TODAS las
-        configuraciones de ese modelo (el precio vive en la matriz, no en el producto).
-        updates: [{ 'product_id': prod_id, 'price': new_price }]
+        """Fija el precio de accesorios globales en todas las configuraciones del modelo.
+
+        @param modelo_id Id de la máquina.
+        @param updates Lista de dicts `{'product_id': id del accesorio, 'price': nuevo precio}`.
+        @return dict `{success, updated_count, updated_lines_count}`.
+        @throws AccessError Si el usuario no es administrador del configurador.
         """
         check_configurator_manager(self.env)
         configs = self.env['sembradora.config.rel'].search([('modelo_id', '=', modelo_id)])
@@ -228,9 +253,11 @@ class CotizadorPriceWizardService(models.AbstractModel):
 
     @api.model
     def save_specific_accessory_prices(self, updates):
-        """
-        Actualiza precios de accesorios específicos por configuración.
-        updates: [{ 'line_id': acc_line_id, 'price': new_price }]
+        """Guarda precios de líneas de accesorio puntuales.
+
+        @param updates Lista de dicts `{'line_id': id de sembradora.config.accessory.line, 'price': nuevo precio}`.
+        @return dict `{success, updated_count}`.
+        @throws AccessError Si el usuario no es administrador del configurador.
         """
         check_configurator_manager(self.env)
         AccLine = self.env['sembradora.config.accessory.line']

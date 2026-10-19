@@ -1,8 +1,16 @@
+"""@file
+Línea de accesorio de una configuración: precio, reglas y marca de equipamiento estándar."""
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 
 class SembradoraConfigAccessoryLine(models.Model):
+    """Accesorio compatible con una configuración (`sembradora.config.accessory.line`).
+
+    El precio vive acá (no en el producto): el mismo accesorio puede costar distinto en cada
+    configuración. El accesorio pertenece al mismo modelo de máquina que la configuración
+    (_check_product_modelo()).
+    """
     _name = 'sembradora.config.accessory.line'
     _description = 'Accesorio por Configuración con Precio'
 
@@ -22,7 +30,6 @@ class SembradoraConfigAccessoryLine(models.Model):
     price = fields.Monetary(string='Precio en esta Configuración',
                             help='En la Moneda del Cotizador del accesorio.')
 
-    # Relación Many2many directa con reglas
     rule_ids = fields.Many2many(
         'sembradora.accessory.rule',
         string='Reglas')
@@ -40,8 +47,6 @@ class SembradoraConfigAccessoryLine(models.Model):
              'seleccionado por defecto en el configurador (el vendedor puede quitarlo). '
              'En el CSV se indica con Tipo_Item = ESTANDAR.')
 
-    # Campo opcional: cantidad del accesorio para esta configuración.
-    # Si se deja en 0 o vacío, se usa la lógica dinámica (sembradora.config.rel._get_accessory_offer).
     quantity = fields.Float(
         string='Cantidad (opcional)',
         default=0,
@@ -50,6 +55,13 @@ class SembradoraConfigAccessoryLine(models.Model):
 
     @api.constrains('product_id', 'config_id')
     def _check_product_modelo(self):
+        """El accesorio debe ser del mismo modelo de máquina que la configuración.
+
+        También la llaman las restricciones de product.template (al cambiar el modelo de un
+        accesorio) y de sembradora.config.rel (al cambiar el modelo de una configuración).
+
+        @throws ValidationError Si `product_id.cotizador_modelo_id` no es `config_id.modelo_id`.
+        """
         for line in self:
             if line.product_id.cotizador_modelo_id != line.config_id.modelo_id:
                 raise ValidationError(

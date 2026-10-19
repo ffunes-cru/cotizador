@@ -368,77 +368,78 @@
                             <div style="float: right; width: 50%;">
                                 <table class="table table-sm table-borderless" style="width: 100%; margin: 0; font-size: 13.5px; border-collapse: collapse;">
                                     <tbody>
-                                        <!-- 1. SUB TOTAL -->
+                                        <!-- Cascada: ver sale.order._compute_totales_cotizador -->
                                         <tr>
-                                            <td class="text-start py-1" style="color: #495057; font-weight: 700;">SUB TOTAL</td>
+                                            <td class="text-start py-1" style="color: #111111; font-weight: 700;">SUB TOTAL</td>
                                             <td class="text-end py-1 text-muted" style="font-weight: 600; width: 25px;">$</td>
                                             <td class="text-end py-1 fw-bold" style="color: #111111; width: 130px;">
                                                 <span t-out="'{:,.2f}'.format(doc.amount_subtotal_productos).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
                                             </td>
                                         </tr>
-                                        <!-- 2. IVA -->
-                                        <tr>
-                                            <td class="text-start py-1" style="color: #495057; font-weight: 700;">IVA</td>
-                                            <td class="text-end py-1 text-muted" style="font-weight: 600;">$</td>
-                                            <td class="text-end py-1 fw-bold" style="color: #111111;">
-                                                <span t-out="'{:,.2f}'.format(doc.amount_iva_productos).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
-                                            </td>
-                                        </tr>
-                                        <!-- 3. TOTAL -->
-                                        <tr style="border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
-                                            <td class="text-start py-1" style="color: #111111; font-weight: 800;">TOTAL</td>
-                                            <td class="text-end py-1 text-muted" style="font-weight: 700;">$</td>
-                                            <td class="text-end py-1 fw-bold" style="color: #111111; font-size: 14px;">
-                                                <span t-out="'{:,.2f}'.format(doc.amount_total_base).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
-                                            </td>
-                                        </tr>
-
-                                        <!-- 4. Descuentos -->
-                                        <t t-set="desc_lines" t-value="doc.order_line.filtered(lambda l: l.is_descuento)"/>
+                                        <t t-set="desc_lines" t-value="doc.order_line.filtered(lambda l: l.is_descuento and not l.display_type)"/>
                                         <t t-if="desc_lines">
                                             <tr>
-                                                <td colspan="3" class="pt-2 pb-1 meta-label" style="text-transform: uppercase; letter-spacing: 0.5px;">
-                                                    Descuentos
-                                                </td>
+                                                <td colspan="3" class="pt-2 pb-1 meta-label" style="text-transform: uppercase; letter-spacing: 0.5px;">Descuentos</td>
                                             </tr>
-                                            <t t-foreach="desc_lines" t-as="dl">
+                                            <t t-foreach="desc_lines" t-as="adj">
                                                 <tr>
-                                                    <td class="text-start py-1 ps-2" style="color: #495057;">
-                                                        <span t-field="dl.name"/>
-                                                    </td>
-                                                    <td class="text-end py-1" style="font-weight: 600; color: #dc3545;">-$</td>
-                                                    <td class="text-end py-1 fw-bold" style="color: #dc3545;">
-                                                        <span t-out="'{:,.2f}'.format(abs(dl.price_subtotal)).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                                    <td class="text-start py-1 ps-2" style="color: #495057;"><span t-field="adj.name"/></td>
+                                                    <td class="text-end py-1" t-attf-style="font-weight: 600; color: #{'dc3545' if adj.price_subtotal &lt; 0 else '111111'};" t-out="'-$' if adj.price_subtotal &lt; 0 else '$'"/>
+                                                    <td class="text-end py-1 fw-bold" t-attf-style="color: #{'dc3545' if adj.price_subtotal &lt; 0 else '111111'};">
+                                                        <span t-out="'{:,.2f}'.format(abs(adj.price_subtotal)).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
                                                     </td>
                                                 </tr>
                                             </t>
-                                            <tr style="border-top: 1px solid #dee2e6;">
-                                                <td class="text-end py-1 pe-2" style="color: #111111; font-weight: 700; font-size: 13.5px;">
-                                                    TOTAL CON DESCUENTOS
-                                                </td>
-                                                <td class="text-end py-1 text-muted" style="font-weight: 700;">$</td>
-                                                <td class="text-end py-1 fw-bold" style="color: #111111; font-size: 14px;">
-                                                    <span t-out="'{:,.2f}'.format(doc.amount_total_con_descuentos).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
-                                                </td>
-                                            </tr>
                                         </t>
-
-                                        <!-- 5. Medios de pago -->
-                                        <t t-set="usado_lines" t-value="doc.order_line.filtered(lambda l: l.is_equipo_usado)"/>
+                                        <t t-set="plan_lines" t-value="doc.order_line.filtered(lambda l: l.is_plan_pago and not l.display_type)"/>
+                                        <t t-if="plan_lines">
+                                            <tr>
+                                                <td colspan="3" class="pt-2 pb-1 meta-label" style="text-transform: uppercase; letter-spacing: 0.5px;">Plan de pago</td>
+                                            </tr>
+                                            <t t-foreach="plan_lines" t-as="adj">
+                                                <tr>
+                                                    <td class="text-start py-1 ps-2" style="color: #495057;"><span t-field="adj.name"/></td>
+                                                    <td class="text-end py-1" t-attf-style="font-weight: 600; color: #{'dc3545' if adj.price_subtotal &lt; 0 else '111111'};" t-out="'-$' if adj.price_subtotal &lt; 0 else '$'"/>
+                                                    <td class="text-end py-1 fw-bold" t-attf-style="color: #{'dc3545' if adj.price_subtotal &lt; 0 else '111111'};">
+                                                        <span t-out="'{:,.2f}'.format(abs(adj.price_subtotal)).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </t>
+                                        <t t-if="desc_lines or plan_lines">
+                                        <tr style="border-top: 1px solid #dee2e6;">
+                                            <td class="text-start py-1" style="color: #111111; font-weight: 700;">SUB TOTAL NETO</td>
+                                            <td class="text-end py-1 text-muted" style="font-weight: 600; width: 25px;">$</td>
+                                            <td class="text-end py-1 fw-bold" style="color: #111111; width: 130px;">
+                                                <span t-out="'{:,.2f}'.format(doc.amount_subtotal_neto).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                            </td>
+                                        </tr>
+                                        </t>
+                                        <tr>
+                                            <td class="text-start py-1" style="color: #111111; font-weight: 700;">IVA</td>
+                                            <td class="text-end py-1 text-muted" style="font-weight: 600; width: 25px;">$</td>
+                                            <td class="text-end py-1 fw-bold" style="color: #111111; width: 130px;">
+                                                <span t-out="'{:,.2f}'.format(doc.amount_iva_productos).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                            </td>
+                                        </tr>
+                                        <tr style="border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
+                                            <td class="text-start py-1" style="color: #111111; font-weight: 800;">TOTAL</td>
+                                            <td class="text-end py-1 text-muted" style="font-weight: 600; width: 25px;">$</td>
+                                            <td class="text-end py-1 fw-bold" style="color: #111111; width: 130px;">
+                                                <span t-out="'{:,.2f}'.format(doc.amount_total_base).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                            </td>
+                                        </tr>
+                                        <t t-set="usado_lines" t-value="doc.order_line.filtered(lambda l: l.is_equipo_usado and not l.display_type)"/>
                                         <t t-if="usado_lines">
                                             <tr>
-                                                <td colspan="3" class="pt-2 pb-1 meta-label" style="text-transform: uppercase; letter-spacing: 0.5px;">
-                                                    Medios de pago (Usados)
-                                                </td>
+                                                <td colspan="3" class="pt-2 pb-1 meta-label" style="text-transform: uppercase; letter-spacing: 0.5px;">Medios de pago (Usados)</td>
                                             </tr>
-                                            <t t-foreach="usado_lines" t-as="ul">
+                                            <t t-foreach="usado_lines" t-as="adj">
                                                 <tr>
-                                                    <td class="text-start py-1 ps-2" style="color: #495057;">
-                                                        <span t-field="ul.name"/>
-                                                    </td>
-                                                    <td class="text-end py-1" style="font-weight: 600; color: #dc3545;">-$</td>
-                                                    <td class="text-end py-1 fw-bold" style="color: #dc3545;">
-                                                        <span t-out="'{:,.2f}'.format(abs(ul.price_subtotal)).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                                    <td class="text-start py-1 ps-2" style="color: #495057;"><span t-field="adj.name"/></td>
+                                                    <td class="text-end py-1" t-attf-style="font-weight: 600; color: #{'dc3545' if adj.price_subtotal &lt; 0 else '111111'};" t-out="'-$' if adj.price_subtotal &lt; 0 else '$'"/>
+                                                    <td class="text-end py-1 fw-bold" t-attf-style="color: #{'dc3545' if adj.price_subtotal &lt; 0 else '111111'};">
+                                                        <span t-out="'{:,.2f}'.format(abs(adj.price_subtotal)).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
                                                     </td>
                                                 </tr>
                                             </t>
@@ -495,7 +496,6 @@
                         <t t-if="current_planes_mode != 'none'">
                             <t t-set="all_plan_templates" t-value="doc.env['cotizador.plan.pago.template'].search([('active', '=', True)])"/>
                             <t t-set="selected_line_ids" t-value="doc.plan_pago_line_ids.ids if current_planes_mode == 'filtered' and doc.plan_pago_line_ids else False"/>
-                            <t t-set="monto_base_plan" t-value="doc.amount_saldo_cancelar if doc.amount_saldo_cancelar else doc.amount_total"/>
 
                             <div style="page-break-before: always; page-break-inside: avoid !important; clear: both;" class="pt-2">
                                 <div style="width: 100%; border-bottom: 2px solid #c0282d; margin-bottom: 12px; padding-bottom: 4px; clear: both; overflow: hidden;">
@@ -539,7 +539,7 @@
                                                                     <span t-field="pl.descuento"/>%
                                                                 </td>
                                                                 <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
-                                                                    <span t-out="monto_base_plan * (1 + pl.descuento / 100)"
+                                                                    <span t-out="doc._cotizador_simulate_plan(pl.descuento)"
                                                                           t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                                                 </td>
                                                             </tr>
@@ -570,7 +570,7 @@
                                                                     <span t-field="pl.descuento"/>%
                                                                 </td>
                                                                 <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
-                                                                    <span t-out="monto_base_plan * (1 + pl.descuento / 100)"
+                                                                    <span t-out="doc._cotizador_simulate_plan(pl.descuento)"
                                                                           t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                                                 </td>
                                                             </tr>
@@ -601,7 +601,7 @@
                                                                     <span t-field="pl.descuento"/>%
                                                                 </td>
                                                                 <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
-                                                                    <span t-out="monto_base_plan * (1 + pl.descuento / 100)"
+                                                                    <span t-out="doc._cotizador_simulate_plan(pl.descuento)"
                                                                           t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                                                 </td>
                                                             </tr>
@@ -632,7 +632,7 @@
                                                                     <span t-field="pl.descuento"/>%
                                                                 </td>
                                                                 <td class="text-end fw-bold" style="color: #111111; padding: 4px 6px;">
-                                                                    <span t-out="monto_base_plan * (1 + pl.descuento / 100)"
+                                                                    <span t-out="doc._cotizador_simulate_plan(pl.descuento)"
                                                                           t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                                                 </td>
                                                             </tr>

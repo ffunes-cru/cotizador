@@ -1,8 +1,27 @@
-/** @odoo-module **/
+/**
+ * @file
+ * Configurador paso a paso de la ficha de una máquina en la tienda online.
+ *
+ * Lee el JSON que deja la plantilla `cotizador.product_sequential_configurator` en
+ * `#cotizador_config_data` (product.template.get_sequential_configurator_json): los pasos
+ * (atributos con sus valores) y las configuraciones válidas con su precio. El visitante elige
+ * un valor por paso; solo se ofrecen los que tienen alguna configuración posible, con el rango
+ * de precios resultante. Al completar todos los pasos:
+ *   - sincroniza las variantes nativas de la ficha (`input.js_variant_change`);
+ *   - completa `config_id` y el resumen del modal *Solicitar Cotización*;
+ *   - habilita el botón de solicitud (y el de carrito, en modo eCommerce).
+ *
+ * Todo el texto que viene de datos se escapa con escapeHtml() antes de insertarlo.
+ */
 
 import { Interaction } from '@web/public/interaction';
 import { registry } from '@web/core/registry';
 
+/**
+ * Escapa un texto para insertarlo en HTML.
+ * @param str Texto o valor cualquiera (null/undefined → "").
+ * @returns {string}
+ */
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -13,9 +32,16 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+/**
+ * Interacción del sitio web sobre `#cotizador_sequential_wizard`.
+ *
+ * Estado: `currentStep`, `selectedValues` / `selectedPtavs` / `selectedNames` (índice de paso →
+ * id de valor, id de valor de plantilla, nombre) e `isCompleted`.
+ */
 export class CotizadorSequentialConfigurator extends Interaction {
     static selector = '#cotizador_sequential_wizard';
 
+    /** Lee el JSON de la página, ubica los elementos del DOM, conecta los botones y dibuja el primer paso. */
     setup() {
         const dataScript = this.el.querySelector('#cotizador_config_data');
         if (!dataScript) {
@@ -89,6 +115,13 @@ export class CotizadorSequentialConfigurator extends Interaction {
         this.render();
     }
 
+    /**
+     * Texto visible de una opción. Agrega unidades según el nombre del paso ("cm",
+     * "Líneas") y expande "PP" en el paso de tecnología.
+     * @param stepIndex Índice del paso.
+     * @param name Nombre del valor.
+     * @returns {string}
+     */
     formatOptionName(stepIndex, name) {
         if (!name) return '';
         const stepName = (this.steps[stepIndex]?.name || '').toLowerCase();
@@ -109,6 +142,11 @@ export class CotizadorSequentialConfigurator extends Interaction {
         return trimmed;
     }
 
+    /**
+     * Formatea un importe con el símbolo de la moneda de la lista de precios y formato es-AR.
+     * @param amount Importe (number).
+     * @returns {string}
+     */
     formatMoney(amount) {
         return this.currencySymbol + ' ' + (amount || 0).toLocaleString('es-AR', {
             minimumFractionDigits: 2,
@@ -116,6 +154,11 @@ export class CotizadorSequentialConfigurator extends Interaction {
         });
     }
 
+    /**
+     * Configuraciones que contienen todos los valores elegidos.
+     * @param currentSelections Objeto índice de paso → id de valor.
+     * @returns {Object[]}
+     */
     getMatchingConfigs(currentSelections) {
         const selValIds = Object.values(currentSelections);
         if (!selValIds.length) {
@@ -127,6 +170,13 @@ export class CotizadorSequentialConfigurator extends Interaction {
         });
     }
 
+    /**
+     * Elige un valor en un paso y avanza al siguiente (o completa la configuración).
+     * @param stepIndex Índice del paso.
+     * @param valId Id del valor de atributo.
+     * @param ptavId Id del valor de atributo de la plantilla (variantes nativas).
+     * @param valName Nombre del valor.
+     */
     selectValue(stepIndex, valId, ptavId, valName) {
         this.selectedValues[stepIndex] = valId;
         this.selectedPtavs[stepIndex] = ptavId;
@@ -142,6 +192,10 @@ export class CotizadorSequentialConfigurator extends Interaction {
         this.render();
     }
 
+    /**
+     * Vuelve a un paso y borra lo elegido desde ahí en adelante.
+     * @param stepIndex Índice del paso.
+     */
     goToStep(stepIndex) {
         for (let k = stepIndex; k < this.steps.length; k++) {
             delete this.selectedValues[k];
@@ -153,6 +207,7 @@ export class CotizadorSequentialConfigurator extends Interaction {
         this.render();
     }
 
+    /** Vuelve al primer paso sin nada elegido. */
     resetConfig() {
         this.selectedValues = {};
         this.selectedPtavs = {};
@@ -162,6 +217,10 @@ export class CotizadorSequentialConfigurator extends Interaction {
         this.render();
     }
 
+    /**
+     * Dibuja el estado actual: progreso, chips de lo elegido, paso activo con sus opciones
+     * o el resumen final, y habilita o deshabilita los botones de la ficha.
+     */
     render() {
         if (!this.steps.length) {
             if (this.activeStepContainer) {

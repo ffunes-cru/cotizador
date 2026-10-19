@@ -1,8 +1,13 @@
-# -*- coding: utf-8 -*-
-from odoo import models, fields
+"""@file
+Preferencias del vendedor para el cotizador."""
+from odoo import fields, models
 
 
 class ResUsers(models.Model):
+    """Usuario (`res.users`): planes de pago que ve por defecto en sus cotizaciones.
+
+    Ver sale.order._default_plan_pago_line_ids().
+    """
     _inherit = 'res.users'
 
     plan_pago_template_line_ids = fields.Many2many(

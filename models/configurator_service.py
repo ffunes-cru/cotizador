@@ -1,14 +1,36 @@
+"""@file
+Servicio RPC del configurador visual (componente OWL `cotizador_configurator`).
+
+Flujo del componente (static/src/components/configurador/configurador.js):
+get_initial_data() → el vendedor elige modelo → get_model_matrix() → elige atributos hasta una
+configuración → get_config_accessories() → elige accesorios → confirm_configuration().
+
+Los precios que devuelve son los que quedarán en la cotización (lista de precios y moneda de
+la orden); confirm_configuration() los vuelve a calcular en el servidor.
+"""
 from odoo import _, api, models
 from odoo.exceptions import UserError
 
 
 class CotizadorConfiguratorService(models.AbstractModel):
+    """Servicio `cotizador.configurator.service` (sin tabla; lo usan vendedores).
+
+    Corre con los permisos del usuario: los vendedores leen la matriz (ACL de solo lectura) y
+    escriben en sus cotizaciones.
+    """
     _name = 'cotizador.configurator.service'
     _description = 'Servicio RPC para el Configurador Visual de Sembradoras'
 
     @api.model
     def get_initial_data(self, order_id):
-        """Retorna información de la orden de venta y catálogo de modelos disponibles."""
+        """Datos iniciales: la cotización y el catálogo de máquinas.
+
+        @param order_id Id de la cotización (sale.order).
+        @return dict `{order: {id, name, partner_id, partner_name, state, currency_symbol,
+                tax_label}, models: [{id, name, default_code, config_count, description,
+                has_image, image_url}], modo_silencioso}`.
+        @throws UserError Si la cotización no existe.
+        """
         order = self.env['sale.order'].browse(order_id)
         if not order.exists():
             raise UserError(_("La cotización solicitada no existe o no se pudo encontrar."))
@@ -54,14 +76,18 @@ class CotizadorConfiguratorService(models.AbstractModel):
 
     @api.model
     def get_model_matrix(self, modelo_id, order_id):
-        """
-        Retorna la matriz completa de configuraciones y atributos para un modelo.
-        Permite que el cliente OWL navegue y filtre la matriz en memoria a 0ms de latencia.
+        """Matriz completa de una máquina, para filtrarla en el navegador sin más llamadas.
+
+        @param modelo_id Id de la máquina (product.template).
+        @param order_id Id de la cotización: los precios salen con su lista de precios y moneda.
+        @return dict `{model: {...}, attributes: [{id, name, show_in_description,
+                show_incompatible_alternatives, values: [{id, name}]}], configs: [{id,
+                value_ids, price, description}]}`. Los atributos siguen el orden de la plantilla.
+        @throws UserError Si la máquina no existe.
         """
         modelo = self.env['product.template'].browse(modelo_id)
         if not modelo.exists():
             raise UserError(_("El modelo seleccionado no existe."))
-        # Los precios se muestran como quedarán en la orden (lista de precios y moneda)
         order = self.env['sale.order'].browse(order_id)
 
         configs = self.env['sembradora.config.rel'].search([
@@ -79,7 +105,6 @@ class CotizadorConfiguratorService(models.AbstractModel):
                 'configs': [],
             }
 
-        # Recolectar atributos involucrados
         all_val_ids = set()
         for cfg in configs:
             for v in cfg.value_ids:
@@ -88,7 +113,7 @@ class CotizadorConfiguratorService(models.AbstractModel):
         values = self.env['product.attribute.value'].browse(list(all_val_ids))
         attr_ids = values.mapped('attribute_id')
 
-        # Ordenar atributos según la secuencia definida en las líneas de atributo del template del modelo
+        # Orden de los atributos: el de las líneas de atributo de la plantilla
         model_attr_order = {
             line.attribute_id.id: i
             for i, line in enumerate(modelo.attribute_line_ids.sorted('sequence'))
@@ -112,7 +137,6 @@ class CotizadorConfiguratorService(models.AbstractModel):
                 } for v in attr_values]
             })
 
-        # Mapear configuraciones válidas
         configs_data = [{
             'id': c.id,
             'value_ids': c.value_ids.ids,
@@ -134,10 +158,16 @@ class CotizadorConfiguratorService(models.AbstractModel):
 
     @api.model
     def get_config_accessories(self, config_id, order_id):
-        """
-        Accesorios de la configuración con cantidad y precio como quedarán en la orden.
-        Los estándar vienen con ``selected = True``. Los miembros de un grupo de opción única
-        traen ``choice_group_id`` y ``price_delta`` (diferencia con el estándar del grupo).
+        """Accesorios de una configuración, con cantidad y precio como quedarán en la orden.
+
+        @param config_id Id de la configuración (sembradora.config.rel).
+        @param order_id Id de la cotización (lista de precios y moneda).
+        @return dict `{config_id, base_price, description, accessories}`. Cada accesorio trae
+                `line_id`, producto, categoría, imagen, `price_unit`, `quantity`, `subtotal`,
+                `is_trigger`, `is_standard`, `selected` (= estándar), `rules`, `is_locked`, y
+                para los grupos de opción única `choice_group_id`, `choice_group_name` y
+                `price_delta` (diferencia de subtotal con el estándar del grupo).
+        @throws UserError Si la configuración no existe.
         """
         config = self.env['sembradora.config.rel'].browse(config_id)
         if not config.exists():
@@ -191,11 +221,16 @@ class CotizadorConfiguratorService(models.AbstractModel):
 
     @api.model
     def confirm_configuration(self, order_id, config_id, selected_line_ids=None):
-        """
-        Confirma la selección y crea en la orden de venta la máquina configurada y los
-        accesorios elegidos. Precios y cantidades se recalculan en el servidor.
+        """Agrega a la cotización la máquina configurada y los accesorios elegidos.
 
-        :param selected_line_ids: ids de sembradora.config.accessory.line elegidas.
+        Valida la selección y recalcula precios y cantidades en el servidor
+        (sale.order._cotizador_add_configuration()).
+
+        @param order_id Id de la cotización.
+        @param config_id Id de la configuración elegida.
+        @param selected_line_ids Ids de sembradora.config.accessory.line elegidas.
+        @return dict `{success: True, order_id, order_name}`.
+        @throws UserError Si la cotización o la configuración no existen, o la selección viola las reglas.
         """
         order = self.env['sale.order'].browse(order_id)
         if not order.exists():

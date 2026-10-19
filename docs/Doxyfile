@@ -1,0 +1,53 @@
+# Documentación de código del módulo cotizador (Doxygen 1.10+).
+# Generar, desde la carpeta del módulo:   doxygen docs/Doxyfile
+# Abrir:                                  docs/api/html/index.html
+# docs/api/ no se versiona (.gitignore).
+
+PROJECT_NAME           = "Cotizador de Sembradoras"
+PROJECT_BRIEF          = "Módulo de Odoo 19: matriz de ingeniería, configurador y cotizaciones"
+OUTPUT_DIRECTORY       = docs/api
+OUTPUT_LANGUAGE        = Spanish
+CREATE_SUBDIRS         = NO
+
+# --- Entrada: código, documentación Markdown y README como página principal
+INPUT                  = README.md docs __init__.py models controllers tools static/src static/tests tests
+FILE_PATTERNS          = *.py *.js *.md
+RECURSIVE              = YES
+EXCLUDE                = docs/api
+EXCLUDE_PATTERNS       = */__pycache__/* */lib/*
+USE_MDFILE_AS_MAINPAGE = README.md
+EXTENSION_MAPPING      = js=javascript
+MARKDOWN_SUPPORT       = YES
+TOC_INCLUDE_HEADINGS   = 3
+
+# --- Docstrings de Python con comandos Doxygen (@param, @return, @throws)
+PYTHON_DOCSTRING       = NO
+JAVADOC_AUTOBRIEF      = YES
+OPTIMIZE_OUTPUT_JAVA   = YES
+
+# --- Qué se extrae: todo, incluidos métodos privados (_metodo) y campos de Odoo
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+HIDE_SCOPE_NAMES       = NO
+SORT_MEMBER_DOCS       = NO
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+ALIASES                = "returns=@return"
+
+# --- Avisos: los parámetros sin documentar los controla tests/test_documentacion.py
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_NO_PARAMDOC       = NO
+WARN_IF_DOC_ERROR      = YES
+
+# --- Salida HTML (diagramas Mermaid de docs/*.md en el navegador)
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+SEARCHENGINE           = YES
+HAVE_DOT               = NO
+MERMAID_RENDER_MODE    = CLIENT_SIDE

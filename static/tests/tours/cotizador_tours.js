@@ -1,4 +1,12 @@
-/** @odoo-module **/
+/**
+ * @file
+ * Tours de navegador del módulo (los corre tests/test_tours.py).
+ *
+ * - `cotizador_configurator_tour`: en una cotización abre el configurador, elige la máquina y
+ *   sus atributos, cambia la opción de un grupo de opción única y confirma.
+ * - `cotizador_website_quote_tour`: en la ficha de la máquina completa los pasos del configurador
+ *   de la tienda y envía *Solicitar Cotización* como visitante.
+ */
 
 import { registry } from "@web/core/registry";
 

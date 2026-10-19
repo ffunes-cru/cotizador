@@ -1,13 +1,30 @@
-# Part of Crucianelli Cotizador Module
+"""@file
+Asistente de códigos de ingeniería (Teamcenter): exporta una plantilla y carga los códigos.
+
+Flujo en tres pasos:
+1. **Plantilla espejo** (action_generate_template()): Excel (o CSV si falta `openpyxl`) con una
+   fila por variante (hay una por configuración de la matriz). Las alternativas para máquinas sin
+   variantes (una fila por configuración o por combinación teórica) quedan por compatibilidad con
+   plantillas ya enviadas. Ingeniería completa la columna `CODIGO_INGENIERIA_TEAMCENTER`.
+2. **Simulación** (action_analyze_file()): cruza cada fila con Odoo, primero por `ID_Odoo`
+   confirmado con los valores de atributo de la fila, y si no por los valores de atributo; muestra
+   coincidencias, faltantes y códigos sin match.
+3. **Aplicación** (action_apply_codes()): escribe los códigos en la referencia interna de la
+   variante (`product.product.default_code`) con SQL directo por lotes (miles de filas).
+"""
 import base64
 import csv
 import io
 import json
 import logging
 from odoo import models, fields, api, _
+from odoo.tools import SQL
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
+
+## Filas por sentencia UPDATE al aplicar los códigos.
+APPLY_BATCH_SIZE = 5000
 
 try:
     import openpyxl
@@ -17,6 +34,7 @@ except ImportError:
 
 
 class EngineeringCodeWizard(models.TransientModel):
+    """Asistente `engineering.code.wizard` (solo Administrador del Configurador)."""
     _name = 'engineering.code.wizard'
     _description = 'Asistente de Carga de Códigos de Ingeniería (Teamcenter)'
 
@@ -56,7 +74,14 @@ class EngineeringCodeWizard(models.TransientModel):
     # -------------------------------------------------------------------------
 
     def action_generate_template(self):
-        """Genera un archivo Excel/CSV con todas las variantes físicas existentes en Odoo."""
+        """Paso 1: genera la plantilla espejo para que Ingeniería complete los códigos.
+
+        Columnas: `ID_Odoo`, `Modelo`, un atributo por columna (en orden de la plantilla),
+        `CODIGO_INGENIERIA_TEAMCENTER` (vacía) y `Codigo_Actual_Odoo`.
+
+        @return Acción que reabre el asistente con el archivo para descargar.
+        @throws UserError Si no hay modelo o el modelo no tiene atributos.
+        """
         self.ensure_one()
         if not self.modelo_id:
             raise UserError(_("Debe seleccionar un modelo de máquina."))
@@ -171,7 +196,11 @@ class EngineeringCodeWizard(models.TransientModel):
     # -------------------------------------------------------------------------
 
     def _clean_str(self, val):
-        """Normaliza strings para comparación flexible."""
+        """Normaliza un valor de celda para comparar: mayúsculas, sin acentos, sin ".0" final.
+
+        @param val Valor de la celda (texto, número o None).
+        @return Texto normalizado ('' para None).
+        """
         if val is None:
             return ""
         s = str(val).strip().upper()
@@ -188,7 +217,11 @@ class EngineeringCodeWizard(models.TransientModel):
         return s
 
     def _parse_input_file(self):
-        """Parsea el archivo subido en formato lista de dicts."""
+        """Lee el archivo completado por Ingeniería (.xlsx, o CSV con separador detectado).
+
+        @return Lista de dicts {encabezado: valor}, sin filas vacías.
+        @throws UserError Si no hay archivo, el Excel está vacío o no se reconoce la codificación.
+        """
         if not self.import_file:
             raise UserError(_("Por favor, cargue el archivo completado por Ingeniería."))
 
@@ -236,7 +269,20 @@ class EngineeringCodeWizard(models.TransientModel):
         return rows
 
     def action_analyze_file(self):
-        """Analiza y cruza los códigos del archivo contra las variantes de Odoo."""
+        """Paso 2: cruza las filas del archivo con las variantes y configuraciones del modelo.
+
+        Cada fila con código se busca:
+          1. por `ID_Odoo`: puede ser de una variante o (plantillas anteriores) de una
+             configuración, y el mismo número puede existir en los dos; se acepta el registro
+             cuyos valores de atributo coinciden con los de la fila (o el único, si el archivo no
+             tiene columnas de atributo);
+          2. si no, por la tupla de valores de atributo normalizados (con la tabla de alias).
+        Una configuración se resuelve a su variante: el código siempre va a la variante. Guarda
+        las coincidencias en `matched_data_json` y arma un resumen HTML con muestras.
+
+        @return Acción que reabre el asistente en el paso de simulación.
+        @throws UserError Si el archivo no tiene filas o no tiene columna de código.
+        """
         self.ensure_one()
         rows = self._parse_input_file()
         if not rows:
@@ -259,6 +305,7 @@ class EngineeringCodeWizard(models.TransientModel):
         config_by_id = {c.id: c for c in configs}
 
         # 2. Mapas de lookup por tupla ordenada de valores de atributo normalizados
+        variant_attrs = {}
         variant_by_attrs = {}
         for var in variants:
             attr_tuple = tuple(sorted(
@@ -266,7 +313,9 @@ class EngineeringCodeWizard(models.TransientModel):
                 for ptav in var.product_template_attribute_value_ids
             ))
             variant_by_attrs[attr_tuple] = var
+            variant_attrs[var.id] = attr_tuple
 
+        config_attrs = {}
         config_by_attrs = {}
         for cfg in configs:
             attr_tuple = tuple(sorted(
@@ -274,6 +323,7 @@ class EngineeringCodeWizard(models.TransientModel):
                 for v in cfg.value_ids
             ))
             config_by_attrs[attr_tuple] = cfg
+            config_attrs[cfg.id] = attr_tuple
 
         # Identificar columna del código de ingeniería
         first_row = rows[0]
@@ -307,7 +357,7 @@ class EngineeringCodeWizard(models.TransientModel):
             if c_clean in odoo_attr_names:
                 file_attr_cols[col_name] = odoo_attr_names[c_clean]
 
-        matched_data = []  # [{product_id, config_id, code, old_code, name}]
+        matched_data = []  # [{product_id, code, old_code, name}]
         matched_variant_ids = set()
         extra_rows = []
 
@@ -325,48 +375,52 @@ class EngineeringCodeWizard(models.TransientModel):
             if not code_val:
                 continue
 
-            matched_var = None
-            matched_cfg = None
+            # Valores de atributo de la fila, normalizados (vacío si el archivo no tiene esas columnas)
+            row_tuple = tuple(sorted(
+                value for value in (alias_map.get(self._clean_str(row.get(fcol)), self._clean_str(row.get(fcol)))
+                                    for fcol in file_attr_cols) if value
+            ))
 
-            # Intento A: Match por ID_Odoo
+            # Intento A: por ID_Odoo. Plantillas anteriores pueden traer ids de variantes o de
+            # configuraciones; un mismo número puede existir en los dos, así que se acepta solo si
+            # los valores de la fila confirman a cuál corresponde (o si es inequívoco).
+            matched_var = matched_cfg = None
             for id_col in ['ID_Odoo', 'ID_ODIO', 'ID_VARIANTE', 'ID']:
-                if id_col in row and row[id_col]:
-                    try:
-                        vid = int(str(row[id_col]).strip())
-                        if vid in variant_by_id:
-                            matched_var = variant_by_id[vid]
-                            break
-                        if vid in config_by_id:
-                            matched_cfg = config_by_id[vid]
-                            break
-                    except ValueError:
-                        pass
+                if id_col not in row or not row[id_col]:
+                    continue
+                try:
+                    vid = int(str(row[id_col]).strip())
+                except ValueError:
+                    continue
+                candidates = [rec for rec, attrs in (
+                    (variant_by_id.get(vid), variant_attrs.get(vid)),
+                    (config_by_id.get(vid), config_attrs.get(vid)),
+                ) if rec and (attrs == row_tuple if row_tuple else True)]
+                if len(candidates) == 1:
+                    matched_var = candidates[0] if candidates[0]._name == 'product.product' else None
+                    matched_cfg = candidates[0] if candidates[0]._name == 'sembradora.config.rel' else None
+                break
 
-            # Intento B: Match por atributos desglosados
-            if not matched_var and not matched_cfg and file_attr_cols:
-                row_attr_values = []
-                for fcol in file_attr_cols.keys():
-                    raw_val = self._clean_str(row.get(fcol))
-                    normalized_val = alias_map.get(raw_val, raw_val)
-                    if normalized_val:
-                        row_attr_values.append(normalized_val)
+            # Intento B: por los valores de atributo
+            if not matched_var and not matched_cfg and row_tuple:
+                matched_var = variant_by_attrs.get(row_tuple)
+                matched_cfg = None if matched_var else config_by_attrs.get(row_tuple)
 
-                query_tuple = tuple(sorted(row_attr_values))
-                if query_tuple in variant_by_attrs:
-                    matched_var = variant_by_attrs[query_tuple]
-                elif query_tuple in config_by_attrs:
-                    matched_cfg = config_by_attrs[query_tuple]
-
-            if matched_var or matched_cfg:
-                key_id = f"V_{matched_var.id}" if matched_var else f"C_{matched_cfg.id}"
+            # El código va siempre a la variante (una por configuración)
+            if matched_cfg:
+                try:
+                    matched_var = matched_cfg._get_variant()
+                except UserError:
+                    matched_var = None
+            if matched_var:
+                key_id = f"V_{matched_var.id}"
                 if key_id not in matched_variant_ids:
                     matched_variant_ids.add(key_id)
                     matched_data.append({
-                        'product_id': matched_var.id if matched_var else False,
-                        'config_id': matched_cfg.id if matched_cfg else False,
+                        'product_id': matched_var.id,
                         'code': code_val,
-                        'old_code': (matched_var.default_code if matched_var else matched_cfg.ext_id) or '',
-                        'name': matched_var.display_name if matched_var else matched_cfg.name,
+                        'old_code': matched_var.default_code or '',
+                        'name': matched_var.display_name,
                     })
             else:
                 extra_rows.append({
@@ -483,7 +537,14 @@ class EngineeringCodeWizard(models.TransientModel):
     # -------------------------------------------------------------------------
 
     def action_apply_codes(self):
-        """Aplica los códigos en masa mediante PostgreSQL directo para optimizar tiempo."""
+        """Paso 3: escribe los códigos simulados.
+
+        Escribe `default_code` de las variantes con SQL directo con parámetros, por lotes de
+        APPLY_BATCH_SIZE filas; después invalida la caché del ORM.
+
+        @return Acción que reabre el asistente con el resumen.
+        @throws UserError Si no hay coincidencias para aplicar.
+        """
         self.ensure_one()
         if not self.matched_data_json:
             raise UserError(_("No hay datos de coincidencia para aplicar."))
@@ -492,51 +553,18 @@ class EngineeringCodeWizard(models.TransientModel):
         if not matched_data:
             raise UserError(_("La lista de códigos coincidentes está vacía."))
 
-        cr = self.env.cr
-        batch_size = 5000
-        applied_total = 0
-
-        # Procesar por lotes para evitar saturación de memoria en consultas gigantes
-        for i in range(0, len(matched_data), batch_size):
-            batch = matched_data[i:i + batch_size]
-            
-            # Sanitizar valores para PostgreSQL
-            product_values = []
-            config_values = []
-            for item in batch:
-                code_esc = item['code'].replace("'", "''")
-                if item.get('product_id'):
-                    pid = int(item['product_id'])
-                    product_values.append(f"({pid}, '{code_esc}')")
-                if item.get('config_id'):
-                    cid = int(item['config_id'])
-                    config_values.append(f"({cid}, '{code_esc}')")
-
-            if product_values:
-                values_sql = ", ".join(product_values)
-                update_sql = f"""
-                    UPDATE product_product AS p
-                    SET default_code = v.code
-                    FROM (VALUES {values_sql}) AS v(id, code)
-                    WHERE p.id = v.id;
-                """
-                cr.execute(update_sql)
-
-            if config_values:
-                values_sql = ", ".join(config_values)
-                update_sql = f"""
-                    UPDATE sembradora_config_rel AS c
-                    SET ext_id = v.code
-                    FROM (VALUES {values_sql}) AS v(id, code)
-                    WHERE c.id = v.id;
-                """
-                cr.execute(update_sql)
-
-            applied_total += len(batch)
+        products = [(int(item['product_id']), item['code']) for item in matched_data if item.get('product_id')]
+        # SQL directo (miles de filas en una sola sentencia), con parámetros: nunca texto concatenado
+        for i in range(0, len(products), APPLY_BATCH_SIZE):
+            values = SQL(", ").join(SQL("(%s::int, %s::varchar)", pid, code) for pid, code in products[i:i + APPLY_BATCH_SIZE])
+            self.env.cr.execute(SQL(
+                "UPDATE product_product AS t SET default_code = v.code FROM (VALUES %s) AS v(id, code) WHERE t.id = v.id",
+                values,
+            ))
+        applied_total = len(matched_data)
 
         # Invalidar caché de Odoo en memoria
         self.env['product.product'].invalidate_model(['default_code'])
-        self.env['sembradora.config.rel'].invalidate_model(['ext_id'])
 
         summary_done = f"""
         <div class="alert alert-success p-3 text-center my-3">
@@ -559,7 +587,10 @@ class EngineeringCodeWizard(models.TransientModel):
         }
 
     def action_back_to_upload(self):
-        """Vuelve al paso inicial."""
+        """Vuelve al paso 1 descartando el archivo y la simulación.
+
+        @return Acción que reabre el asistente.
+        """
         self.write({
             'state': 'upload',
             'import_file': False,

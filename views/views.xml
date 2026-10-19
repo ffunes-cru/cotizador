@@ -150,14 +150,15 @@
                 </page>
             </xpath>
 
-            <!-- Reemplazo del Bloque de Totales para mostrar Cascada Financiera (Imagen 1) -->
+            <!-- Totales: cascada del cotizador (ver sale.order._compute_totales_cotizador) -->
             <xpath expr="//group[@name='sale_total']" position="replace">
                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
                     <field name="amount_subtotal_productos" widget="monetary" string="SUB TOTAL" options="{'currency_field': 'currency_id'}"/>
+                    <field name="amount_descuentos" widget="monetary" string="Descuentos" class="text-danger fw-semibold" options="{'currency_field': 'currency_id'}" invisible="amount_descuentos == 0"/>
+                    <field name="amount_plan_pago" widget="monetary" string="Plan de Pago" options="{'currency_field': 'currency_id'}" invisible="amount_plan_pago == 0"/>
+                    <field name="amount_subtotal_neto" widget="monetary" string="SUB TOTAL NETO" class="fw-bold" options="{'currency_field': 'currency_id'}" invisible="amount_descuentos == 0 and amount_plan_pago == 0"/>
                     <field name="amount_iva_productos" widget="monetary" string="IVA" options="{'currency_field': 'currency_id'}"/>
                     <field name="amount_total_base" widget="monetary" string="TOTAL" class="fw-bold" options="{'currency_field': 'currency_id'}"/>
-                    <field name="amount_descuentos" widget="monetary" string="Descuentos" class="text-danger fw-semibold" options="{'currency_field': 'currency_id'}" invisible="amount_descuentos == 0"/>
-                    <field name="amount_total_con_descuentos" widget="monetary" string="TOTAL CON DESCUENTOS" class="fw-bold" options="{'currency_field': 'currency_id'}" invisible="amount_descuentos == 0"/>
                     <field name="amount_usados" widget="monetary" string="Medios de pago (Usados)" class="text-danger fw-semibold" options="{'currency_field': 'currency_id'}" invisible="amount_usados == 0"/>
                     <div class="oe_subtotal_footer_separator oe_inline o_td_label">
                         <label for="amount_saldo_cancelar" string="SALDO A CANCELAR"/>

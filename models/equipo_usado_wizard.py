@@ -1,11 +1,16 @@
-from odoo import models, fields, api, _
+"""@file
+Asistente para tomar un equipo usado como parte de pago (sección *Equipo Usado*)."""
+from odoo import _, fields, models
 from odoo.exceptions import ValidationError
-import logging
-
-_logger = logging.getLogger(__name__)
 
 
 class EquipoUsadoWizard(models.TransientModel):
+    """Equipo usado como medio de pago (`equipo.usado.wizard`).
+
+    Crea una línea sin producto ni impuestos, con precio negativo y `is_equipo_usado = True`,
+    dentro de la sección `cotizador_section = 'usados'` (la crea si falta). Los totales del
+    cotizador la restan después de los descuentos, en "Medios de pago (Usados)".
+    """
     _name = 'equipo.usado.wizard'
     _description = 'Añadir Equipo Usado como Pago'
 
@@ -32,6 +37,11 @@ class EquipoUsadoWizard(models.TransientModel):
     )
 
     def action_confirm(self):
+        """Crea la línea del usado (y la sección si falta) y actualiza la oportunidad.
+
+        @return Acción que cierra el asistente.
+        @throws ValidationError Si no hay cotización o el monto es cero.
+        """
         self.ensure_one()
         order = self.sale_order_id
         if not order:
@@ -41,10 +51,9 @@ class EquipoUsadoWizard(models.TransientModel):
         if raw_monto == 0.0:
             raise ValidationError(_("El monto del equipo usado debe ser mayor a cero."))
 
-        # Asegurar matemáticamente que el precio sea SIEMPRE negativo
+        # Siempre negativo, aunque se cargue con signo
         precio_negativo = -abs(raw_monto)
 
-        # Verificar si ya existe una sección 'Equipo Usado'
         existing_section = order.order_line.filtered(lambda l: l.cotizador_section == 'usados')
 
         max_sequence = max(order.order_line.mapped('sequence') or [0])
@@ -71,7 +80,6 @@ class EquipoUsadoWizard(models.TransientModel):
             'sequence': max_sequence,
         })
 
-        # Sincronización automática de CRM si existe oportunidad vinculada
         if order.opportunity_id:
             order.opportunity_id._sync_expected_revenue_from_orders()
 

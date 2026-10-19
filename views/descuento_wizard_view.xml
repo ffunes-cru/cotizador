@@ -11,7 +11,7 @@
                         <div>
                             <strong>Bonificación Comercial en Cascada</strong>
                             <p class="mb-0 small text-muted">
-                                Puede aplicar un porcentaje calculado sobre el saldo vigente con IVA o un monto fijo. Se agregará como renglón bajo la sección <b>Descuentos</b>.
+                                Porcentaje sobre el neto vigente (sin IVA, después de los descuentos anteriores) o monto fijo neto. El IVA se calcula después sobre el neto con descuento. Se agrega bajo la sección <b>Descuentos</b>.
                             </p>
                         </div>
                     </div>
@@ -22,7 +22,7 @@
                     </group>
                     <group>
                         <group string="Cálculo">
-                            <field name="base_saldo" widget="monetary" options="{'currency_field': 'currency_id'}" invisible="tipo_calculo != 'porcentaje'"/>
+                            <field name="base_neto" widget="monetary" options="{'currency_field': 'currency_id'}" invisible="tipo_calculo != 'porcentaje'"/>
                             <field name="porcentaje" invisible="tipo_calculo != 'porcentaje'"/>
                             <field name="monto_fijo" widget="monetary" options="{'currency_field': 'currency_id'}" invisible="tipo_calculo != 'monto'"/>
                         </group>

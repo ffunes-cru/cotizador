@@ -97,15 +97,41 @@
                         <div class="card-body p-0">
                             <table class="table table-borderless table-sm mb-0">
                                 <tbody>
-                                    <!-- 1. SUB TOTAL -->
+                                    <!-- Cascada: ver sale.order._compute_totales_cotizador -->
                                     <tr class="border-bottom border-light">
-                                        <td class="text-start text-muted py-2 px-4 fw-medium">Subtotal Lista</td>
+                                        <td class="text-start text-muted py-2 px-4 fw-medium">Subtotal (neto)</td>
                                         <td class="text-end fw-bold text-dark py-2 px-4">
                                             <span t-field="sale_order.amount_subtotal_productos"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
-                                    <!-- 2. IVA -->
+                                    <t t-if="sale_order.amount_descuentos">
+                                    <tr class="bg-danger-subtle bg-opacity-25">
+                                        <td class="text-start text-danger py-2 px-4 fw-medium"><i class="fa fa-tag me-1"/> Descuentos</td>
+                                        <td class="text-end fw-bold text-danger py-2 px-4">
+                                            <span t-field="sale_order.amount_descuentos"
+                                                  t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                        </td>
+                                    </tr>
+                                    </t>
+                                    <t t-if="sale_order.amount_plan_pago">
+                                    <tr class="border-bottom border-light">
+                                        <td class="text-start text-muted py-2 px-4 fw-medium"><i class="fa fa-credit-card me-1"/> Plan de Pago</td>
+                                        <td class="text-end fw-bold text-dark py-2 px-4">
+                                            <span t-field="sale_order.amount_plan_pago"
+                                                  t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                        </td>
+                                    </tr>
+                                    </t>
+                                    <t t-if="sale_order.amount_descuentos or sale_order.amount_plan_pago">
+                                    <tr class="border-bottom">
+                                        <td class="text-start fw-bold text-dark py-2 px-4 fw-medium">Subtotal neto</td>
+                                        <td class="text-end fw-bold text-dark py-2 px-4">
+                                            <span t-field="sale_order.amount_subtotal_neto"
+                                                  t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                        </td>
+                                    </tr>
+                                    </t>
                                     <tr class="border-bottom border-light">
                                         <td class="text-start text-muted py-2 px-4 fw-medium">IVA</td>
                                         <td class="text-end fw-bold text-dark py-2 px-4">
@@ -113,46 +139,21 @@
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
-                                    <!-- 3. TOTAL BASE -->
                                     <tr class="border-bottom">
-                                        <td class="text-start fw-bold text-dark py-2 px-4">Total con IVA</td>
-                                        <td class="text-end fw-bold text-dark py-2 px-4 fs-6">
+                                        <td class="text-start fw-bold text-dark py-2 px-4 fw-medium">Total con IVA</td>
+                                        <td class="text-end fw-bold text-dark fs-6 py-2 px-4">
                                             <span t-field="sale_order.amount_total_base"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
-
-                                    <!-- 4. Descuentos -->
-                                    <t t-if="sale_order.amount_descuentos">
-                                        <tr class="bg-danger-subtle bg-opacity-25">
-                                            <td class="text-start text-danger py-2 px-4 fw-medium">
-                                                <i class="fa fa-tag me-1"/> Descuentos
-                                            </td>
-                                            <td class="text-end text-danger fw-bold py-2 px-4">
-                                                - <span t-field="sale_order.amount_descuentos"
-                                                        t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
-                                            </td>
-                                        </tr>
-                                        <tr class="border-bottom">
-                                            <td class="text-start fw-bold text-dark py-2 px-4">Total con Descuentos</td>
-                                            <td class="text-end fw-bold text-dark py-2 px-4">
-                                                <span t-field="sale_order.amount_total_con_descuentos"
-                                                      t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
-                                            </td>
-                                        </tr>
-                                    </t>
-
-                                    <!-- 5. Medios de pago (Usados) -->
                                     <t t-if="sale_order.amount_usados">
-                                        <tr class="bg-danger-subtle bg-opacity-25 border-bottom">
-                                            <td class="text-start text-danger py-2 px-4 fw-medium">
-                                                <i class="fa fa-truck me-1"/> Toma de Usados / Canje
-                                            </td>
-                                            <td class="text-end text-danger fw-bold py-2 px-4">
-                                                - <span t-field="sale_order.amount_usados"
-                                                        t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
-                                            </td>
-                                        </tr>
+                                    <tr class="bg-danger-subtle bg-opacity-25 border-bottom">
+                                        <td class="text-start text-danger py-2 px-4 fw-medium"><i class="fa fa-truck me-1"/> Toma de Usados / Canje</td>
+                                        <td class="text-end fw-bold text-danger py-2 px-4">
+                                            <span t-field="sale_order.amount_usados"
+                                                  t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                        </td>
+                                    </tr>
                                     </t>
                                 </tbody>
                             </table>

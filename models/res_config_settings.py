@@ -1,7 +1,16 @@
-from odoo import models, fields
+"""@file
+Ajustes del cotizador (Ajustes › Ventas › Cotizador de Sembradoras).
+
+Casi todos se guardan como parámetros del sistema (`ir.config_parameter`, prefijo `cotizador.`);
+impuesto y lista de precios son campos de la compañía (res_company.py).
+"""
+from odoo import fields, models
+
+from .sale_order_inherit import DEFAULT_CONDICIONES_GENERALES
 
 
 class ResConfigSettings(models.TransientModel):
+    """Ajustes (`res.config.settings`) del cotizador. Ver docs/operacion.md para cada parámetro."""
     _inherit = 'res.config.settings'
 
     cotizador_plan_pago_required = fields.Boolean(
@@ -62,12 +71,14 @@ class ResConfigSettings(models.TransientModel):
     )
 
     def _compute_cotizador_captcha_configured(self):
+        """True si hay clave privada de reCAPTCHA o de Cloudflare Turnstile (aviso en la vista)."""
         params = self.env['ir.config_parameter'].sudo()
         configured = bool(params.get_param('recaptcha_private_key') or params.get_param('cf.turnstile_secret_key'))
         for settings in self:
             settings.cotizador_captcha_configured = configured
 
     def set_values(self):
+        """Guarda además las condiciones generales: un campo Text no admite `config_parameter`."""
         super().set_values()
         self.env['ir.config_parameter'].sudo().set_param(
             'cotizador.condiciones_generales_default',
@@ -75,8 +86,11 @@ class ResConfigSettings(models.TransientModel):
         )
 
     def get_values(self):
+        """Lee además las condiciones generales (texto por defecto si no se configuraron).
+
+        @return dict de valores de los ajustes.
+        """
         res = super().get_values()
-        from .sale_order_inherit import DEFAULT_CONDICIONES_GENERALES
         val = self.env['ir.config_parameter'].sudo().get_param(
             'cotizador.condiciones_generales_default',
             default=DEFAULT_CONDICIONES_GENERALES

@@ -1,13 +1,17 @@
-# -*- coding: utf-8 -*-
-from odoo import models, fields, api, _
+"""@file
+Oportunidades del CRM: máquina cotizada, configuración pedida en la web e ingreso esperado."""
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-import logging
-
-_logger = logging.getLogger(__name__)
-
 
 
 class CrmLeadInherit(models.Model):
+    """Lead / oportunidad (`crm.lead`) del cotizador.
+
+    - Las solicitudes web guardan la configuración elegida (`cotizador_config_id`) y la IP.
+    - *Crear Cotización* arma la cotización de esa configuración para el cliente del lead.
+    - El ingreso esperado sigue a la última cotización o pedido, convertido a la moneda de la
+      compañía (_sync_expected_revenue_from_orders()).
+    """
     _inherit = 'crm.lead'
 
     equipo_cotizado_id = fields.Many2one(
@@ -44,12 +48,18 @@ class CrmLeadInherit(models.Model):
 
     @api.depends('team_id', 'team_id.user_id')
     def _compute_lider_equipo_id(self):
+        """Propone como líder al jefe del equipo de ventas, si todavía no hay uno."""
         for lead in self:
             if not lead.lider_equipo_id and lead.team_id and lead.team_id.user_id:
                 lead.lider_equipo_id = lead.team_id.user_id
 
     def _sync_expected_revenue_from_orders(self):
-        """Actualiza el expected_revenue de la oportunidad tomando el monto de la última cotización o pedido y sincroniza el equipo."""
+        """Recalcula el ingreso esperado y la máquina desde las cotizaciones de la oportunidad.
+
+        Toma el último pedido confirmado o, si no hay, la última cotización no cancelada. El
+        monto es el saldo a cancelar (o el total) convertido de la moneda de la orden a la de
+        la compañía, con la tasa de la fecha de la orden.
+        """
         for lead in self:
             active_orders = lead.order_ids.filtered(lambda o: o.state != 'cancel')
             if active_orders:
@@ -60,7 +70,6 @@ class CrmLeadInherit(models.Model):
                     target_order = active_orders.sorted(lambda o: (o.date_order or o.create_date or fields.Datetime.now()), reverse=True)[0]
 
                 company_currency = lead.company_currency or self.env.company.currency_id
-                # Tomar saldo a cancelar si existe, sino amount_total o amount_untaxed
                 monto_origen = target_order.amount_saldo_cancelar or target_order.amount_total
                 amount = target_order.currency_id._convert(
                     monto_origen,
@@ -70,13 +79,17 @@ class CrmLeadInherit(models.Model):
                 )
                 lead.expected_revenue = amount
 
-                # Sincronizar equipo cotizado si la orden tiene una máquina
                 maquina = target_order._get_maquina_template()
                 if maquina:
                     lead.equipo_cotizado_id = maquina
 
     @api.model_create_multi
     def create(self, vals_list):
+        """Crea leads y sincroniza el ingreso esperado de los que ya traen cotizaciones.
+
+        @param vals_list Lista de diccionarios de valores.
+        @return Los leads creados.
+        """
         leads = super().create(vals_list)
         for lead in leads:
             if lead.order_ids:
@@ -84,13 +97,24 @@ class CrmLeadInherit(models.Model):
         return leads
 
     def write(self, vals):
+        """Escribe y, si cambian las cotizaciones vinculadas, recalcula el ingreso esperado.
+
+        @param vals Valores a escribir.
+        @return True.
+        """
         res = super().write(vals)
         if 'order_ids' in vals:
             self._sync_expected_revenue_from_orders()
         return res
 
     def action_cotizador_create_quotation(self):
-        """Crea la cotización de la configuración solicitada en la web para el cliente del lead."""
+        """Botón *Crear Cotización*: cotización de la configuración pedida en la web.
+
+        Usa el cliente del lead y agrega la máquina con su equipamiento estándar.
+
+        @return Acción que abre la cotización creada.
+        @throws UserError Si el lead no tiene configuración o todavía no tiene cliente.
+        """
         self.ensure_one()
         if not self.cotizador_config_id:
             raise UserError(_("Esta oportunidad no tiene una configuración solicitada."))

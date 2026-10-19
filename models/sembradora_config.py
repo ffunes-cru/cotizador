@@ -1,24 +1,44 @@
+"""@file
+Matriz de ingeniería: configuraciones válidas de cada máquina y las reglas de sus accesorios.
+
+Una **configuración** (`sembradora.config.rel`) es una combinación completa de valores de
+atributo de una máquina (p. ej. Pionera · 16 Líneas · 52 cm) con su precio y sus accesorios
+compatibles. Solo las combinaciones que existen en la matriz se pueden cotizar o elegir en la
+tienda (product.template._is_combination_possible()).
+"""
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
+## Grupo que administra la matriz (Studio, precios, importador, Teamcenter).
 MANAGER_GROUP = 'cotizador.group_cotizador_manager'
 
 
 def check_configurator_manager(env):
-    """Studio, Asistente de Precios y demás herramientas de la matriz: solo administradores."""
+    """Exige el grupo Administrador del Configurador. La llaman todos los métodos RPC de
+    Studio y del Asistente de Precios (los servicios abstractos no tienen permisos de acceso).
+
+    @param env Entorno del usuario que hace la llamada.
+    @throws AccessError Si el usuario no está en MANAGER_GROUP.
+    """
     if not env.user.has_group(MANAGER_GROUP):
         raise AccessError(env._("Solo el grupo Administrador del Configurador puede usar esta herramienta."))
 
 
 def validate_rule_set(lines):
-    """
-    Valida la coherencia de reglas y equipamiento estándar de UNA configuración.
-    La usan el importador (sobre el CSV, antes de escribir) y la restricción del modelo.
+    """Valida la coherencia de reglas y equipamiento estándar de UNA configuración.
 
-    :param lines: iterable de dicts ``{'name', 'is_standard', 'is_trigger', 'rules'}`` donde
-        ``rules`` es una lista de tuplas ``(clave, tipo, nombre)`` con tipo en
-        ``exclusion`` / ``inclusion`` / ``choice``.
-    :return: lista de mensajes de error (vacía si es coherente).
+    La usan el importador (sobre el CSV, antes de escribir) y la restricción
+    SembradoraConfigRel._check_accessories(), así las dos aplican exactamente lo mismo:
+
+    - un miembro de un grupo de opción única no tiene otras reglas;
+    - cada grupo de opción única tiene exactamente un ESTANDAR;
+    - un grupo de exclusión tiene como máximo un ESTANDAR;
+    - un ESTANDAR de un grupo de inclusión tiene su habilitante también ESTANDAR (o es el habilitante).
+
+    @param lines Iterable de dicts `{'name', 'is_standard', 'is_trigger', 'rules'}`, donde
+           `rules` es una lista de tuplas `(clave, tipo, nombre)`; `clave` identifica el grupo
+           (id de la regla o `(nombre, tipo)` en el CSV) y `tipo` es `exclusion`, `inclusion` o `choice`.
+    @return Lista de mensajes de error; vacía si el conjunto es coherente.
     """
     lines = list(lines)
     errors = []
@@ -56,6 +76,16 @@ def validate_rule_set(lines):
 
 
 class SembradoraConfigRel(models.Model):
+    """Configuración válida de una máquina (`sembradora.config.rel`).
+
+    - `value_ids`: la combinación completa de valores de atributo (única por modelo).
+    - `price`: precio de la máquina en la Moneda del Cotizador del modelo.
+    - `accessory_line_ids`: accesorios compatibles, con su precio en esta configuración.
+    - `ext_id`: código externo (ID del CSV o código de ingeniería de Teamcenter).
+
+    Toda escritura de modelo, combinación o precio invalida el índice en caché
+    product.template._cotizador_config_index().
+    """
     _name = 'sembradora.config.rel'
     _description = 'Matriz de Configuraciones Permitidas'
 
@@ -92,6 +122,10 @@ class SembradoraConfigRel(models.Model):
         'value_ids'
     )
     def _compute_description(self):
+        """Descripción según las reglas de *Descripción Paramétrica* del modelo.
+
+        Si ninguna regla aplica se conserva la descripción existente (es editable a mano).
+        """
         for reg in self:
             if reg.modelo_id:
                 desc = reg.modelo_id.get_config_description(reg.value_ids)
@@ -104,29 +138,76 @@ class SembradoraConfigRel(models.Model):
 
     @api.depends('modelo_id', 'value_ids')
     def _compute_name(self):
+        """Nombre visible: "Modelo: valor1, valor2, …"."""
         for reg in self:
-            # .mapped('name') extrae todos los nombres de los valores y los une con comas
             attrs = ", ".join(reg.value_ids.mapped('name'))
             reg.name = f"{reg.modelo_id.name}: {attrs}"
 
-    # El índice cacheado de configuraciones (product.template._cotizador_config_index)
-    # depende de modelo, combinación y precio.
     @api.model_create_multi
     def create(self, vals_list):
+        """Crea configuraciones, invalida el índice en caché y crea sus variantes.
+
+        @param vals_list Lista de diccionarios de valores.
+        @return Las configuraciones creadas.
+        """
         self.env.registry.clear_cache()
-        return super().create(vals_list)
+        configs = super().create(vals_list)
+        configs.modelo_id._cotizador_sync_variants()
+        return configs
 
     def write(self, vals):
+        """Escribe; si cambian modelo, combinación o precio invalida el índice en caché, y si
+        cambian modelo o combinación sincroniza las variantes.
+
+        @param vals Valores a escribir.
+        @return True.
+        """
         if {'modelo_id', 'value_ids', 'price'} & vals.keys():
             self.env.registry.clear_cache()
-        return super().write(vals)
+        templates = self.modelo_id
+        res = super().write(vals)
+        if {'modelo_id', 'value_ids'} & vals.keys():
+            (templates | self.modelo_id)._cotizador_sync_variants()
+        return res
 
     def unlink(self):
+        """Borra configuraciones (y sus líneas de accesorio), invalida el índice en caché y
+        quita sus variantes (Odoo las archiva si ya se usaron en ventas).
+
+        @return True.
+        """
         self.env.registry.clear_cache()
-        return super().unlink()
+        templates = self.modelo_id
+        res = super().unlink()
+        templates._cotizador_sync_variants()
+        return res
+
+    @api.constrains('modelo_id', 'value_ids')
+    def _check_complete_combination(self):
+        """Una configuración tiene exactamente un valor por cada atributo de su máquina.
+
+        Es lo que necesita una variante: sin un valor por atributo no puede existir.
+
+        @throws ValidationError Si falta un atributo, sobra uno que la máquina no tiene o hay
+                dos valores del mismo atributo.
+        """
+        for config in self:
+            template_attributes = config.modelo_id.attribute_line_ids.attribute_id
+            attributes = config.value_ids.attribute_id
+            if attributes != template_attributes or len(config.value_ids) != len(attributes):
+                missing = template_attributes - attributes
+                raise ValidationError(self.env._(
+                    "%(config)s: la combinación debe tener un valor de cada atributo de %(modelo)s%(detail)s.",
+                    config=config.name, modelo=config.modelo_id.name,
+                    detail=f" (falta {', '.join(missing.mapped('name'))})" if missing else '',
+                ))
 
     @api.constrains('modelo_id', 'value_ids')
     def _check_unique_combination(self):
+        """Una combinación de valores aparece una sola vez por modelo.
+
+        @throws ValidationError Si otra configuración del modelo tiene los mismos valores.
+        """
         for config in self:
             duplicate = self.search([
                 ('modelo_id', '=', config.modelo_id.id), ('id', '!=', config.id),
@@ -139,11 +220,19 @@ class SembradoraConfigRel(models.Model):
 
     @api.constrains('modelo_id')
     def _check_accessories_modelo(self):
+        """Al cambiar el modelo, los accesorios deben seguir siendo de ese modelo.
+
+        @throws ValidationError Ver SembradoraConfigAccessoryLine._check_product_modelo().
+        """
         self.accessory_line_ids._check_product_modelo()
 
     @api.constrains('accessory_line_ids', 'value_ids')
     def _check_accessories(self):
-        """Reglas coherentes y, para accesorios de cantidad dinámica, el atributo presente."""
+        """Reglas coherentes (validate_rule_set()) y, para cada accesorio de cantidad dinámica,
+        un valor del atributo de cantidad en la combinación.
+
+        @throws ValidationError Con todos los errores de la configuración juntos.
+        """
         for config in self:
             errors = validate_rule_set(config._rule_set_lines())
             config_attrs = config.value_ids.attribute_id
@@ -158,7 +247,10 @@ class SembradoraConfigRel(models.Model):
                 raise ValidationError(f"{config.name}:\n" + "\n".join(errors))
 
     def _rule_set_lines(self):
-        """Líneas de accesorio en el formato de validate_rule_set."""
+        """Convierte las líneas de accesorio al formato de validate_rule_set().
+
+        @return Lista de dicts `{'name', 'is_standard', 'is_trigger', 'rules'}`.
+        """
         self.ensure_one()
         return [{
             'name': line.product_id.display_name,
@@ -172,19 +264,23 @@ class SembradoraConfigRel(models.Model):
     # -------------------------------------------------------------------------
 
     def _get_accessory_offer(self):
-        """
-        Calcula cantidad y precio unitario (en la Moneda del Cotizador del accesorio) de cada accesorio.
+        """Oferta de accesorios de la configuración: cantidad y precio de matriz de cada uno.
 
-        Cantidad:
-          1. ``quantity`` explícita (> 0) en la línea de accesorio.
-          2. Si la categoría del accesorio tiene *Atributo de Cantidad* (lo fija el importador a
-             partir de ``Calc_param``): la *Cantidad* guardada en el valor de ese atributo de la
-             configuración (``product.attribute.value.cotizador_qty``).
-          3. Resto → 1.
+        Cantidad, en este orden:
+          1. `quantity` explícita (> 0) de la línea;
+          2. si la categoría del accesorio tiene *Atributo de Cantidad* (lo fija el importador
+             desde `Calc_param`): el `cotizador_qty` del valor de ese atributo en la combinación;
+          3. si no, 1.
 
-        Precio unitario: el de la línea (matriz por configuración); 0 es un precio válido (sin cargo).
+        Precio unitario: el de la línea, en la Moneda del Cotizador del accesorio (0 = sin cargo).
+        Todavía no pasa por la lista de precios: eso lo hace
+        sale.order._cotizador_accessory_price().
 
-        :return: list of dicts, uno por ``sembradora.config.accessory.line``.
+        @return Lista de dicts, uno por línea de accesorio, con: `line`, `product`, `quantity`,
+                `price_unit`, `subtotal`, `is_standard`, `selected` (= estándar), `is_trigger`,
+                `choice_rule` (la regla de opción única, o vacío) e `is_inclusion_locked`
+                (miembro no habilitante de una inclusión: arranca bloqueado).
+        @throws UserError Si la categoría pide un atributo de cantidad que la combinación no tiene.
         """
         self.ensure_one()
         value_by_attr = {v.attribute_id: v for v in self.value_ids}
@@ -195,6 +291,14 @@ class SembradoraConfigRel(models.Model):
             if line.quantity > 0:
                 quantity = line.quantity
             elif qty_attribute:
+                if qty_attribute not in value_by_attr:
+                    # Solo si la categoría cambió de atributo después de validar la configuración
+                    raise UserError(self.env._(
+                        "'%(acc)s' se cotiza por '%(attr)s', pero la configuración %(config)s no tiene ese atributo. "
+                        "Revise el Atributo de Cantidad de la categoría '%(categ)s'.",
+                        acc=product.display_name, attr=qty_attribute.name, config=self.name,
+                        categ=product.categ_id.complete_name,
+                    ))
                 quantity = value_by_attr[qty_attribute].cotizador_qty
             else:
                 quantity = 1.0
@@ -217,12 +321,26 @@ class SembradoraConfigRel(models.Model):
         return offer
 
     def _get_default_accessory_lines(self):
-        """Accesorios que arrancan seleccionados: el equipamiento estándar (coherente por restricción)."""
+        """Equipamiento estándar: las líneas que arrancan seleccionadas.
+
+        Es una selección válida por construcción (restricción _check_accessories()).
+
+        @return sembradora.config.accessory.line con `is_standard`.
+        """
         self.ensure_one()
         return self.accessory_line_ids.filtered('is_standard')
 
     def _check_accessory_selection(self, acc_lines):
-        """Valida una selección de accesorios contra las reglas de exclusión/inclusión."""
+        """Valida una selección de accesorios contra las reglas de la configuración.
+
+        Es la validación del servidor: el configurador OWL aplica las mismas reglas en el
+        navegador, pero nunca se confía en él.
+
+        @param acc_lines sembradora.config.accessory.line elegidas.
+        @throws UserError Si hay líneas de otra configuración, un grupo de opción única sin
+                exactamente una elegida, dos elegidas de una exclusión o un miembro de una
+                inclusión sin su habilitante.
+        """
         self.ensure_one()
         foreign = acc_lines - self.accessory_line_ids
         if foreign:
@@ -251,27 +369,41 @@ class SembradoraConfigRel(models.Model):
                     rule=rule.name, accs=', '.join(in_rule.mapped('product_id.name')),
                 ))
 
-    def _get_or_create_variant(self):
-        """Devuelve (o crea) la variante product.product que corresponde a esta configuración."""
+    def _get_variant(self):
+        """Variante (`product.product`) de la máquina para esta configuración.
+
+        Las variantes se crean con la matriz (atributos "Siempre": una por configuración, ver
+        product.template._filter_combinations_impossible_by_config()). Si falta, se vuelven a
+        sincronizar las variantes de la máquina una vez (p. ej. una base anterior a este criterio).
+
+        @return product.product de la configuración.
+        @throws UserError Si la máquina no tiene variante para la combinación ni después de sincronizar.
+        """
         self.ensure_one()
         tmpl = self.modelo_id
-        ptavs = self.env['product.template.attribute.value'].search([
-            ('product_tmpl_id', '=', tmpl.id),
-            ('product_attribute_value_id', 'in', self.value_ids.ids),
-        ])
-        variant = tmpl._get_variant_for_combination(ptavs) or tmpl._create_product_variant(ptavs)
+
+        def find():
+            """@return La variante activa de la combinación, o vacío."""
+            ptavs = self.env['product.template.attribute.value'].search([
+                ('product_tmpl_id', '=', tmpl.id),
+                ('product_attribute_value_id', 'in', self.value_ids.ids),
+            ])
+            return tmpl._get_variant_for_combination(ptavs)
+
+        variant = find()
         if not variant:
-            # Atributos en modo 'always' cuya variante no fue generada (o combinación excluida
-            # en la plantilla): se crea igual porque la matriz de ingeniería es la fuente de verdad.
-            # sudo: igual que _create_product_variant, los vendedores no crean productos.
-            variant = self.env['product.product'].sudo().create({
-                'product_tmpl_id': tmpl.id,
-                'product_template_attribute_value_ids': [(6, 0, ptavs._without_no_variant_attributes().ids)],
-            })
+            tmpl._cotizador_sync_variants()
+            variant = find()
+        if not variant:
+            raise UserError(self.env._(
+                "La máquina %(modelo)s no tiene variante para %(config)s. Revise que sus atributos estén en modo "
+                "'Siempre' y que la combinación esté completa.",
+                modelo=tmpl.name, config=self.name,
+            ))
         return variant
 
     def _sync_variant_code(self):
-        """Copia ext_id (código de ingeniería) a la referencia interna de la variante, si existe."""
+        """Copia `ext_id` a la referencia interna (`default_code`) de la variante, si ya existe."""
         for config in self.filtered('ext_id'):
             ptavs = self.env['product.template.attribute.value'].search([
                 ('product_tmpl_id', '=', config.modelo_id.id),
@@ -282,7 +414,11 @@ class SembradoraConfigRel(models.Model):
                 variant.sudo().default_code = config.ext_id
 
     def _get_variant_description(self):
-        """Texto de la línea de la máquina: modelo + atributos visibles en descripción."""
+        """Descripción de la línea de la máquina en la cotización.
+
+        @return Texto: el nombre del modelo y una línea "• Atributo: valor" por cada atributo
+                con *Mostrar en Descripción*, en el orden de los atributos de la plantilla.
+        """
         self.ensure_one()
         attr_order = {
             ptal.attribute_id.id: (ptal.sequence, ptal.id) for ptal in self.modelo_id.attribute_line_ids

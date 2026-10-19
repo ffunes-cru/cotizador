@@ -2,3 +2,6 @@ from . import test_importer
 from . import test_configurator
 from . import test_public_quote
 from . import test_tours
+from . import test_review_fixes
+from . import test_cascade_variants
+from . import test_documentacion

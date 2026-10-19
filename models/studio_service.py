@@ -1,3 +1,12 @@
+"""@file
+Servicio RPC del Configurador Studio (componente OWL `cotizador_configurator_studio`).
+
+El Studio muestra la matriz de una máquina como un árbol de atributos (una columna por
+atributo) y permite habilitar, deshabilitar y ponerle precio o código a cada configuración.
+Solo para el grupo Administrador del Configurador.
+"""
+import itertools
+
 from odoo import _, api, models
 from odoo.exceptions import UserError
 
@@ -5,12 +14,19 @@ from .sembradora_config import check_configurator_manager
 
 
 class CotizadorStudioService(models.AbstractModel):
+    """Servicio `cotizador.studio.service` (sin tabla)."""
     _name = 'cotizador.studio.service'
     _description = 'Servicio Backend para Configurador Studio'
 
     @api.model
     def get_studio_overview(self):
-        """Retorna la lista de modelos de máquinas y métricas globales."""
+        """Máquinas con sus métricas para el selector del Studio.
+
+        @return Lista de dicts `{id, name, default_code, list_price, variants_count,
+                configs_count, coded_variants_count, has_image}`. "Codificadas" = variantes con
+                referencia interna o configuraciones con `ext_id`, lo que sea mayor.
+        @throws AccessError Si el usuario no es administrador del configurador.
+        """
         check_configurator_manager(self.env)
         templates = self.env['product.template'].search([('is_maquina', '=', True)], order='name asc')
         result = []
@@ -22,8 +38,7 @@ class CotizadorStudioService(models.AbstractModel):
                 ('default_code', '!=', False),
                 ('default_code', '!=', '')
             ])
-            # Si el modelo utiliza variantes dinámicas o no tiene product.product pre-creados,
-            # medimos códigos asignados directamente en sembradora.config.rel
+            # Con variantes dinámicas puede no haber product.product: se cuentan también las configuraciones con código
             coded_configs = self.env['sembradora.config.rel'].search_count([
                 ('modelo_id', '=', tmpl.id),
                 ('ext_id', '!=', False),
@@ -45,13 +60,22 @@ class CotizadorStudioService(models.AbstractModel):
 
     @api.model
     def get_model_studio_data(self, modelo_id):
-        """Retorna la información completa de un modelo para el studio interactivo."""
+        """Matriz de una máquina para el árbol del Studio.
+
+        @param modelo_id Id de la máquina.
+        @return dict `{modelo: {id, name, default_code, list_price, currency}, attributes:
+                [{id, name, sequence, values}], configs: [{id, ext_id, name, price, value_ids,
+                values_by_attr, accessory_count}], total_variants, coded_variants,
+                accessories_count}`. Sin variantes creadas, `total_variants` es el producto
+                cartesiano teórico de los valores.
+        @throws AccessError Si el usuario no es administrador del configurador.
+        @throws UserError Si la máquina no existe.
+        """
         check_configurator_manager(self.env)
         tmpl = self.env['product.template'].browse(modelo_id)
         if not tmpl.exists():
             raise UserError(_("El modelo seleccionado no existe."))
 
-        # 1. Atributos y Valores
         ptals = tmpl.attribute_line_ids.sorted(lambda l: (l.sequence, l.id))
         attributes_data = []
         for ptal in ptals:
@@ -68,7 +92,6 @@ class CotizadorStudioService(models.AbstractModel):
                 'values': values_data,
             })
 
-        # 2. Configuraciones activas en sembradora.config.rel
         configs = self.env['sembradora.config.rel'].search([
             ('modelo_id', '=', tmpl.id)
         ], order='id asc')
@@ -86,7 +109,6 @@ class CotizadorStudioService(models.AbstractModel):
                 'accessory_count': len(c.accessory_line_ids),
             })
 
-        # 3. Métricas de Variantes Odoo con soporte para variantes dinámicas
         total_variants = self.env['product.product'].search_count([('product_tmpl_id', '=', tmpl.id)])
         coded_variants = self.env['product.product'].search_count([
             ('product_tmpl_id', '=', tmpl.id),
@@ -94,8 +116,7 @@ class CotizadorStudioService(models.AbstractModel):
             ('default_code', '!=', '')
         ])
 
-        # En PRD muchas máquinas usan create_variant = 'dynamic'. Si total_variants es 0,
-        # calculamos el total teórico de combinaciones posibles a partir de sus atributos.
+        # Con variantes dinámicas puede no haber ninguna creada: total teórico de combinaciones
         theoretical_total = 1
         for ptal in ptals:
             theoretical_total *= (len(ptal.value_ids) or 1)
@@ -110,7 +131,6 @@ class CotizadorStudioService(models.AbstractModel):
             total_variants = theoretical_total
         coded_variants = max(coded_variants, coded_configs)
 
-        # 4. Cantidad de accesorios del modelo (se muestra como métrica en el Studio)
         accessories_count = self.env['product.product'].search_count([('cotizador_modelo_id', '=', tmpl.id)])
 
         return {
@@ -130,7 +150,14 @@ class CotizadorStudioService(models.AbstractModel):
 
     @api.model
     def quick_update_config_price(self, config_id, new_price):
-        """Actualización rápida de precio para una celda individual."""
+        """Cambia el precio de una configuración (edición en la hoja del árbol).
+
+        @param config_id Id de la configuración.
+        @param new_price Nuevo precio, en la Moneda del Cotizador del modelo.
+        @return dict `{success, config_id, new_price}`.
+        @throws AccessError Si el usuario no es administrador del configurador.
+        @throws UserError Si la configuración no existe.
+        """
         check_configurator_manager(self.env)
         config = self.env['sembradora.config.rel'].browse(config_id)
         if not config.exists():
@@ -140,9 +167,13 @@ class CotizadorStudioService(models.AbstractModel):
 
     @api.model
     def quick_update_config_engineering_code(self, config_id, new_code):
-        """
-        Actualización rápida del código de ingeniería (Teamcenter / ID externo)
-        para una configuración individual desde el Árbol de Columnas.
+        """Cambia el código de ingeniería (`ext_id`) de una configuración y lo copia a la variante.
+
+        @param config_id Id de la configuración.
+        @param new_code Código nuevo (se recortan espacios; vacío lo borra).
+        @return dict `{success, config_id, new_code}`.
+        @throws AccessError Si el usuario no es administrador del configurador.
+        @throws UserError Si la configuración no existe.
         """
         check_configurator_manager(self.env)
         config = self.env['sembradora.config.rel'].browse(config_id)
@@ -157,7 +188,13 @@ class CotizadorStudioService(models.AbstractModel):
 
     @api.model
     def delete_configuration(self, config_id):
-        """Elimina una configuración individual."""
+        """Deshabilita una combinación: borra su configuración (y sus líneas de accesorio).
+
+        @param config_id Id de la configuración.
+        @return dict `{success, config_id}`.
+        @throws AccessError Si el usuario no es administrador del configurador.
+        @throws UserError Si la configuración no existe.
+        """
         check_configurator_manager(self.env)
         cfg = self.env['sembradora.config.rel'].browse(config_id)
         if not cfg.exists():
@@ -167,8 +204,18 @@ class CotizadorStudioService(models.AbstractModel):
 
     @api.model
     def create_configuration(self, modelo_id, value_ids, price, ext_id=None):
-        """
-        Crea una nueva configuración en sembradora.config.rel para el modelo indicado.
+        """Habilita una combinación: crea su configuración.
+
+        Sin `ext_id` se genera uno provisorio "<referencia del modelo o M<id>>-<ids de valores>".
+
+        @param modelo_id Id de la máquina.
+        @param value_ids Ids de los valores de atributo de la combinación.
+        @param price Precio, en la Moneda del Cotizador del modelo.
+        @param ext_id Código externo (opcional).
+        @return dict `{success, config: {...}}` con la configuración en el formato de get_model_studio_data().
+        @throws AccessError Si el usuario no es administrador del configurador.
+        @throws UserError Si la máquina no existe o no hay valores.
+        @throws ValidationError Si la combinación ya existe.
         """
         check_configurator_manager(self.env)
         tmpl = self.env['product.template'].browse(modelo_id)
@@ -209,12 +256,20 @@ class CotizadorStudioService(models.AbstractModel):
 
     @api.model
     def batch_create_branch_configurations(self, modelo_id, partial_value_ids, base_price):
-        """
-        Genera en bloque todas las combinaciones faltantes bajo la rama especificada
-        por partial_value_ids.
+        """Habilita en bloque todas las combinaciones que faltan bajo una rama del árbol.
+
+        Combina los valores fijados de la rama con todos los valores de los atributos
+        restantes; omite las combinaciones que ya existen. El `ext_id` de cada una es
+        "CFG-<id del modelo>-<ids de valores>".
+
+        @param modelo_id Id de la máquina.
+        @param partial_value_ids Ids de los valores fijados en la rama.
+        @param base_price Precio de las configuraciones nuevas.
+        @return dict `{success, created_count}`.
+        @throws AccessError Si el usuario no es administrador del configurador.
+        @throws UserError Si la máquina no existe.
         """
         check_configurator_manager(self.env)
-        import itertools
 
         tmpl = self.env['product.template'].browse(modelo_id)
         if not tmpl.exists():
@@ -236,23 +291,22 @@ class CotizadorStudioService(models.AbstractModel):
         existing = self.env['sembradora.config.rel'].search([('modelo_id', '=', modelo_id)])
         existing_combos = [set(cfg.value_ids.ids) for cfg in existing]
 
-        created_count = 0
-        ConfigRel = self.env['sembradora.config.rel']
+        vals_list = []
         for combo in combinations:
             combo_set = set(combo)
             if combo_set in existing_combos:
                 continue
-            ext_id = f"CFG-{modelo_id}-" + "-".join(str(v) for v in sorted(combo))
-            ConfigRel.create({
+            vals_list.append({
                 'modelo_id': modelo_id,
                 'value_ids': [(6, 0, combo)],
                 'price': float(base_price or 0.0),
-                'ext_id': ext_id,
+                'ext_id': f"CFG-{modelo_id}-" + "-".join(str(v) for v in sorted(combo)),
             })
             existing_combos.append(combo_set)
-            created_count += 1
+        # Un solo create: las variantes de la máquina se sincronizan una vez
+        self.env['sembradora.config.rel'].create(vals_list)
 
         return {
             'success': True,
-            'created_count': created_count,
+            'created_count': len(vals_list),
         }

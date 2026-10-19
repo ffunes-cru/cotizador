@@ -1,6 +1,16 @@
-from odoo import models, fields, api
+"""@file
+Planes de pago: catálogo de opciones (plantillas) y su selección en la cotización.
+
+Flujo: el administrador carga plantillas por tipo de plan (*Ventas › Configuración*); en la
+cotización, el botón de plan de pago abre cotizador.plan.pago.wizard con todas las opciones
+activas y el total simulado de cada una; al elegir una se agregan una sección y una línea con
+el producto de servicio del tipo (`cotizador.product_plan_<tipo>`) y el recargo o descuento.
+"""
+from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+## Tipos de plan. Cada clave tiene su producto de servicio `cotizador.product_plan_<clave>`
+## (data/product_plan_pago_data.xml).
 TIPO_PLAN_SELECTION = [
     ('canje_cereal', 'Plan Canje Cereal'),
     ('cheques', 'Plan Cheques'),
@@ -10,8 +20,7 @@ TIPO_PLAN_SELECTION = [
 
 
 class PlanPagoTemplate(models.Model):
-    """Plantillas de planes de pago configuradas por el administrador.
-    Definen las opciones fijas que luego se copian a cada cotización."""
+    """Plantilla de plan de pago (`cotizador.plan.pago.template`): un tipo con sus opciones."""
     _name = 'cotizador.plan.pago.template'
     _description = 'Plantilla de Plan de Pago'
 
@@ -25,8 +34,12 @@ class PlanPagoTemplate(models.Model):
 
 
 class PlanPagoTemplateLine(models.Model):
-    """Línea de plantilla: cada opción dentro de un tipo de plan.
-    Ej: Para 'Plan Cheques' → opción 1 (30 días), opción 5 (90 días), etc."""
+    """Opción de un plan de pago (`cotizador.plan.pago.template.line`).
+
+    Cada tipo usa su propio grupo de campos de texto (ver la vista); `descuento` es común:
+    porcentaje negativo = descuento, positivo = recargo. Ejemplo para *Plan Cheques*:
+    "30-60-90", 60 días promedio, 3 cheques, -5 %.
+    """
     _name = 'cotizador.plan.pago.template.line'
     _description = 'Línea de Plantilla de Plan de Pago'
     _order = 'sequence, id'
@@ -72,6 +85,7 @@ class PlanPagoTemplateLine(models.Model):
                  'entrega_canje', 'condicion', 'promedio_dias', 'cheques_desc',
                  'entrega_pct', 'saldo', 'plazo_tasa', 'financiacion')
     def _compute_name(self):
+        """Resumen de una línea según el tipo, p. ej. "Cheques: 30-60-90 (60 días | Chq: 3)"."""
         for rec in self:
             if rec.tipo == 'canje_cereal':
                 rec.name = f"Canje: {rec.opcion or ''} (Entr: {rec.entrega_canje or ''} | Cond: {rec.condicion or ''})"
@@ -85,10 +99,19 @@ class PlanPagoTemplateLine(models.Model):
                 rec.name = "Línea de Plan de Pago"
 
     def action_select_line(self):
-        """Selecciona esta línea de plantilla para la cotización activa."""
+        """Agrega esta opción a la cotización del contexto (`default_sale_order_id` o `active_id`).
+
+        Crea una sección y, por cada grupo de impuestos, una línea con el producto del tipo de
+        plan, los impuestos del grupo y el porcentaje de la opción (`cotizador_pct`). El importe
+        es neto con descuentos × porcentaje y se recalcula solo cuando cambian las líneas
+        (sale.order._cotizador_update_adjustments()). Solo puede haber un plan por cotización.
+
+        @return Acción que cierra el asistente.
+        @throws ValidationError Si no se identifica la cotización o ya tiene un plan.
+        """
         sale_order_id = self.env.context.get('default_sale_order_id') or self.env.context.get('active_id')
         if not sale_order_id:
-            # Fallback en caso de llamarse desde sub-vistas
+            # Llamado desde una sub-vista: el id viene en los parámetros de la acción
             sale_order_id = self.env.context.get('params', {}).get('id')
 
         if not sale_order_id:
@@ -96,11 +119,9 @@ class PlanPagoTemplateLine(models.Model):
 
         order = self.env['sale.order'].browse(sale_order_id)
         
-        # Obtenemos el nombre legible del tipo (ej: en vez de 'canje_cereal' -> 'Plan Canje Cereal')
         tipo_dict = dict(TIPO_PLAN_SELECTION)
         tipo_legible = tipo_dict.get(self.tipo, self.tipo)
 
-        # 1. Armamos una descripción detallada según el tipo de plan
         descripcion_detallada = ""
         
         if self.tipo == 'canje_cereal':
@@ -127,50 +148,47 @@ class PlanPagoTemplateLine(models.Model):
             tipo_movimiento = "Recargo" if self.descuento > 0 else "Descuento"
             descripcion_detallada += f"\n• {tipo_movimiento}: {abs(self.descuento)}%"
 
-        # Validamos que no se haya añadido un plan de pago previamente.
         if order.order_line.filtered('is_plan_pago'):
             raise ValidationError("Ya existe un Plan de pago seleccionado. Elimine el existente antes de añadir uno nuevo.")
         
         payplan = self.env.ref(f'cotizador.product_plan_{self.tipo}')
-        payprice = order.amount_total * (self.descuento / 100)
-
-        max_sequence = max(order.order_line.mapped('sequence') or [0])
-
-        self.env['sale.order.line'].create({
+        groups = order._cotizador_tax_groups()
+        sequence = max(order.order_line.mapped('sequence') or [0]) + 1
+        vals_list = [{
             'order_id': order.id,
-            'name': f'Información de Pago: {tipo_legible}', 
+            'name': f'Información de Pago: {tipo_legible}',
             'display_type': 'line_section',
-            'sequence': max_sequence + 1,
+            'sequence': sequence,
             'is_plan_pago': True,
-        })
-
-        self.env['sale.order.line'].create({
-            'order_id': order.id,
-            'product_id': payplan.id,
-            'name': descripcion_detallada, 
-            'product_uom_qty': 1,
-            'is_plan_pago': True,
-            'tax_ids': [(6, 0, [])], 
-            'price_unit': payprice, 
-            'sequence': max_sequence + 2, 
-        })
-
-
+        }]
+        # Una línea por grupo de impuestos: el recargo o descuento lleva el IVA de lo que ajusta.
+        # El importe lo calcula sale.order._cotizador_update_adjustments() al crearlas.
+        for taxes in groups or {self.env['account.tax']: 0.0}:
+            sequence += 1
+            vals_list.append({
+                'order_id': order.id,
+                'product_id': payplan.id,
+                'name': descripcion_detallada,
+                'product_uom_qty': 1,
+                'is_plan_pago': True,
+                'cotizador_pct': self.descuento,
+                'tax_ids': [fields.Command.set(taxes.ids)],
+                'price_unit': 0.0,
+                'sequence': sequence,
+            })
+        self.env['sale.order.line'].create(vals_list)
         return {'type': 'ir.actions.act_window_close'}
 
 
 class PlanPagoWizard(models.TransientModel):
-    """Wizard para seleccionar el plan de pago directamente desde las plantillas activas."""
+    """Selección del plan de pago (`cotizador.plan.pago.wizard`).
+
+    sale.order.action_open_plan_pago_wizard() lo crea con una línea por opción activa.
+    """
     _name = 'cotizador.plan.pago.wizard'
     _description = 'Wizard de Selección de Plan de Pago'
 
     sale_order_id = fields.Many2one('sale.order', string='Cotización', required=True)
-
-    # Campo Many2many computado que trae todas las opciones de plantillas disponibles
-    # template_line_ids = fields.Many2many(
-    #     'cotizador.plan.pago.template.line',
-    #     string='Opciones de Planes Disponibles',
-    #     compute='_compute_template_lines')
 
     wizard_line_ids = fields.One2many(
         'cotizador.plan.pago.wizard.line', 
@@ -178,22 +196,9 @@ class PlanPagoWizard(models.TransientModel):
         string='Opciones de Planes Disponibles'
     )
 
-    # @api.depends('sale_order_id')
-    # def _compute_template_lines(self):
-    #     for wiz in self:
-    #         # Trae todas las opciones que pertenecen a plantillas activas
-    #         wiz.template_line_ids = self.env['cotizador.plan.pago.template.line'].search([
-    #             ('template_id.active', '=', True)
-    #         ])
-
-    # def action_eliminar_plan(self):
-    #     """Elimina el plan de pago seleccionado de la cotización."""
-    #     self.sale_order_id.plan_pago_ids.unlink()
-    #     return {'type': 'ir.actions.act_window_close'}
-
 
 class PlanPagoWizardLine(models.TransientModel):
-    """Línea temporal dentro del wizard para mostrar datos calculados en tiempo real."""
+    """Opción dentro del asistente, con el total simulado de la cotización si se elige."""
     _name = 'cotizador.plan.pago.wizard.line'
     _description = 'Línea Temporal de Selección de Plan'
 
@@ -205,13 +210,18 @@ class PlanPagoWizardLine(models.TransientModel):
     descuento = fields.Float(string='Descuento / Recargo (%)')
     total_simulado = fields.Float(string='Total Simulado', compute='_compute_total_simulado')
 
-    @api.depends('wizard_id.sale_order_id.amount_total', 'descuento')
+    @api.depends('wizard_id.sale_order_id.amount_saldo_cancelar', 'descuento')
     def _compute_total_simulado(self):
+        """Saldo de la cotización si se elige esta opción (sale.order._cotizador_simulate_plan())."""
         for rec in self:
-            precio_base = rec.wizard_id.sale_order_id.amount_total or 0
-            rec.total_simulado = precio_base * (1 + rec.descuento / 100)
+            order = rec.wizard_id.sale_order_id
+            rec.total_simulado = order._cotizador_simulate_plan(rec.descuento) if order else 0.0
 
     def action_select_line(self):
+        """Elige esta opción: delega en cotizador.plan.pago.template.line.action_select_line().
+
+        @return Acción que cierra el asistente.
+        """
         self.ensure_one()
         return self.template_line_id.with_context(
             default_sale_order_id=self.wizard_id.sale_order_id.id

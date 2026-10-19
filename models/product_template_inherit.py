@@ -1,3 +1,14 @@
+"""@file
+Productos del cotizador: máquinas, accesorios, precios de matriz y descripción paramétrica.
+
+- Una plantilla es **máquina** o **accesorio** según su categoría (`cotizador.cat_maquina`,
+  `cotizador.cat_accesorio_base` o subcategorías).
+- **Precios**: el precio de lista de máquinas y accesorios es el de la matriz, en la *Moneda del
+  Cotizador* de cada producto. Se engancha en `_price_compute`, base de todas las listas de
+  precios de Odoo: reglas, conversión de moneda y descuentos son los nativos.
+- **Combinaciones**: una máquina solo admite las combinaciones de su matriz
+  (`_is_combination_possible`), leídas de un índice en caché (`_cotizador_config_index`).
+"""
 import json
 
 from markupsafe import Markup
@@ -8,11 +19,17 @@ from odoo.tools import ormcache
 
 
 def _in_category(categ, root):
-    """True si `categ` es `root` o una de sus subcategorías."""
+    """Indica si una categoría es `root` o cuelga de ella, usando `parent_path` (sin consultas).
+
+    @param categ product.category a evaluar (puede ser vacío).
+    @param root product.category raíz (puede ser vacío durante la instalación).
+    @return True si `categ` es `root` o una de sus subcategorías.
+    """
     return bool(categ and root and (categ.parent_path or '').startswith(root.parent_path or '\0'))
 
 
 class ProductTemplate(models.Model):
+    """Plantilla de producto (`product.template`) extendida para máquinas y accesorios."""
     _inherit = 'product.template'
 
     is_maquina = fields.Boolean(
@@ -62,7 +79,11 @@ class ProductTemplate(models.Model):
 
     @api.depends('categ_id', 'categ_id.parent_path')
     def _compute_cotizador_kind(self):
-        # Durante la instalación el campo se calcula antes de cargar los datos del módulo
+        """Calcula `is_maquina` / `is_accesorio` a partir de la categoría.
+
+        Durante la instalación se calcula antes de que existan las categorías del módulo
+        (por eso `raise_if_not_found=False`).
+        """
         cat_maquina = self.env.ref('cotizador.cat_maquina', raise_if_not_found=False)
         cat_accesorio = self.env.ref('cotizador.cat_accesorio_base', raise_if_not_found=False)
         for tmpl in self:
@@ -71,21 +92,28 @@ class ProductTemplate(models.Model):
 
     @api.constrains('cotizador_modelo_id')
     def _check_cotizador_modelo(self):
+        """Al cambiar el modelo de un accesorio, sus líneas deben seguir siendo de ese modelo.
+
+        @throws ValidationError Ver SembradoraConfigAccessoryLine._check_product_modelo().
+        """
         lines = self.env['sembradora.config.accessory.line'].search([('product_id.product_tmpl_id', 'in', self.ids)])
         lines._check_product_modelo()
 
     @api.depends('attribute_line_ids', 'attribute_line_ids.attribute_id', 'attribute_line_ids.value_ids')
     def _compute_available_attributes(self):
+        """Valores de las líneas de atributo (dominio de las reglas de descripción)."""
         for tmpl in self:
             tmpl.available_attribute_value_ids = tmpl.attribute_line_ids.mapped('value_ids')
 
     def get_config_description(self, value_ids):
-        """
-        Retorna la descripción HTML correspondiente a la combinación de valores dada.
-        Evalúa reglas con N atributos requeridos:
-        1. Filtra reglas cuyos 'value_ids' sean subconjunto de los valores seleccionados.
-        2. Ordena por mayor especificidad (cantidad de atributos requeridos) y luego secuencia.
-        3. Si no hay coincidencia, retorna la descripción por defecto.
+        """Descripción HTML de una combinación según las reglas de *Descripción Paramétrica*.
+
+        1. Candidatas: reglas cuyos valores son subconjunto de `value_ids`.
+        2. Gana la más específica (más valores) y, a igualdad, la de menor secuencia.
+        3. Sin candidata: `description_default` o, si está vacía, `description_sale`.
+
+        @param value_ids product.attribute.value de la combinación.
+        @return HTML (o texto vacío).
         """
         self.ensure_one()
         if self.description_line_ids and value_ids:
@@ -103,6 +131,10 @@ class ProductTemplate(models.Model):
         return self.description_default or self.description_sale or ''
 
     def action_open_in_studio(self):
+        """Botón *Configurador Studio* de la ficha de la máquina.
+
+        @return Acción cliente `cotizador_configurator_studio` con el modelo preseleccionado.
+        """
         self.ensure_one()
         return {
             'type': 'ir.actions.client',
@@ -112,6 +144,10 @@ class ProductTemplate(models.Model):
         }
 
     def action_open_engineering_wizard(self):
+        """Botón *Códigos Teamcenter* de la ficha de la máquina.
+
+        @return Acción que abre engineering.code.wizard para este modelo.
+        """
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
@@ -122,9 +158,14 @@ class ProductTemplate(models.Model):
         }
 
     def get_sequential_configurator_json(self):
-        """
-        Retorna la matriz de pasos y combinaciones válidas en formato JSON
-        para el configurador secuencial del portal/tienda web.
+        """Datos del configurador paso a paso de la ficha de producto en la tienda.
+
+        Lo llama la plantilla `cotizador.product_sequential_configurator` y lo lee
+        static/src/js/cotizador_sequential_configurator.js. Los precios pasan por la lista de
+        precios de la sesión web. Lee la matriz con sudo (el visitante no tiene acceso).
+
+        @return Markup con un JSON `{template_id, template_name, steps, configs, currency_symbol}`
+                (`</` escapado para poder incrustarlo en un `<script>`), o `"{}"` si no es máquina.
         """
         self.ensure_one()
         if not self.is_maquina:
@@ -163,19 +204,27 @@ class ProductTemplate(models.Model):
         }).replace('</', r'<\/')
         return Markup(json_data)
 
-    # -------------------------------------------------------------------------
-    #  Índice de configuraciones (cacheado; se invalida al escribir la matriz)
-    # -------------------------------------------------------------------------
-
     @api.model
     @ormcache('tmpl_id')
     def _cotizador_config_index(self, tmpl_id):
-        """((config_id, frozenset(value_ids), price), ...) de las configuraciones de una máquina."""
+        """Índice en caché de las configuraciones de una máquina.
+
+        Lo usan la tienda (combinaciones posibles y precio "desde") y la búsqueda de
+        configuración por combinación. Se invalida con `registry.clear_cache()` al crear,
+        modificar o borrar configuraciones.
+
+        @param tmpl_id Id de la plantilla de la máquina.
+        @return Tupla de `(config_id, frozenset(value_ids), price)`.
+        """
         configs = self.env['sembradora.config.rel'].sudo().search([('modelo_id', '=', tmpl_id)])
         return tuple((c.id, frozenset(c.value_ids.ids), c.price) for c in configs)
 
     def _cotizador_find_config(self, value_ids):
-        """Configuración cuya combinación es exactamente `value_ids` (o vacío)."""
+        """Busca la configuración de esta máquina con exactamente esos valores.
+
+        @param value_ids Ids de product.attribute.value.
+        @return sembradora.config.rel (con sudo), o vacío si no existe.
+        """
         self.ensure_one()
         value_ids = frozenset(value_ids)
         for config_id, config_values, _price in self._cotizador_config_index(self.id):
@@ -184,9 +233,14 @@ class ProductTemplate(models.Model):
         return self.env['sembradora.config.rel']
 
     def _is_combination_possible(self, combination, parent_combination=None, ignore_no_variant=False):
-        """
-        Para máquinas configurables, una combinación (completa o parcial) es posible solo si
-        alguna configuración de la matriz de ingeniería la contiene.
+        """Una combinación (completa o parcial) de una máquina es posible solo si alguna
+        configuración de la matriz la contiene. Las máquinas sin matriz y los demás productos
+        usan la regla estándar de Odoo.
+
+        @param combination product.template.attribute.value elegidos.
+        @param parent_combination Combinación del producto padre (estándar de Odoo).
+        @param ignore_no_variant Estándar de Odoo.
+        @return True si la combinación es posible.
         """
         self.ensure_one()
         index = self._cotizador_config_index(self.id) if self.is_maquina else ()
@@ -198,21 +252,75 @@ class ProductTemplate(models.Model):
         return any(val_ids <= config_values for _id, config_values, _price in index)
 
     # -------------------------------------------------------------------------
-    #  Precios: el precio de lista de máquinas y accesorios es el de la matriz (en la
-    #  Moneda del Cotizador de cada producto). Se engancha en _price_compute, que es la base
-    #  de TODAS las reglas de listas de precios de Odoo (tienda, portal y backend): las
-    #  reglas, conversiones de moneda y descuentos son los nativos.
-    #
-    #  Contexto `cotizador_matrix_price = (modelo, id, precio)`: precio de matriz explícito
-    #  para ese registro (configuración elegida, precio del accesorio en una configuración).
+    #  Variantes: una por configuración de la matriz, creadas de antemano
+    # -------------------------------------------------------------------------
+
+    def _create_variant_ids(self):
+        """Sincroniza las variantes con las combinaciones posibles (estándar de Odoo).
+
+        Con el contexto `cotizador_skip_variants` no hace nada: el importador lo usa para no
+        generar variantes mientras crea atributos y configuraciones, y sincroniza al final.
+
+        @return True.
+        """
+        if self.env.context.get('cotizador_skip_variants'):
+            return True
+        return super()._create_variant_ids()
+
+    def _cotizador_sync_variants(self):
+        """Crea, reactiva o quita las variantes de máquinas para que coincidan con su matriz.
+
+        Con sudo: la matriz la edita el Administrador del Configurador, que no necesariamente
+        puede crear productos; la escritura de la configuración ya fue autorizada.
+        """
+        machines = self.filtered('is_maquina')
+        if machines and not self.env.context.get('cotizador_skip_variants'):
+            machines.sudo()._create_variant_ids()
+
+    def _filter_combinations_impossible_by_config(self, combination_tuples, ignore_no_variant=False):
+        """Para una máquina con matriz, solo son posibles las combinaciones de sus configuraciones.
+
+        Es el filtro que usa Odoo al crear variantes con atributos "Siempre": así cada máquina
+        tiene exactamente una variante por configuración, creada al importar o al habilitar la
+        combinación, y se archiva o borra al quitarla de la matriz.
+
+        @param combination_tuples Iterable de combinaciones (tuplas de product.template.attribute.value).
+        @param ignore_no_variant Estándar de Odoo.
+        @return Generador de las combinaciones posibles.
+        """
+        index = self._cotizador_config_index(self.id) if self.is_maquina else ()
+        if index:
+            valid = {values for _id, values, _price in index}
+            value_of = {ptav.id: ptav.product_attribute_value_id.id
+                        for ptav in self.attribute_line_ids.product_template_value_ids}
+            combination_tuples = (
+                combination for combination in combination_tuples
+                if frozenset(value_of.get(ptav.id) for ptav in combination) in valid
+            )
+        return super()._filter_combinations_impossible_by_config(combination_tuples, ignore_no_variant=ignore_no_variant)
+
+    # -------------------------------------------------------------------------
+    #  Precios de matriz. Contexto `cotizador_matrix_price = (modelo, id, precio)`: precio de
+    #  matriz explícito para ESE registro (la configuración elegida, o el precio del accesorio
+    #  en una configuración). Cualquier otro registro del mismo cálculo no lo toma.
     # -------------------------------------------------------------------------
 
     def _with_matrix_price(self, price):
+        """Fija el precio de matriz de esta plantilla para los cálculos de lista de precios.
+
+        @param price Precio en la Moneda del Cotizador del producto.
+        @return La plantilla con el contexto `cotizador_matrix_price`.
+        """
         self.ensure_one()
         return self.with_context(cotizador_matrix_price=(self._name, self.id, price))
 
     def _get_product_price_context(self, combination):
-        """En la tienda, una combinación sin variante creada se cotiza con su configuración."""
+        """En la tienda, una combinación de máquina sin variante creada se cotiza con el precio
+        de su configuración.
+
+        @param combination product.template.attribute.value elegidos.
+        @return dict de contexto de precio (estándar de Odoo, más `cotizador_matrix_price`).
+        """
         res = super()._get_product_price_context(combination)
         if self.is_maquina:
             config = self._cotizador_find_config(combination.product_attribute_value_id.ids)
@@ -221,7 +329,15 @@ class ProductTemplate(models.Model):
         return res
 
     def _cotizador_convert_matrix_price(self, price, uom=None, currency=None, company=None, date=False):
-        """Convierte un precio de la matriz a la UdM y moneda pedidas (o la del producto)."""
+        """Convierte un precio de matriz a la unidad de medida y moneda pedidas.
+
+        @param price Precio en la Moneda del Cotizador del producto.
+        @param uom Unidad de medida destino (opcional).
+        @param currency Moneda destino; por defecto la moneda del producto (de la compañía).
+        @param company Compañía de la tasa de cambio; por defecto la actual.
+        @param date Fecha de la tasa de cambio; por defecto hoy.
+        @return Precio convertido, sin redondear.
+        """
         self.ensure_one()
         company = company or self.env.company
         if uom:
@@ -231,7 +347,11 @@ class ProductTemplate(models.Model):
         )
 
     def _cotizador_matrix_list_price(self):
-        """Precio de matriz de la plantilla: el del contexto o, para máquinas, el "desde"."""
+        """Precio de matriz de la plantilla.
+
+        @return El del contexto si es para esta plantilla; si no, para máquinas el de su
+                configuración más barata ("desde"); `None` si no hay precio de matriz.
+        """
         self.ensure_one()
         model, res_id, price = self.env.context.get('cotizador_matrix_price') or (None, None, None)
         if (model, res_id) == (self._name, self.id):
@@ -242,6 +362,15 @@ class ProductTemplate(models.Model):
         return None
 
     def _price_compute(self, price_type, uom=None, currency=None, company=None, date=False):
+        """Reemplaza el precio de lista por el de matriz cuando lo hay.
+
+        @param price_type Campo de precio pedido; solo se modifica `list_price`.
+        @param uom Unidad de medida destino.
+        @param currency Moneda destino.
+        @param company Compañía de la conversión.
+        @param date Fecha de la conversión.
+        @return dict {id de plantilla: precio}.
+        """
         prices = super()._price_compute(price_type, uom=uom, currency=currency, company=company, date=date)
         if price_type == 'list_price':
             for tmpl in self:
@@ -252,14 +381,24 @@ class ProductTemplate(models.Model):
 
 
 class ProductProduct(models.Model):
+    """Variante (`product.product`): mismo cálculo de precio de matriz que la plantilla."""
     _inherit = 'product.product'
 
     def _with_matrix_price(self, price):
+        """Fija el precio de matriz de esta variante para los cálculos de lista de precios.
+
+        @param price Precio en la Moneda del Cotizador del producto.
+        @return La variante con el contexto `cotizador_matrix_price`.
+        """
         self.ensure_one()
         return self.with_context(cotizador_matrix_price=(self._name, self.id, price))
 
     def _cotizador_matrix_list_price(self):
-        """Precio de matriz de la variante: el del contexto o el de su configuración (máquinas)."""
+        """Precio de matriz de la variante.
+
+        @return El del contexto si es para esta variante; si no, para máquinas el de la
+                configuración de su combinación; `None` si no hay precio de matriz.
+        """
         self.ensure_one()
         model, res_id, price = self.env.context.get('cotizador_matrix_price') or (None, None, None)
         if (model, res_id) == (self._name, self.id):
@@ -272,6 +411,15 @@ class ProductProduct(models.Model):
         return None
 
     def _price_compute(self, price_type, uom=None, currency=None, company=None, date=False):
+        """Reemplaza el precio de lista por el de matriz cuando lo hay.
+
+        @param price_type Campo de precio pedido; solo se modifica `list_price`.
+        @param uom Unidad de medida destino.
+        @param currency Moneda destino.
+        @param company Compañía de la conversión.
+        @param date Fecha de la conversión.
+        @return dict {id de variante: precio}.
+        """
         prices = super()._price_compute(price_type, uom=uom, currency=currency, company=company, date=date)
         if price_type == 'list_price':
             for product in self:
@@ -284,6 +432,11 @@ class ProductProduct(models.Model):
 
 
 class ProductTemplateDescriptionLine(models.Model):
+    """Regla de *Descripción Paramétrica* (`product.template.description.line`).
+
+    Asocia un texto enriquecido a un conjunto de valores de atributo de una máquina. Ver
+    ProductTemplate.get_config_description().
+    """
     _name = 'product.template.description.line'
     _description = 'Regla de Descripción Paramétrica por Combinación de Atributos'
     _order = 'sequence asc, id asc'
@@ -321,6 +474,6 @@ class ProductTemplateDescriptionLine(models.Model):
 
     @api.onchange('value_ids')
     def _onchange_value_ids_name(self):
-        """Genera un nombre sugerido automáticamente si está vacío."""
+        """Sugiere el nombre "valor1 + valor2" si está vacío."""
         if not self.name and self.value_ids:
             self.name = " + ".join(self.value_ids.mapped('name'))

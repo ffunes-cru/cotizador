@@ -1,7 +1,13 @@
+"""@file
+Ajustes del cotizador que dependen de la compañía (Ajustes › Ventas › Cotizador de Sembradoras)."""
 from odoo import fields, models
 
 
 class ResCompany(models.Model):
+    """Compañía (`res.company`): impuesto y lista de precios de las cotizaciones de máquinas.
+
+    Se editan desde res.config.settings con campos *related*.
+    """
     _inherit = 'res.company'
 
     cotizador_tax_id = fields.Many2one(

@@ -1,13 +1,36 @@
-/** @odoo-module **/
+/**
+ * @file
+ * Configurador Studio (acción cliente `cotizador_configurator_studio`).
+ *
+ * Editor visual de la matriz de UNA máquina, para el Administrador del Configurador. Se abre
+ * desde el menú o con el botón *Configurador Studio* de la ficha de la máquina.
+ *
+ * La matriz se muestra como un **árbol de columnas**: una columna por atributo (en el orden de
+ * la plantilla); elegir un valor abre la columna siguiente. Cada nodo muestra cuántas
+ * configuraciones existen bajo esa rama sobre el total teórico. Al elegir todos los
+ * atributos aparece la **hoja**: la configuración de esa combinación (precio y código editables,
+ * o el botón para habilitarla).
+ *
+ * Servidor: `cotizador.studio.service` (models/studio_service.py).
+ * Plantilla: configurador_studio.xml (`cotizador.ConfiguradorStudioTemplate`).
+ */
 
 import { registry } from "@web/core/registry";
 import { Component, useState, onWillStart, useRef } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 
+/**
+ * Componente OWL del Studio.
+ *
+ * Estado principal: `models`, `selectedModelId`, `modelData` (respuesta de
+ * get_model_studio_data), `treePath` (ids de valor elegidos, uno por columna) y el estado de
+ * la edición en la hoja y de los modales (rama completa y nueva configuración).
+ */
 export class CotizadorConfiguratorStudio extends Component {
     static template = "cotizador.ConfiguradorStudioTemplate";
 
+    /** Inicializa servicios y estado; carga las máquinas y, si la acción trae una, su matriz. */
     setup() {
         this.orm = useService("orm");
         this.notification = useService("notification");
@@ -75,6 +98,10 @@ export class CotizadorConfiguratorStudio extends Component {
     // CARGA DE DATOS DEL MODELO
     // -------------------------------------------------------------------------
 
+    /**
+     * Carga la lista de máquinas con sus métricas.
+     * @returns {Promise<void>}
+     */
     async loadOverview() {
         this.state.loading = true;
         try {
@@ -94,6 +121,11 @@ export class CotizadorConfiguratorStudio extends Component {
         }
     }
 
+    /**
+     * Elige una máquina y carga su matriz; reinicia el árbol.
+     * @param modelId Id de la máquina.
+     * @returns {Promise<void>}
+     */
     async selectModel(modelId) {
         this.state.loadingModel = true;
         this.state.selectedModelId = modelId;
@@ -115,14 +147,23 @@ export class CotizadorConfiguratorStudio extends Component {
         }
     }
 
+    /**
+     * Cambio del selector de máquina.
+     * @param ev Evento `change` del `<select>`.
+     */
     onSelectModelChange(ev) {
         this.selectModel(parseInt(ev.target.value));
     }
 
+    /** Muestra u oculta la franja de indicadores. */
     toggleKpis() {
         this.state.showKpis = !this.state.showKpis;
     }
 
+    /**
+     * Porcentaje de variantes o configuraciones con código de ingeniería.
+     * @returns {number}
+     */
     get codedPercentage() {
         if (!this.state.modelData || !this.state.modelData.total_variants) return 0;
         return Math.round((this.state.modelData.coded_variants / this.state.modelData.total_variants) * 100);
@@ -132,6 +173,12 @@ export class CotizadorConfiguratorStudio extends Component {
     // NAVEGACIÓN EN ÁRBOL JERÁRQUICO (COLUMNAS INTERACTIVAS)
     // -------------------------------------------------------------------------
 
+    /**
+     * Elige un valor en una columna: corta el camino en ese nivel, agrega el valor y
+     * desplaza el árbol hacia la nueva columna.
+     * @param levelIndex Nivel (índice del atributo).
+     * @param valueId Id del valor elegido.
+     */
     selectTreeNode(levelIndex, valueId) {
         const newPath = this.state.treePath.slice(0, levelIndex);
         newPath.push(valueId);
@@ -150,12 +197,17 @@ export class CotizadorConfiguratorStudio extends Component {
         }, 60);
     }
 
+    /**
+     * Vuelve a un nivel del árbol (miga de pan).
+     * @param levelIndex Nivel al que se vuelve.
+     */
     jumpToTreeLevel(levelIndex) {
         this.state.treePath = this.state.treePath.slice(0, levelIndex);
         this.state.isEditingLeafPrice = false;
         this.state.isEditingLeafExtId = false;
     }
 
+    /** Vuelve a la raíz del árbol. */
     resetTreePath() {
         this.state.treePath = [];
         this.state.isEditingLeafPrice = false;
@@ -167,10 +219,16 @@ export class CotizadorConfiguratorStudio extends Component {
         }, 50);
     }
 
+    /** Muestra u oculta las ramas sin ninguna configuración. */
     toggleHideZeroPercent() {
         this.state.hideZeroPercent = !this.state.hideZeroPercent;
     }
 
+    /**
+     * Cobertura de una rama: configuraciones existentes sobre combinaciones posibles.
+     * @param partialValueIds Ids de valor desde la raíz hasta la rama.
+     * @returns {Object} {active, total, percent, missing}. `percent` es al menos 1 si hay alguna.
+     */
     getNodeStats(partialValueIds) {
         if (!this.state.modelData || !this.state.modelData.configs || !this.state.modelData.attributes) {
             return { active: 0, total: 0, percent: 0, missing: 0 };
@@ -195,6 +253,11 @@ export class CotizadorConfiguratorStudio extends Component {
         return { active, total, percent, missing };
     }
 
+    /**
+     * Columnas a dibujar: una por nivel abierto y, si se eligieron todos los atributos,
+     * la hoja con la configuración de esa combinación (o los datos para crearla).
+     * @returns {Object[]} [{level, attribute, isLeafLevel, nodes, leafData}]
+     */
     get treeColumns() {
         if (!this.state.modelData || !this.state.modelData.attributes) return [];
         const attrs = this.state.modelData.attributes;
@@ -267,6 +330,10 @@ export class CotizadorConfiguratorStudio extends Component {
         return columns;
     }
 
+    /**
+     * Miga de pan del camino actual.
+     * @returns {Object[]} [{level, attrName, valName, valId}]
+     */
     get treeBreadcrumbs() {
         if (!this.state.modelData || !this.state.modelData.attributes) return [];
         const attrs = this.state.modelData.attributes;
@@ -289,6 +356,11 @@ export class CotizadorConfiguratorStudio extends Component {
         return crumbs;
     }
 
+    /**
+     * Texto de una combinación: nombres de los valores separados por " • ".
+     * @param valIds Ids de valor.
+     * @returns {string}
+     */
     getComboLabel(valIds) {
         if (!this.state.modelData || !this.state.modelData.attributes) return "";
         const names = [];
@@ -308,19 +380,33 @@ export class CotizadorConfiguratorStudio extends Component {
     // EDICIÓN DE PRECIO Y CÓDIGO DE INGENIERÍA EN HOJA
     // -------------------------------------------------------------------------
 
+    /**
+     * Empieza a editar el precio de la hoja.
+     * @param currentPrice Precio actual.
+     */
     startEditLeafPrice(currentPrice) {
         this.state.isEditingLeafPrice = true;
         this.state.leafEditingPrice = currentPrice;
     }
 
+    /** Cancela la edición del precio de la hoja. */
     cancelLeafPrice() {
         this.state.isEditingLeafPrice = false;
     }
 
+    /**
+     * Entrada del precio en edición.
+     * @param ev Evento `input`.
+     */
     onLeafEditingPriceInput(ev) {
         this.state.leafEditingPrice = ev.target.value;
     }
 
+    /**
+     * Guarda el precio editado de una configuración.
+     * @param configId Id de la configuración.
+     * @returns {Promise<void>}
+     */
     async saveLeafPrice(configId) {
         const newPrice = parseFloat(this.state.leafEditingPrice) || 0;
         try {
@@ -340,19 +426,33 @@ export class CotizadorConfiguratorStudio extends Component {
         }
     }
 
+    /**
+     * Empieza a editar el código de ingeniería de la hoja.
+     * @param currentExtId Código actual.
+     */
     startEditLeafExtId(currentExtId) {
         this.state.isEditingLeafExtId = true;
         this.state.leafEditingExtId = currentExtId || "";
     }
 
+    /** Cancela la edición del código de la hoja. */
     cancelLeafExtId() {
         this.state.isEditingLeafExtId = false;
     }
 
+    /**
+     * Entrada del código en edición.
+     * @param ev Evento `input`.
+     */
     onLeafEditingExtIdInput(ev) {
         this.state.leafEditingExtId = ev.target.value;
     }
 
+    /**
+     * Guarda el código de ingeniería de una configuración (y lo copia a la variante).
+     * @param configId Id de la configuración.
+     * @returns {Promise<void>}
+     */
     async saveLeafExtId(configId) {
         const newCode = (this.state.leafEditingExtId || "").trim();
         try {
@@ -372,14 +472,27 @@ export class CotizadorConfiguratorStudio extends Component {
         }
     }
 
+    /**
+     * Entrada del precio de una configuración a crear.
+     * @param ev Evento `input`.
+     */
     onLeafNewPriceInput(ev) {
         this.state.leafNewPrice = ev.target.value;
     }
 
+    /**
+     * Entrada del código de una configuración a crear.
+     * @param ev Evento `input`.
+     */
     onLeafNewExtIdInput(ev) {
         this.state.leafNewExtId = ev.target.value;
     }
 
+    /**
+     * Habilita la combinación de la hoja: crea su configuración.
+     * @param combo Ids de valor de la combinación.
+     * @returns {Promise<void>}
+     */
     async submitQuickCreateLeaf(combo) {
         const defaultPrice = (this.state.modelData.modelo && this.state.modelData.modelo.list_price) || 0;
         const price = parseFloat(this.state.leafNewPrice) || defaultPrice;
@@ -410,6 +523,11 @@ export class CotizadorConfiguratorStudio extends Component {
         }
     }
 
+    /**
+     * Deshabilita una combinación (borra la configuración), previa confirmación.
+     * @param configId Id de la configuración.
+     * @returns {Promise<void>}
+     */
     async deleteSingleConfig(configId) {
         if (!confirm(_t("¿Está seguro de eliminar esta configuración de la matriz comercial?"))) {
             return;
@@ -431,6 +549,12 @@ export class CotizadorConfiguratorStudio extends Component {
     // MODAL DE HABILITACIÓN MASIVA DE RAMA
     // -------------------------------------------------------------------------
 
+    /**
+     * Abre el modal para habilitar todas las combinaciones faltantes de una rama.
+     * @param combo Ids de valor de la rama.
+     * @param valName Nombre del valor de la rama (para el título).
+     * @param missingCount Combinaciones que se crearían.
+     */
     openBranchCreateModal(combo, valName, missingCount) {
         this.state.branchPartialValueIds = combo;
         this.state.branchLabel = `${valName} (${this.getComboLabel(combo)})`;
@@ -439,14 +563,23 @@ export class CotizadorConfiguratorStudio extends Component {
         this.state.showBranchModal = true;
     }
 
+    /** Cierra el modal de rama completa. */
     closeBranchCreateModal() {
         this.state.showBranchModal = false;
     }
 
+    /**
+     * Entrada del precio base de la rama.
+     * @param ev Evento `input`.
+     */
     onBranchBasePriceInput(ev) {
         this.state.branchBasePrice = ev.target.value;
     }
 
+    /**
+     * Crea en bloque las combinaciones faltantes de la rama con el precio base.
+     * @returns {Promise<void>}
+     */
     async submitBranchCreate() {
         const price = parseFloat(this.state.branchBasePrice) || 0;
         try {
@@ -476,6 +609,7 @@ export class CotizadorConfiguratorStudio extends Component {
     // MODAL ASISTENTE "+ NUEVA CONFIGURACIÓN" (CABECERA)
     // -------------------------------------------------------------------------
 
+    /** Abre el modal para crear una configuración eligiendo un valor por atributo. */
     openNewConfigWizard() {
         this.state.wizardSelectedValues = {};
         this.state.wizardPrice = (this.state.modelData && this.state.modelData.modelo && this.state.modelData.modelo.list_price) || 0;
@@ -483,22 +617,40 @@ export class CotizadorConfiguratorStudio extends Component {
         this.state.showNewConfigWizardModal = true;
     }
 
+    /** Cierra el modal de nueva configuración. */
     closeNewConfigWizard() {
         this.state.showNewConfigWizardModal = false;
     }
 
+    /**
+     * Elección de un valor en el modal de nueva configuración.
+     * @param attrId Id del atributo.
+     * @param ev Evento `change` del `<select>`.
+     */
     onWizardValueChange(attrId, ev) {
         this.state.wizardSelectedValues[attrId] = parseInt(ev.target.value) || null;
     }
 
+    /**
+     * Entrada del precio en el modal de nueva configuración.
+     * @param ev Evento `input`.
+     */
     onWizardPriceInput(ev) {
         this.state.wizardPrice = ev.target.value;
     }
 
+    /**
+     * Entrada del código en el modal de nueva configuración.
+     * @param ev Evento `input`.
+     */
     onWizardExtIdInput(ev) {
         this.state.wizardExtId = ev.target.value;
     }
 
+    /**
+     * Crea la configuración del modal (exige un valor por atributo).
+     * @returns {Promise<void>}
+     */
     async submitNewConfigWizard() {
         const attrs = (this.state.modelData && this.state.modelData.attributes) || [];
         const valIds = [];
@@ -537,6 +689,7 @@ export class CotizadorConfiguratorStudio extends Component {
     // ACCIONES DE CABECERA Y NAVEGACIÓN
     // -------------------------------------------------------------------------
 
+    /** Abre el asistente de códigos Teamcenter para la máquina elegida. */
     openEngineeringWizard() {
         this.action.doAction("cotizador.action_engineering_code_wizard", {
             additionalContext: {
@@ -545,10 +698,12 @@ export class CotizadorConfiguratorStudio extends Component {
         });
     }
 
+    /** Abre el importador CSV. */
     openImportWizard() {
         this.action.doAction("cotizador.action_sembradora_import_wizard");
     }
 
+    /** Abre la lista estándar de configuraciones de la máquina (vista "Raw"). */
     openLegacyRawView() {
         this.action.doAction({
             name: _t("Configuraciones Base (Raw)"),
@@ -560,6 +715,11 @@ export class CotizadorConfiguratorStudio extends Component {
         });
     }
 
+    /**
+     * Formatea un importe en la Moneda del Cotizador de la máquina elegida, sin decimales.
+     * @param amount Importe (number).
+     * @returns {string}
+     */
     formatCurrency(amount) {
         return new Intl.NumberFormat("es-AR", {
             style: "currency",

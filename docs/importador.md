@@ -50,9 +50,14 @@ coma (`"USD $248.866,00"`). Los nombres de columna distinguen mayúsculas.
 - El nombre del atributo es lo que sigue a `ATR_`, con `_` reemplazado por espacio:
   `ATR_Cantidad_de_Lineas` → atributo **Cantidad de Lineas**.
 - El orden de las columnas define el orden de los pasos del configurador.
-- Los valores se leen de la fila `BASE`. Una celda vacía significa que esa configuración no usa ese
-  atributo. En las filas de accesorio estas columnas se ignoran.
-- Los atributos se crean en modo de variantes *dinámico*.
+- Los valores se leen de la fila `BASE`. Un modelo usa las columnas que tienen valor en alguna de sus
+  configuraciones (otros modelos del mismo archivo pueden dejarlas vacías). En las filas de accesorio
+  estas columnas se ignoran.
+- Los atributos se crean en modo de variantes *Siempre*: cada configuración tiene su variante, creada al
+  importar (ver [Conceptos de Odoo › Variantes](odoo.md#variantes)).
+- **Cada configuración necesita un valor en cada columna `ATR_` que usa su modelo** (la variante necesita
+  un valor por atributo). Una celda vacía en una columna que otras configuraciones del mismo modelo usan
+  es un error.
 
 ---
 
@@ -248,6 +253,15 @@ python3 scripts/split_csv.py matriz_completa.csv 150   # 150 configuraciones por
 | `Calc_param '…' debe ser el nombre exacto de una columna` | Usar el encabezado completo, p. ej. `ATR_Cantidad_de_Lineas`. |
 | `el valor '…' no contiene un número` | Los valores de un atributo de cantidad deben incluir el número (`16 Lineas`). |
 | `debe tener exactamente un accesorio ESTANDAR` | Cada grupo `:u` necesita un único `ESTANDAR` por configuración. |
+| `no tiene valor en ATR_…, que usan otras configuraciones` | Completar la celda: cada configuración necesita un valor de cada atributo de su máquina. |
 | `son indistinguibles para el importador` | Unificar la escritura de ese nombre en todo el CSV. |
 | `regla … creada fuera del importador` | Renombrar o eliminar la regla manual con ese nombre y tipo. |
 | `está en USD, pero la moneda de los precios elegida es …` | Elegir la moneda correcta en el importador, o separar los productos en otro archivo. |
+
+---
+
+## Ver también
+
+- [Conceptos](conceptos.md): configuración, accesorio, reglas y cantidad dinámica.
+- [Recetas › Agregar una columna al importador](recetas.md#agregar-una-columna-al-importador).
+- Código: `models/sembradora_import_wizard.py` (documentado en formato Doxygen).

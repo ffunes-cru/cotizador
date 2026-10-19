@@ -1,3 +1,6 @@
+"""@file
+Modelos del módulo. El orden importa solo para las importaciones entre archivos de este paquete
+(p. ej. sale_order_inherit usa bcra_service)."""
 from . import product_template_inherit
 from . import product_category_inherit
 from . import sembradora_config

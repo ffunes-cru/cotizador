@@ -1,8 +1,16 @@
+"""@file
+Categorías de producto: vínculo entre una subcategoría de Accesorio y su atributo de cantidad."""
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 
 class ProductCategory(models.Model):
+    """Categoría (`product.category`) con *Atributo de Cantidad* opcional.
+
+    Los accesorios de una categoría con atributo de cantidad se cotizan multiplicando su precio
+    por el número del valor de ese atributo en la configuración. El importador crea una
+    subcategoría de *Accesorio* por cada columna usada en `Calc_param`.
+    """
     _inherit = 'product.category'
 
     cotizador_qty_attribute_id = fields.Many2one(
@@ -16,7 +24,10 @@ class ProductCategory(models.Model):
 
     @api.constrains('cotizador_qty_attribute_id')
     def _check_cotizador_qty_attribute_unique(self):
-        """Un atributo de cantidad corresponde a una única categoría (relación 1:1 coherente)."""
+        """Un atributo de cantidad corresponde a una única categoría (relación 1:1).
+
+        @throws ValidationError Si otra categoría ya usa el mismo atributo.
+        """
         for categ in self.filtered('cotizador_qty_attribute_id'):
             other = self.search([
                 ('cotizador_qty_attribute_id', '=', categ.cotizador_qty_attribute_id.id),
