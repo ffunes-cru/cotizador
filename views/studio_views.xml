@@ -9,6 +9,7 @@
 
     <!-- Menú Principal: Configurador Studio como punto de entrada operativo -->
     <menuitem id="menu_cotizador_configurator_studio"
+              groups="cotizador.group_cotizador_manager"
               name="Configurador Studio"
               parent="menu_sembradora_config_root"
               action="action_cotizador_configurator_studio"
@@ -16,6 +17,7 @@
 
     <!-- Menú: Sincronizar Códigos de Ingeniería (Teamcenter) -->
     <menuitem id="menu_engineering_code_wizard"
+              groups="cotizador.group_cotizador_manager"
               name="Códigos de Ingeniería (Teamcenter)"
               parent="menu_sembradora_config_root"
               action="action_engineering_code_wizard"

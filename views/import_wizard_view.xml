@@ -18,18 +18,10 @@
                         </group>
                     </group>
 
-                    <!-- Opciones de creación automática -->
-                    <group invisible="state != 'analyzed'" string="Opciones de Creación Automática">
-                        <group>
-                            <field name="create_missing_products"/>
-                            <field name="create_missing_attributes"/>
-                            <field name="create_missing_categories"/>
-                        </group>
-                    </group>
-
                     <!-- Resultado del análisis / Resumen final -->
                     <group invisible="state == 'draft'" string="Resultado">
                         <field name="analysis_summary" nolabel="1" colspan="2"/>
+                        <field name="has_errors" invisible="1"/>
                     </group>
                 </sheet>
                 <footer>
@@ -42,6 +34,11 @@
                             string="📥 Importar"
                             type="object"
                             class="btn-primary"
+                            invisible="state != 'analyzed' or has_errors"/>
+                    <button name="action_back_to_upload"
+                            string="Cargar otros archivos"
+                            type="object"
+                            class="btn-secondary"
                             invisible="state != 'analyzed'"/>
                     <button string="Cerrar"
                             class="btn-secondary"
@@ -61,6 +58,7 @@
 
     <!-- Menú bajo Configurador Sembradoras -->
     <menuitem id="menu_sembradora_import_wizard"
+              groups="cotizador.group_cotizador_manager"
               name="Importar Configuraciones"
               parent="menu_sembradora_config_root"
               sequence="30"

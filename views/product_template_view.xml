@@ -8,12 +8,14 @@
             <xpath expr="//div[@name='button_box']" position="inside">
                 <field name="is_maquina" invisible="1"/>
                 <button name="action_open_in_studio"
+                        groups="cotizador.group_cotizador_manager"
                         type="object"
                         string="Configurador Studio"
                         class="oe_stat_button"
                         icon="fa-sliders"
                         invisible="not is_maquina"/>
                 <button name="action_open_engineering_wizard"
+                        groups="cotizador.group_cotizador_manager"
                         type="object"
                         string="Códigos Teamcenter"
                         class="oe_stat_button"

@@ -8,8 +8,14 @@
         <field name="model">crm.lead</field>
         <field name="inherit_id" ref="crm.crm_lead_view_form"/>
         <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_cotizador_create_quotation" type="object"
+                        string="Crear Cotización" class="btn-primary"
+                        invisible="not cotizador_config_id or not partner_id"/>
+            </xpath>
             <xpath expr="//field[@name='user_id']" position="before">
                 <field name="equipo_cotizado_id" options="{'no_create': True}"/>
+                <field name="cotizador_config_id" invisible="not cotizador_config_id"/>
                 <field name="lider_equipo_id" options="{'no_create': True}"/>
             </xpath>
         </field>

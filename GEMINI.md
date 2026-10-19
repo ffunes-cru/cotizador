@@ -34,7 +34,7 @@ El módulo extiende y conecta tres pilares principales en Odoo:
 Ubicación: `models/sale_order_inherit.py`, `views/views.xml`, `report/report_cotizacion_planes.xml`
 - **Campos calculados en cascada:**
   - `amount_subtotal_productos`: Precio de lista base.
-  - `amount_iva_productos`: IVA (10.5% en maquinaria agrícola).
+  - `amount_iva_productos`: IVA (impuesto de maquinaria configurado en Ajustes).
   - `amount_total_base`: Subtotal + IVA.
   - `amount_descuentos`: Suma de descuentos (se muestra en **negativo y rojo**).
   - `amount_total_con_descuentos`: Total base - descuentos.
@@ -51,7 +51,7 @@ Ubicación: `models/res_config_settings.py`, `models/res_users_inherit.py`, `vie
 
 ### C. Integración con CRM (`crm.lead`)
 Ubicación: `models/crm_lead_inherit.py`, `models/sale_order_inherit.py`, `views/crm_lead_view.xml`
-- **Equipo Cotizado (`equipo_cotizado_id`):** Vincula el modelo de máquina (categoría 'Maquina' / 'Máquina') tanto en la cotización como en el Lead/Oportunidad, disponible en la ficha y en la creación rápida del Kanban.
+- **Equipo Cotizado (`equipo_cotizado_id`):** Vincula el modelo de máquina (`is_maquina`: categoría `cotizador.cat_maquina` o subcategoría) tanto en la cotización como en el Lead/Oportunidad, disponible en la ficha y en la creación rápida del Kanban.
 - **Sincronización:** Al cotizar, actualiza `expected_revenue` con `amount_saldo_cancelar`. Al confirmar la venta (`action_confirm`), marca la oportunidad como Ganada (`is_won = True`).
 - **Tarjeta Kanban:** Diseñada siguiendo el estándar de Odoo con 5 datos prioritarios: Empresa, Equipo cotizado (ícono tractor), Monto en verde, Líder de equipo y Concesionario (avatar de usuario).
 
@@ -64,21 +64,19 @@ Ubicación: `models/product_template_inherit.py`, `controllers/main.py`, `views/
 - **Configurador Secuencial Interactivo (UX Frontend):**
   - Stepper paso a paso: Inicia con el Paso 1 activo. Al seleccionar una opción, el paso colapsa a un chip resumen editable y se activa el siguiente paso.
   - Filtrado dinámico: En cada paso posterior, sólo se muestran opciones compatibles con las selecciones anteriores.
-  - Tarjetas compactas con rangos en USD: Muestra rangos de precios en formato simple `(USD $120.000 - USD $380.000)`.
+  - Tarjetas compactas con rangos de precio de la lista de la sesión: `(USD $ 120.000 - USD $ 380.000)`.
   - Botón "Solicitar Cotización" deshabilitado hasta completar todos los pasos. Botón permanente "↺ Reiniciar Configuración (Paso 1)".
   - Modal con honeypot anti-bots y validación segura contra XSS e inyecciones.
-  - Al solicitar la cotización: crea/asocia el contacto (`res.partner`), crea el Lead en CRM y genera el `sale.order` con `state='sent'` en USD.
+  - Al solicitar la cotización: visitante anónimo → solo un lead del CRM con la configuración (`cotizador_config_id`); el vendedor lo convierte y usa *Crear Cotización*. Cliente logueado → oportunidad + `sale.order` en estado `sent`.
 
-### E. Moneda en Dólares (USD)
-- En Odoo estándar los productos no tienen moneda fija, dependen de `product.pricelist`.
-- En `sale.order`: Al crear una orden o cambiar `equipo_cotizado_id`, si es una máquina (`is_maquina = True`), se asigna automáticamente la lista de precios en USD (`currency_id.name == 'USD'`).
-- En la web: Toda cotización solicitada se crea directamente vinculada a la lista de precios en USD.
+### E. Moneda y Precios
+- Moneda de la matriz, impuesto de maquinaria y lista de precios de cotizaciones: campos de `res.company` (`cotizador_*`), editables en *Ajustes › Ventas*. Nada de buscar monedas, impuestos ni listas por nombre o valor.
+- La matriz es el precio de lista de máquinas y accesorios vía `_price_compute` (contexto `cotizador_matrix_price`); las reglas de listas de precios son las nativas de Odoo.
 
 ### F. Portal del Cliente y Control de Firma (3 Modos Comerciales)
 Ubicación: `views/portal_templates.xml`, `models/sale_order_inherit.py`, `controllers/main.py`
 - **Visibilidad:**
   - Cotizaciones web se crean en estado `sent`.
-  - Se sobreescribió `CustomerPortal._prepare_quotations_domain` para que `/my/quotes` liste tanto `sent` como `draft`.
   - En `/my` se incorporó una tarjeta estática permanente **"Sus cotizaciones"** con contador en tiempo real.
   - En la confirmación web se incluyen botones de navegación rápida ("Ver todas mis cotizaciones", "Ir a Mi Cuenta", "Volver a la Tienda").
 - **Sistema de Control de Aceptación y Firma (3 Modos):**
@@ -87,6 +85,22 @@ Ubicación: `views/portal_templates.xml`, `models/sale_order_inherit.py`, `contr
   2. **`salesman_enables` (Habilitado por Vendedor - Predeterminado):** Toda cotización web nace como **propuesta preliminar** (`portal_confirmation_allowed = False`). El cliente ve el detalle y totales en USD pero el botón "Aceptar y Firmar" está oculto con un aviso de *Revisión Comercial*. Cuando el vendedor revisa y adapta la propuesta con el cliente, hace clic en **"Habilitar Firma del Cliente"** en la cabecera del presupuesto (o activa el toggle en la pestaña de Condiciones y Planes) para permitir la firma en la web. Puede revocarse con **"Revocar Firma del Cliente"**.
   3. **`salesman_only` (Solo el Vendedor):** El cliente nunca puede firmar ni aceptar en la web (aviso de *Presupuesto Informativo No Vinculante*). La venta sólo puede confirmarse internamente desde el backend.
   - Protección de seguridad en `_has_to_be_signed()` y `_has_to_be_paid()`, bloqueando también llamadas directas por API/POST.
+
+### G. Matriz de Ingeniería, Accesorios y Equipamiento Estándar
+Ubicación: `models/sembradora_config.py`, `models/sembradora_config_acc_line.py`, `models/sembradora_import_wizard.py`
+- **Importador CSV:** `doc/IMPORTADOR.md`. Columnas de atributo con prefijo `ATR_` (cualquier otra columna desconocida es error), sufijo de regla obligatorio, todo se valida antes de escribir. Identidad por xmlids propios `cotizador_import.*`: **nunca buscar por nombre**.
+- **Lógica única de accesorios** en `sembradora.config.rel` (no duplicar en servicios/controladores):
+  - `validate_rule_set()`: coherencia de reglas y estándar; la usan el importador y la restricción `_check_accessories`.
+  - `_get_accessory_offer()`: cantidad (`product.category.cotizador_qty_attribute_id` → `product.attribute.value.cotizador_qty`) y precio unitario en moneda de la matriz.
+  - `_get_default_accessory_lines()`: el equipamiento estándar. `_check_accessory_selection()`: valida la selección (exclusión, inclusión, opción única).
+  - `_get_or_create_variant()`, `_get_variant_description()`, `_sync_variant_code()`.
+- **Reglas:** `exclusion` (:e), `inclusion` (:i / :it) y `choice` (:u, opción única: exactamente uno elegido, arranca el ESTANDAR; en el configurador OWL se muestra como radio con la diferencia de precio).
+- **Alta en la cotización:** `sale.order._cotizador_add_configuration(config, acc_lines)` (configurador OWL, CRM y web). Secciones con `sale.order.line.cotizador_section` (maquina / equipamiento / accesorios / descuentos / usados): nunca identificar secciones por su texto.
+- **Índice cacheado** `product.template._cotizador_config_index` (ormcache); `sembradora.config.rel` limpia la caché al crear/escribir/borrar.
+- **Permisos:** `cotizador.group_cotizador_manager` (*Administrador del Configurador*); los servicios de Studio y Asistente de Precios llaman `check_configurator_manager()`.
+- **Formulario web:** captcha (`ir.http._verify_request_recaptcha_token('cotizador_quote')` + `data-captcha`), token firmado `/cotizador/form_token` (tiempo mínimo y vencimiento), límites por hora con `crm.lead.cotizador_request_ip`.
+- **README.md** tiene la lista de *Problemas conocidos*: mantenerla al día.
+- **Tests:** `tests/` (unitarios, HTTP y tours). Los tours necesitan `websocket-client` en el entorno; si falta, Odoo los omite.
 
 ---
 

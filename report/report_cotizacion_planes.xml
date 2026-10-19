@@ -462,7 +462,7 @@
                         <!-- ============================================= -->
                         <!-- PÁGINA DEDICADA: DESCRIPCIÓN TÉCNICA          -->
                         <!-- ============================================= -->
-                        <t t-foreach="doc.order_line.filtered(lambda l: l.product_id and l.product_id.product_tmpl_id.categ_id.name == 'Maquina')" t-as="maquina_line">
+                        <t t-foreach="doc.order_line.filtered(lambda l: l.product_id.is_maquina)" t-as="maquina_line">
                             <t t-set="attr_ids" t-value="maquina_line.product_id.product_template_attribute_value_ids.mapped('product_attribute_value_id').ids"/>
                             <t t-set="configs" t-value="doc.env['sembradora.config.rel'].search([('modelo_id', '=', maquina_line.product_id.product_tmpl_id.id)])"/>
                             <t t-set="config_match" t-value="configs.filtered(lambda c: set(c.value_ids.ids) == set(attr_ids))"/>

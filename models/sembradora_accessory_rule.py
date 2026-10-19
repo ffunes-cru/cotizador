@@ -1,7 +1,4 @@
-from odoo import models, fields, api
-import logging
-
-_logger = logging.getLogger(__name__)
+from odoo import api, fields, models
 
 
 class SembradoraAccessoryRule(models.Model):
@@ -13,22 +10,25 @@ class SembradoraAccessoryRule(models.Model):
     rule_type = fields.Selection([
         ('exclusion', 'Exclusión'),
         ('inclusion', 'Inclusión'),
+        ('choice', 'Opción única'),
     ], string='Tipo', required=True, default='exclusion',
-        help='Exclusión: solo se puede seleccionar un accesorio del grupo. '
-             'Inclusión: los accesorios del grupo se habilitan solo cuando '
-             'el accesorio trigger del grupo está seleccionado.')
+        help='Exclusión (:e): como máximo un accesorio del grupo. '
+             'Inclusión (:i / :it): los accesorios del grupo se habilitan solo cuando '
+             'su accesorio habilitante (trigger) está seleccionado. '
+             'Opción única (:u): siempre hay exactamente uno seleccionado; arranca el ESTANDAR '
+             'y elegir una alternativa lo reemplaza.')
 
     description = fields.Text(
         string='Descripción',
         help='Descripción opcional del comportamiento de esta regla.')
 
-    _sql_constraints = [
-        ('name_type_unique', 'unique(name, rule_type)',
-         'Ya existe una regla con este nombre y tipo.'),
-    ]
+    _name_type_unique = models.Constraint(
+        'unique(name, rule_type)',
+        'Ya existe una regla con este nombre y tipo.',
+    )
 
     @api.depends('name', 'rule_type')
     def _compute_display_name(self):
+        labels = dict(self._fields['rule_type'].selection)
         for rule in self:
-            tipo = "Inclusión" if rule.rule_type == 'inclusion' else "Exclusión"
-            rule.display_name = f"{rule.name} ({tipo})"
+            rule.display_name = f"{rule.name} ({labels.get(rule.rule_type, '')})"

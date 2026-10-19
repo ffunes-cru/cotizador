@@ -326,6 +326,36 @@
                             </div>
                         </div>
 
+                        <!-- Grupos de opción única (:u): siempre una opción elegida, arranca la estándar -->
+                        <div t-if="!state.loadingAccessories and choiceGroups.length" class="d-flex flex-column gap-3 mb-4">
+                            <t t-foreach="choiceGroups" t-as="group" t-key="group.id">
+                                <div class="card rounded-4 border p-3 o_cotizador_choice_group" t-att-data-group-name="group.name">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <h6 class="fw-bold mb-0 text-body"><t t-esc="group.name"/></h6>
+                                        <small class="text-muted">Elija una opción</small>
+                                    </div>
+                                    <t t-foreach="group.options" t-as="acc" t-key="acc.line_id">
+                                        <label class="d-flex align-items-center gap-2 py-2 border-top cursor-pointer o_cotizador_choice_option"
+                                               t-att-for="'choice_' + acc.line_id">
+                                            <input class="form-check-input m-0 flex-shrink-0" type="radio"
+                                                   t-att-id="'choice_' + acc.line_id"
+                                                   t-att-name="'choice_group_' + group.id"
+                                                   t-att-checked="state.selectedAccessories[acc.line_id]"
+                                                   t-on-change="() => this.selectChoice(acc)"/>
+                                            <span class="flex-grow-1 text-body"><t t-esc="acc.product_name"/></span>
+                                            <span t-if="acc.is_standard" class="badge text-bg-success rounded-pill fs-8">
+                                                <i class="fa fa-check-circle me-1" title="Estándar"/>Estándar
+                                            </span>
+                                            <span class="fw-bold text-nowrap"
+                                                  t-att-class="acc.price_delta &gt; 0 ? 'text-danger' : (acc.price_delta &lt; 0 ? 'text-success' : 'text-body')">
+                                                <t t-esc="acc.is_standard ? formatCurrency(acc.subtotal) : formatDelta(acc.price_delta)"/>
+                                            </span>
+                                        </label>
+                                    </t>
+                                </div>
+                            </t>
+                        </div>
+
                         <!-- Filtros por Categoría de Accesorios -->
                         <div t-if="state.accessoryCategories.length > 0" class="d-flex flex-wrap gap-2 mb-4">
                             <button class="btn btn-sm rounded-pill px-3 fw-semibold"
@@ -349,7 +379,7 @@
                         </div>
 
                         <!-- Mensaje si no hay accesorios -->
-                        <div t-elif="filteredAccessories.length === 0" class="card p-5 text-center text-muted rounded-4 border">
+                        <div t-elif="filteredAccessories.length === 0 &amp;&amp; !choiceGroups.length" class="card p-5 text-center text-muted rounded-4 border">
                             <i class="fa fa-puzzle-piece fa-3x mb-3 opacity-25"/>
                             <h5>No se encontraron accesorios</h5>
                             <p class="small mb-0">No hay accesorios disponibles que coincidan con la búsqueda o categoría.</p>
@@ -396,6 +426,9 @@
                                                 <small class="text-muted d-block text-truncate mb-2">
                                                     <span t-if="acc.default_code" class="me-2">Cód: <t t-esc="acc.default_code"/></span>
                                                     <span class="badge bg-body text-body border rounded-pill fs-8"><t t-esc="acc.category_name"/></span>
+                                                    <span t-if="acc.is_standard" class="badge text-bg-success rounded-pill fs-8 ms-1" title="Equipamiento estándar: incluido por defecto">
+                                                        <i class="fa fa-check-circle me-1"/>Estándar
+                                                    </span>
                                                 </small>
 
                                                 <!-- Detalle de Cantidad y Precio (Modo Silencioso oculta precio unitario) -->
@@ -545,7 +578,7 @@
                         <div class="d-flex justify-content-between align-items-center border-top pt-2 mb-3">
                             <div>
                                 <span class="fw-bold text-body fs-6 d-block">Total Estimado</span>
-                                <small class="text-muted fs-8 d-none d-xl-block">IVA 10.5% en cotización</small>
+                                <small t-if="state.order.tax_label" class="text-muted fs-8 d-none d-xl-block">Sin impuestos (<t t-esc="state.order.tax_label"/>)</small>
                             </div>
                             <span class="fw-bold text-success fs-5"><t t-esc="formatCurrency(state.totalPrice)"/></span>
                         </div>

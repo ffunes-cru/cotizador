@@ -153,9 +153,10 @@ export class CotizadorConfigurator extends Component {
     // --- Formato de Moneda ---
 
     formatCurrency(amount) {
-        if (amount === undefined || amount === null || isNaN(amount)) return "$ 0,00";
+        const symbol = this.state.order.currency_symbol || "$";
+        if (amount === undefined || amount === null || isNaN(amount)) return `${symbol} 0,00`;
         return (
-            "$ " +
+            `${symbol} ` +
             Number(amount).toLocaleString("es-AR", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -193,7 +194,7 @@ export class CotizadorConfigurator extends Component {
             const matrixData = await this.orm.call(
                 "cotizador.configurator.service",
                 "get_model_matrix",
-                [model.id]
+                [model.id, this.orderId]
             );
 
             if (!matrixData) {
@@ -376,14 +377,17 @@ export class CotizadorConfigurator extends Component {
             const data = await this.orm.call(
                 "cotizador.configurator.service",
                 "get_config_accessories",
-                [configId]
+                [configId, this.orderId]
             );
 
             this.state.accessories = (data && data.accessories) || [];
             if (data && data.description && this.state.matchingConfig) {
                 this.state.matchingConfig.description = data.description;
             }
-            this.state.selectedAccessories = {};
+            // Equipamiento estándar: llega preseleccionado desde el servidor
+            this.state.selectedAccessories = Object.fromEntries(
+                this.state.accessories.map((acc) => [acc.line_id, Boolean(acc.selected)])
+            );
 
             const cats = new Set();
             for (const acc of this.state.accessories) {
@@ -406,8 +410,41 @@ export class CotizadorConfigurator extends Component {
         }
     }
 
+    /** Grupos de opción única: [{id, name, options}] con la opción estándar primero. */
+    get choiceGroups() {
+        const groups = new Map();
+        for (const acc of this.state.accessories) {
+            if (!acc.choice_group_id) continue;
+            if (!groups.has(acc.choice_group_id)) {
+                groups.set(acc.choice_group_id, { id: acc.choice_group_id, name: acc.choice_group_name, options: [] });
+            }
+            groups.get(acc.choice_group_id).options.push(acc);
+        }
+        for (const group of groups.values()) {
+            group.options.sort((a, b) => Number(b.is_standard) - Number(a.is_standard));
+        }
+        return [...groups.values()];
+    }
+
+    formatDelta(delta) {
+        if (!delta) return _t("Sin diferencia");
+        return `${delta > 0 ? "+" : "−"} ${this.formatCurrency(Math.abs(delta))}`;
+    }
+
+    /** Opción única: elegir una opción deselecciona la que estaba elegida en el grupo. */
+    selectChoice(acc) {
+        for (const other of this.state.accessories) {
+            if (other.choice_group_id === acc.choice_group_id) {
+                this.state.selectedAccessories[other.line_id] = other.line_id === acc.line_id;
+            }
+        }
+        this._evaluateAccessoryRules();
+        this._recalculateAccessoriesTotal();
+    }
+
     get filteredAccessories() {
-        let list = this.state.accessories;
+        // Los grupos de opción única se muestran aparte (choiceGroups)
+        let list = this.state.accessories.filter((a) => !a.choice_group_id);
         if (this.state.activeCategory !== "all") {
             list = list.filter((a) => a.category_name === this.state.activeCategory);
         }
@@ -429,6 +466,9 @@ export class CotizadorConfigurator extends Component {
     toggleAccessory(lineId) {
         const acc = this.state.accessories.find((a) => a.line_id === lineId);
         if (!acc || acc.is_locked) return;
+        if (acc.choice_group_id) {
+            return this.selectChoice(acc);
+        }
 
         this.state.selectedAccessories[lineId] = !this.state.selectedAccessories[lineId];
 
@@ -442,6 +482,7 @@ export class CotizadorConfigurator extends Component {
         for (const acc of this.state.accessories) {
             if (!acc.rules || !acc.rules.length) continue;
             for (const rule of acc.rules) {
+                if (rule.rule_type === "choice") continue; // ver selectChoice
                 const rid = rule.id;
                 if (!ruleState[rid]) {
                     ruleState[rid] = {
@@ -563,13 +604,7 @@ export class CotizadorConfigurator extends Component {
 
         this.state.saving = true;
         try {
-            const selectedAccsData = this.selectedAccessoriesList.map((acc) => ({
-                product_id: acc.product_id,
-                quantity: acc.quantity,
-                price_unit: acc.price_unit,
-                subtotal: acc.subtotal,
-            }));
-
+            // Precios y cantidades se recalculan en el servidor: solo enviamos las líneas elegidas
             const result = await this.orm.call(
                 "cotizador.configurator.service",
                 "confirm_configuration",
@@ -577,7 +612,7 @@ export class CotizadorConfigurator extends Component {
                 {
                     order_id: this.orderId,
                     config_id: this.state.matchingConfig.id,
-                    selected_accessories: selectedAccsData,
+                    selected_line_ids: this.selectedAccessoriesList.map((acc) => acc.line_id),
                 }
             );
 
@@ -591,7 +626,8 @@ export class CotizadorConfigurator extends Component {
         } catch (error) {
             console.error("Error al confirmar configuración en Odoo:", error);
             this.notification.add(
-                _t("Ocurrió un error al guardar las líneas en la cotización de Odoo."),
+                error?.data?.message ||
+                    _t("Ocurrió un error al guardar las líneas en la cotización de Odoo."),
                 { type: "danger" }
             );
         } finally {

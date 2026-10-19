@@ -351,9 +351,9 @@ export class CotizadorSequentialConfigurator extends Interaction {
                         const minStr = Math.round(minPrice).toLocaleString('es-AR');
                         const maxStr = Math.round(maxPrice).toLocaleString('es-AR');
                         if (minPrice === maxPrice) {
-                            priceStr = `(USD $${minStr})`;
+                            priceStr = `(${this.currencySymbol} ${minStr})`;
                         } else {
-                            priceStr = `(USD $${minStr} - USD $${maxStr})`;
+                            priceStr = `(${this.currencySymbol} ${minStr} - ${this.currencySymbol} ${maxStr})`;
                         }
                     }
 

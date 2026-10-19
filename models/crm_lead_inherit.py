@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
+from odoo.exceptions import UserError
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -12,7 +13,7 @@ class CrmLeadInherit(models.Model):
     equipo_cotizado_id = fields.Many2one(
         'product.template',
         string='Equipo (Sembradora/Ferti)',
-        domain="['|', ('categ_id.name', 'ilike', 'Maquina'), ('categ_id.complete_name', 'ilike', 'Maquina')]",
+        domain="[('is_maquina', '=', True)]",
         help='Modelo de máquina cotizada o de interés (categoría Máquina).',
         tracking=True,
     )
@@ -24,6 +25,21 @@ class CrmLeadInherit(models.Model):
         readonly=False,
         tracking=True,
         help='Líder o responsable del equipo de ventas.',
+    )
+    cotizador_config_id = fields.Many2one(
+        'sembradora.config.rel',
+        string='Configuración Solicitada',
+        readonly=True,
+        copy=False,
+        help='Configuración elegida en la tienda online. "Crear Cotización" arma la cotización '
+             'con esta máquina y su equipamiento estándar.',
+    )
+    cotizador_request_ip = fields.Char(
+        string='IP de la Solicitud Web',
+        readonly=True,
+        copy=False,
+        index='btree_not_null',
+        help='IP desde la que se envió la solicitud de cotización en la tienda (control de abuso).',
     )
 
     @api.depends('team_id', 'team_id.user_id')
@@ -45,7 +61,7 @@ class CrmLeadInherit(models.Model):
 
                 company_currency = lead.company_currency or self.env.company.currency_id
                 # Tomar saldo a cancelar si existe, sino amount_total o amount_untaxed
-                monto_origen = target_order.amount_saldo_cancelar if hasattr(target_order, 'amount_saldo_cancelar') and target_order.amount_saldo_cancelar else target_order.amount_total
+                monto_origen = target_order.amount_saldo_cancelar or target_order.amount_total
                 amount = target_order.currency_id._convert(
                     monto_origen,
                     company_currency,
@@ -55,11 +71,9 @@ class CrmLeadInherit(models.Model):
                 lead.expected_revenue = amount
 
                 # Sincronizar equipo cotizado si la orden tiene una máquina
-                maquina_lines = target_order.order_line.filtered(
-                    lambda l: l.product_id and l.product_id.product_tmpl_id.categ_id.name == 'Maquina'
-                )
-                if maquina_lines:
-                    lead.equipo_cotizado_id = maquina_lines[0].product_id.product_tmpl_id
+                maquina = target_order._get_maquina_template()
+                if maquina:
+                    lead.equipo_cotizado_id = maquina
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -74,3 +88,31 @@ class CrmLeadInherit(models.Model):
         if 'order_ids' in vals:
             self._sync_expected_revenue_from_orders()
         return res
+
+    def action_cotizador_create_quotation(self):
+        """Crea la cotización de la configuración solicitada en la web para el cliente del lead."""
+        self.ensure_one()
+        if not self.cotizador_config_id:
+            raise UserError(_("Esta oportunidad no tiene una configuración solicitada."))
+        if not self.partner_id:
+            raise UserError(_(
+                "Asigne primero el cliente (convierta el lead vinculándolo a un contacto existente "
+                "o creando uno nuevo)."
+            ))
+        config = self.cotizador_config_id
+        order = self.env['sale.order'].create({
+            'partner_id': self.partner_id.id,
+            'opportunity_id': self.id,
+            'team_id': self.team_id.id,
+            'user_id': self.user_id.id or self.env.uid,
+            'origin': self.name,
+            'equipo_cotizado_id': config.modelo_id.id,
+        })
+        order._cotizador_add_configuration(config, config._get_default_accessory_lines())
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order',
+            'res_id': order.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }

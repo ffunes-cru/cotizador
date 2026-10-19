@@ -8,6 +8,7 @@
 
     <!-- Menú dentro de Ventas -> Configuración -> Configurador Sembradoras -->
     <menuitem id="menu_cotizador_price_wizard"
+              groups="cotizador.group_cotizador_manager"
               name="Asistente de Precios"
               parent="cotizador.menu_sembradora_config_root"
               sequence="5"

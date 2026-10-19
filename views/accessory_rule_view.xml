@@ -43,6 +43,7 @@
 
     <!-- Menú -->
     <menuitem id="menu_sembradora_accessory_rule"
+              groups="cotizador.group_cotizador_manager"
               name="Reglas de Accesorios"
               parent="menu_sembradora_config_root"
               sequence="25"

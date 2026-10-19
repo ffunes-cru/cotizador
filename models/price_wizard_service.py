@@ -1,8 +1,6 @@
-from odoo import models, fields, api, _
-from odoo.exceptions import UserError
-import logging
+from odoo import api, models
 
-_logger = logging.getLogger(__name__)
+from .sembradora_config import check_configurator_manager
 
 
 class CotizadorPriceWizardService(models.AbstractModel):
@@ -11,19 +9,17 @@ class CotizadorPriceWizardService(models.AbstractModel):
 
     @api.model
     def get_models(self):
-        """Retorna todos los modelos de sembradoras (product.template en categoría 'Maquina')."""
-        cat_maquina = self.env['product.category'].search([('name', '=', 'Maquina')], limit=1)
-        domain = [('categ_id', '=', cat_maquina.id)] if cat_maquina else []
-        templates = self.env['product.template'].search(domain, order='name asc')
+        """Retorna todas las máquinas (product.template con is_maquina)."""
+        check_configurator_manager(self.env)
+        templates = self.env['product.template'].search([('is_maquina', '=', True)], order='name asc')
         
         # Contar configs por modelo
-        configs = self.env['sembradora.config.rel'].read_group(
-            domain=[('modelo_id', 'in', templates.ids)],
-            fields=['modelo_id'],
-            groupby=['modelo_id']
-        )
-        config_count_by_model = {c['modelo_id'][0]: c['modelo_id_count'] for c in configs}
-        
+        config_count_by_model = {
+            modelo.id: count for modelo, count in self.env['sembradora.config.rel']._read_group(
+                [('modelo_id', 'in', templates.ids)], ['modelo_id'], ['__count'],
+            )
+        }
+
         return [{
             'id': t.id,
             'name': t.name,
@@ -37,6 +33,7 @@ class CotizadorPriceWizardService(models.AbstractModel):
         Retorna las configuraciones base para un modelo dado, incluyendo
         la lista ordenada de atributos dinámicos con sus valores disponibles para filtros.
         """
+        check_configurator_manager(self.env)
         configs = self.env['sembradora.config.rel'].search([
             ('modelo_id', '=', modelo_id)
         ], order='id asc')
@@ -96,6 +93,7 @@ class CotizadorPriceWizardService(models.AbstractModel):
         Guarda las actualizaciones de precios base.
         updates: [{ 'id': config_id, 'price': new_price }]
         """
+        check_configurator_manager(self.env)
         ConfigRel = self.env['sembradora.config.rel']
         updated_count = 0
         for item in updates:
@@ -119,9 +117,8 @@ class CotizadorPriceWizardService(models.AbstractModel):
         - specific_accessories: Accesorios de categoría base pura "Accesorio" (precio por configuración).
         - attributes: Lista de atributos y opciones del modelo para poder filtrar también.
         """
-        cat_base = self.env.ref('cotizador.cat_accesorio_base', raise_if_not_found=False)
-        if not cat_base:
-            cat_base = self.env['product.category'].search([('name', '=', 'Accesorio')], limit=1)
+        check_configurator_manager(self.env)
+        cat_base = self.env.ref('cotizador.cat_accesorio_base')
 
         # Buscar todas las configs y accessory lines del modelo
         configs = self.env['sembradora.config.rel'].search([('modelo_id', '=', modelo_id)], order='id asc')
@@ -201,22 +198,17 @@ class CotizadorPriceWizardService(models.AbstractModel):
     def save_global_accessory_prices(self, modelo_id, updates):
         """
         Actualiza el precio de un accesorio con subcategoría para TODAS las
-        configuraciones de ese modelo y actualiza el list_price del producto.
+        configuraciones de ese modelo (el precio vive en la matriz, no en el producto).
         updates: [{ 'product_id': prod_id, 'price': new_price }]
         """
+        check_configurator_manager(self.env)
         configs = self.env['sembradora.config.rel'].search([('modelo_id', '=', modelo_id)])
         AccLine = self.env['sembradora.config.accessory.line']
-        Product = self.env['product.product']
 
         updated_configs_count = 0
         for item in updates:
             prod_id = item['product_id']
             new_price = float(item.get('price', 0.0))
-            
-            prod = Product.browse(prod_id)
-            if prod.exists():
-                prod.write({'list_price': new_price})
-
             lines = AccLine.search([
                 ('config_id', 'in', configs.ids),
                 ('product_id', '=', prod_id),
@@ -237,6 +229,7 @@ class CotizadorPriceWizardService(models.AbstractModel):
         Actualiza precios de accesorios específicos por configuración.
         updates: [{ 'line_id': acc_line_id, 'price': new_price }]
         """
+        check_configurator_manager(self.env)
         AccLine = self.env['sembradora.config.accessory.line']
         updated_count = 0
         for item in updates:

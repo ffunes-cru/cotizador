@@ -1,42 +1,110 @@
-# -*- coding: utf-8 -*-
 import logging
-from markupsafe import escape
-from odoo import http, _, fields
+import time
+from datetime import timedelta
+
+from markupsafe import Markup, escape
+
+from odoo import _, fields, http
+from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
+from odoo.tools import consteq
+from odoo.tools.misc import hmac as hmac_sign
+
+from odoo.addons.website_sale.controllers.main import WebsiteSale
 
 _logger = logging.getLogger(__name__)
 
+# Acción de captcha (reCAPTCHA v3 / Cloudflare Turnstile) del formulario de solicitud
+CAPTCHA_ACTION = 'cotizador_quote'
+RATE_LIMIT_WINDOW = timedelta(hours=1)
+# Validez del token del formulario (se pide al abrir la página)
+FORM_TOKEN_SCOPE = 'cotizador.quote_form'
+FORM_TOKEN_MAX_AGE = 2 * 3600
+
 
 class CotizadorWebsiteController(http.Controller):
+
+    # -------------------------------------------------------------------------
+    #  Protecciones del formulario
+    # -------------------------------------------------------------------------
+
+    @http.route('/cotizador/form_token', type='jsonrpc', auth='public', website=True)
+    def form_token(self):
+        """Token firmado con la hora de apertura del formulario (lo pide el JS de la página)."""
+        timestamp = str(int(time.time()))
+        return f"{timestamp}.{hmac_sign(request.env(su=True), FORM_TOKEN_SCOPE, timestamp)}"
+
+    def _check_form_token(self, token):
+        """
+        True si el token es auténtico y el formulario se completó en un tiempo humano: ni antes
+        del mínimo configurado (bots que envían al instante) ni con un token vencido o reusado
+        de otra página vieja.
+        """
+        timestamp, _sep, signature = (token or '').partition('.')
+        if not timestamp.isdigit() or not consteq(
+            signature, hmac_sign(request.env(su=True), FORM_TOKEN_SCOPE, timestamp),
+        ):
+            return False
+        min_seconds = int(request.env['ir.config_parameter'].sudo().get_param('cotizador.quote_min_seconds', 3))
+        elapsed = time.time() - int(timestamp)
+        return min_seconds <= elapsed <= FORM_TOKEN_MAX_AGE
+
+    @staticmethod
+    def _contact_domain(email, phone):
+        """Leads con el mismo email o el mismo teléfono (al menos uno viene informado)."""
+        if email and phone:
+            return ['|', ('email_from', '=ilike', email), ('phone', '=', phone)]
+        return [('email_from', '=ilike', email)] if email else [('phone', '=', phone)]
+
+    def _is_rate_limited(self, ip_addr, email, phone):
+        """Limita solicitudes por IP y por contacto en la última hora (0 = sin límite)."""
+        params = request.env['ir.config_parameter'].sudo()
+        max_ip = int(params.get_param('cotizador.quote_rate_limit_ip', 5) or 0)
+        max_contact = int(params.get_param('cotizador.quote_rate_limit_contact', 3) or 0)
+        Lead = request.env['crm.lead'].sudo().with_context(active_test=False)
+        recent = [('cotizador_request_ip', '!=', False),
+                  ('create_date', '>=', fields.Datetime.now() - RATE_LIMIT_WINDOW)]
+        if max_ip and Lead.search_count(recent + [('cotizador_request_ip', '=', ip_addr)], limit=max_ip) >= max_ip:
+            return True
+        return bool(max_contact) and Lead.search_count(
+            recent + self._contact_domain(email, phone), limit=max_contact,
+        ) >= max_contact
+
+    def _quote_error_redirect(self, template, code):
+        """Vuelve a la ficha del producto mostrando el motivo del rechazo."""
+        return request.redirect(f"{template.website_url if template else '/shop'}?quote_error={code}")
+
+    # -------------------------------------------------------------------------
+    #  Solicitud de cotización
+    # -------------------------------------------------------------------------
+
+    @http.route('/cotizador/solicitud_recibida', type='http', auth='public', website=True, sitemap=False)
+    def solicitud_recibida(self, **kw):
+        """Confirmación para visitantes anónimos (sin enlaces a documentos)."""
+        return request.render('cotizador.quote_request_received')
 
     @http.route(
         '/cotizador/solicitar_cotizacion',
         type='http', auth='public', methods=['POST'], website=True, csrf=True
     )
     def solicitar_cotizacion(self, **post):
-        """Procesa la solicitud de cotización desde la tienda online de forma segura."""
-        # 0. Anti-bot honeypot check (campo oculto para bots)
-        if post.get('website_quick_check'):
-            _logger.warning("[Cotizador Security] Bot submission detected via honeypot field.")
+        """
+        Solicitud de cotización desde la tienda.
+          - Visitante anónimo: SOLO se crea un lead del CRM (sin contacto ni cotización). El
+            vendedor lo convierte con el asistente estándar (vincular a un cliente existente o
+            crear uno) y arma la cotización con "Crear Cotización".
+          - Usuario logueado: oportunidad + cotización a su nombre, y se lo lleva al portal.
+        """
+        if post.get('website_quick_check'):  # honeypot
+            _logger.warning("[Cotizador Security] Envío de bot detectado (honeypot).")
             return request.redirect('/shop')
 
-        # Conversión segura de enteros para prevenir errores 500 por valores inválidos
-        try:
-            template_id = int(post.get('product_template_id', 0))
-        except (ValueError, TypeError):
-            template_id = 0
+        def to_int(key):
+            try:
+                return int(post.get(key) or 0)
+            except ValueError:
+                return 0
 
-        try:
-            variant_id = int(post.get('product_id', 0))
-        except (ValueError, TypeError):
-            variant_id = 0
-
-        try:
-            config_id = int(post.get('config_id', 0))
-        except (ValueError, TypeError):
-            config_id = 0
-        
-        # Sanitizar y limitar longitud de entradas para prevenir abusos de memoria / DoS
         contact_name = (post.get('contact_name') or '').strip()[:100]
         company_name = (post.get('company_name') or '').strip()[:100]
         phone = (post.get('phone') or '').strip()[:40]
@@ -44,228 +112,126 @@ class CotizadorWebsiteController(http.Controller):
         city = (post.get('city') or '').strip()[:100]
         notes = (post.get('notes') or '').strip()[:1500]
 
-        # Validaciones de integridad básicas
-        if not template_id or not contact_name or not (email or phone):
+        template = request.env['product.template'].sudo().browse(to_int('product_template_id')).exists()
+        if not template or not template.sale_ok:
             return request.redirect('/shop')
 
-        template = request.env['product.template'].sudo().browse(template_id)
-        if not template.exists() or not template.sale_ok:
-            return request.redirect('/shop')
+        try:
+            request.env['ir.http']._verify_request_recaptcha_token(CAPTCHA_ACTION)
+        except (UserError, ValidationError) as e:
+            _logger.warning("[Cotizador Security] Captcha rechazado: %s", e)
+            return self._quote_error_redirect(template, 'captcha')
+        if not self._check_form_token(post.get('cotizador_form_token')):
+            _logger.warning("[Cotizador Security] Token de formulario inválido o enviado demasiado rápido.")
+            return self._quote_error_redirect(template, 'captcha')
 
-        # 1. Identificar o crear cliente (res.partner) de forma segura
-        partner = False
-        if not request.env.user._is_public():
-            partner = request.env.user.partner_id
-        else:
-            # Buscar coincidencia solo entre contactos externos (NUNCA asignar a usuarios internos del sistema)
-            if email:
-                partner = request.env['res.partner'].sudo().search([
-                    ('email', '=ilike', email),
-                    ('user_ids', '=', False),
-                ], limit=1)
-            if not partner and phone:
-                partner = request.env['res.partner'].sudo().search([
-                    ('phone', '=', phone),
-                    ('user_ids', '=', False),
-                ], limit=1)
+        if not contact_name or not (email or phone):
+            return self._quote_error_redirect(template, 'invalid')
 
-            # Si no existe, crear nuevo contacto (no sobreescribir datos de partners existentes de forma anónima)
-            if not partner:
-                partner = request.env['res.partner'].sudo().create({
-                    'name': company_name or contact_name,
-                    'is_company': bool(company_name),
-                    'email': email,
-                    'phone': phone,
-                    'city': city,
-                    'customer_rank': 1,
-                })
+        # Máquinas: la configuración elegida es obligatoria y debe ser de esa máquina
+        config = request.env['sembradora.config.rel']
+        if template.is_maquina:
+            config = config.sudo().browse(to_int('config_id')).exists()
+            if config.modelo_id != template:
+                return self._quote_error_redirect(template, 'invalid')
 
-        # 2. Identificar la variante y configuración de sembradora.config.rel
-        config_id = int(post.get('config_id', 0))
-        variant = request.env['product.product'].sudo().browse(variant_id) if variant_id else False
-        configs = request.env['sembradora.config.rel'].sudo().search([('modelo_id', '=', template.id)])
+        is_public = request.env.user._is_public()
+        ip_addr = request.httprequest.remote_addr
+        if is_public and self._is_rate_limited(ip_addr, email, phone):
+            _logger.warning("[Cotizador Security] Límite de solicitudes web alcanzado: ip=%s", ip_addr)
+            return self._quote_error_redirect(template, 'rate_limit')
 
-        matching_config = False
-        valores_seleccionados = request.env['product.attribute.value'].sudo()
+        lead = self._create_lead(template, config, contact_name, company_name, phone, email, city,
+                                 notes, ip_addr, partner=None if is_public else request.env.user.partner_id)
+        if is_public:
+            return request.redirect('/cotizador/solicitud_recibida')
 
-        if config_id:
-            cfg = request.env['sembradora.config.rel'].sudo().browse(config_id)
-            if cfg.exists() and cfg.modelo_id.id == template.id:
-                matching_config = cfg
-                valores_seleccionados = cfg.value_ids
+        order = self._create_order(lead, template, config, to_int('product_id'))
+        return request.redirect(order.get_portal_url(query_string='&quote_requested=1'))
 
-        if not matching_config and variant and variant.exists():
-            val_ids = set(variant.product_template_attribute_value_ids.mapped('product_attribute_value_id.id'))
-            for c in configs:
-                if set(c.value_ids.ids) == val_ids:
-                    matching_config = c
-                    valores_seleccionados = c.value_ids
-                    break
-        elif not matching_config and configs:
-            matching_config = configs[0]
-            valores_seleccionados = matching_config.value_ids
+    def _create_lead(self, template, config, contact_name, company_name, phone, email, city, notes,
+                     ip_addr, partner):
+        """Lead (anónimo) u oportunidad (cliente logueado) con el detalle de lo solicitado."""
+        Lead = request.env['crm.lead'].sudo()
 
-        # Si no había variante existente, buscar o crear la variante exacta
-        if (not variant or not variant.exists()) and matching_config:
-            domain = [('product_tmpl_id', '=', template.id)]
-            for val in valores_seleccionados:
-                domain.append(('product_template_attribute_value_ids.product_attribute_value_id', '=', val.id))
-            variant = request.env['product.product'].sudo().search(domain, limit=1)
-            if not variant:
-                template_attribute_values = request.env['product.template.attribute.value'].sudo().search([
-                    ('product_tmpl_id', '=', template.id),
-                    ('product_attribute_value_id', 'in', valores_seleccionados.ids)
-                ])
-                variant = request.env['product.product'].sudo().create({
-                    'product_tmpl_id': template.id,
-                    'product_template_attribute_value_ids': [(6, 0, template_attribute_values.ids)],
-                    'list_price': matching_config.price,
-                })
+        def text_to_html(text):
+            return Markup('<br/>').join(escape(text).split('\n'))
 
-        base_price = matching_config.price if matching_config else (variant.list_price if variant else template.list_price)
-
-        # Construir descripción de la máquina
-        detalle_variante = f"{template.name}"
-        if valores_seleccionados:
-            lineas_attr = [f"• {v.attribute_id.name}: {v.name}" for v in valores_seleccionados]
-            detalle_variante += "\n" + "\n".join(lineas_attr)
-
-        tax_105 = request.env['account.tax'].sudo().search([
-            ('type_tax_use', '=', 'sale'),
-            ('amount', '=', 10.5)
-        ], limit=1)
-        tax_commands = [(6, 0, [tax_105.id])] if tax_105 else False
-
-        # 3. Crear Oportunidad en CRM primero (evita duplicación automática en _sync_with_crm)
-        # El campo description en crm.lead es fields.Html, sanitizamos contenido para prevenir Stored XSS
-        safe_detalle_html = escape(detalle_variante).replace('\n', '<br/>')
-        lead_description_html = (
-            f"<p><strong>Solicitud recibida desde la tienda online.</strong></p>"
-            f"<p><strong>Modelo:</strong> {escape(template.name)}<br/>"
-            f"<strong>Configuración:</strong><br/>{safe_detalle_html}</p>"
-        )
+        detail = config._get_variant_description() if config else template.name
+        description = Markup(
+            "<p><strong>Solicitud recibida desde la tienda online.</strong></p>"
+            "<p><strong>Configuración:</strong><br/>%s</p>"
+        ) % text_to_html(detail)
+        standard = config._get_default_accessory_lines() if config else ()
+        if standard:
+            description += Markup("<p><strong>Equipamiento estándar:</strong><br/>%s</p>") % text_to_html(
+                '\n'.join(f"• {line.product_id.display_name}" for line in standard))
         if notes:
-            safe_notes_html = escape(notes).replace('\n', '<br/>')
-            lead_description_html += f"<p><strong>Notas del cliente:</strong><br/>{safe_notes_html}</p>"
+            description += Markup("<p><strong>Notas del cliente:</strong><br/>%s</p>") % text_to_html(notes)
 
-        lead_vals = {
-            'name': f"Solicitud Web: {template.name} - {partner.name}",
-            'partner_id': partner.id,
+        use_leads = request.env['res.groups'].sudo()._is_feature_enabled('crm.group_use_lead')
+        return Lead.create({
+            'name': f"Solicitud Web: {template.name} - {company_name or contact_name}",
+            'type': 'opportunity' if partner or not use_leads else 'lead',
+            'partner_id': partner.id if partner else False,
             'contact_name': contact_name,
+            'partner_name': company_name,
             'phone': phone,
             'email_from': email,
             'city': city,
-            'equipo_cotizado_id': template.id,
-            'expected_revenue': base_price,
-            'description': lead_description_html,
-            'type': 'opportunity',
-        }
-        lead = request.env['crm.lead'].sudo().create(lead_vals)
-
-        # 4. Crear Cotización (sale.order) vinculada directamente a la Oportunidad creada en USD
-        pricelist_usd = request.env['product.pricelist'].sudo().search([
-            ('currency_id.name', '=', 'USD')
-        ], limit=1)
-
-        mode_conf = request.env['ir.config_parameter'].sudo().get_param(
-            'cotizador.portal_confirmation_mode', default='salesman_enables'
-        )
-
-        order_vals = {
-            'partner_id': partner.id,
-            'origin': _('Tienda Online / Sitio Web'),
-            'equipo_cotizado_id': template.id,
-            'opportunity_id': lead.id,
-            'state': 'sent',  # Marca como enviada para que aparezca en el portal y en el contador de cotizaciones
-            'portal_confirmation_mode': mode_conf,
-            'portal_confirmation_allowed': False,
-        }
-        if pricelist_usd:
-            order_vals['pricelist_id'] = pricelist_usd.id
-
-        order = request.env['sale.order'].sudo().with_context(skip_crm_sync=True).create(order_vals)
-
-        # Sección y línea de producto
-        request.env['sale.order.line'].sudo().create({
-            'order_id': order.id,
-            'name': _('Variante de Configuracion'),
-            'display_type': 'line_section',
+            'equipo_cotizado_id': template.id if template.is_maquina else False,
+            'cotizador_config_id': config.id,
+            'description': description,
+            'cotizador_request_ip': ip_addr,
         })
 
-        if variant and variant.exists():
-            request.env['sale.order.line'].sudo().create({
-                'order_id': order.id,
-                'product_id': variant.id,
-                'name': detalle_variante,
-                'product_uom_qty': 1.0,
-                'price_unit': base_price,
-                'tax_ids': tax_commands,
-            })
-
-        order._compute_totales_cotizador()
-        if order.amount_saldo_cancelar:
-            lead.sudo().write({'expected_revenue': order.amount_saldo_cancelar})
-
-        # Sanitizar strings de usuario contra XSS antes de publicar en el chatter
-        order.sudo().message_post(
-            body=_(
-                "Solicitud de cotización generada desde la Tienda Online por <strong>%s</strong>.<br/>"
-                "Teléfono: %s | Email: %s<br/>"
-                "Oportunidad CRM vinculada: <strong>%s</strong>"
-            ) % (
-                escape(partner.name or contact_name),
-                escape(phone or '-'),
-                escape(email or '-'),
-                escape(lead.name),
-            ),
+    def _create_order(self, lead, template, config, variant_id):
+        """Cotización del cliente logueado, enviada y vinculada a la oportunidad."""
+        company = request.website.company_id
+        order = request.env['sale.order'].sudo().with_context(skip_crm_sync=True).create({
+            'partner_id': lead.partner_id.id,
+            'origin': _('Tienda Online / Sitio Web'),
+            'opportunity_id': lead.id,
+            'company_id': company.id,
+            'equipo_cotizado_id': template.id if template.is_maquina else False,
+            'pricelist_id': (company.cotizador_pricelist_id or request.pricelist).id,
+            'state': 'sent',  # visible en el portal
+            'portal_confirmation_allowed': False,
+        })
+        if config:
+            order._cotizador_add_configuration(config, config._get_default_accessory_lines())
+        else:
+            variant = request.env['product.product'].sudo().browse(variant_id).exists()
+            if variant.product_tmpl_id != template:
+                variant = template.product_variant_id
+            # Producto común: precio y descripción los calcula Odoo con la lista de la orden
+            request.env['sale.order.line'].sudo().create({'order_id': order.id, 'product_id': variant.id})
+        lead._sync_expected_revenue_from_orders()
+        order.message_post(
+            body=Markup(_("Solicitud de cotización generada desde la Tienda Online. Oportunidad: <strong>%s</strong>"))
+            % lead.name,
             message_type='notification',
             subtype_xmlid='mail.mt_note',
         )
-
-        # Redirigir al cliente de forma segura con su token criptográfico a la vista portal
-        portal_url = order.get_portal_url(query_string='&quote_requested=1')
-        return request.redirect(portal_url)
-
-
-from odoo.addons.website_sale.controllers.main import WebsiteSale
-from odoo.addons.sale.controllers.portal import CustomerPortal
-
-
-class CotizadorCustomerPortal(CustomerPortal):
-
-    def _prepare_quotations_domain(self, partner):
-        """Permite al cliente visualizar en /my/quotes tanto presupuestos enviados como en borrador."""
-        return [
-            ('partner_id', 'child_of', [partner.commercial_partner_id.id]),
-            ('state', 'in', ['sent', 'draft']),
-        ]
-
-    @http.route(['/my/quotes', '/my/quotes/page/<int:page>'], type='http', auth="user", website=True)
-    def portal_my_quotes(self, **kwargs):
-        return super().portal_my_quotes(**kwargs)
-
-
-CustomerPortal._prepare_quotations_domain = CotizadorCustomerPortal._prepare_quotations_domain
+        return order
 
 
 class CotizadorWebsiteSale(WebsiteSale):
+    """En modo 'Solo cotización' la tienda no permite checkout ni pago online."""
+
+    def _cotizador_quote_only(self):
+        return request.env['ir.config_parameter'].sudo().get_param(
+            'cotizador.ecommerce_mode', default='quote_only'
+        ) == 'quote_only'
 
     @http.route()
-    def payment(self, **post):
-        """Bypassea o bloquea la pantalla de pagos si la tienda está en modo Solicitud de Cotización."""
-        mode = request.env['ir.config_parameter'].sudo().get_param(
-            'cotizador.ecommerce_mode', default='quote_only'
-        )
-        if mode == 'quote_only':
+    def shop_checkout(self, try_skip_step=None, **query_params):
+        if self._cotizador_quote_only():
             return request.redirect('/shop')
-        return super().payment(**post)
+        return super().shop_checkout(try_skip_step=try_skip_step, **query_params)
 
     @http.route()
-    def checkout(self, **post):
-        """Bypassea o bloquea el checkout si la tienda está en modo Solicitud de Cotización."""
-        mode = request.env['ir.config_parameter'].sudo().get_param(
-            'cotizador.ecommerce_mode', default='quote_only'
-        )
-        if mode == 'quote_only':
+    def shop_payment(self, **post):
+        if self._cotizador_quote_only():
             return request.redirect('/shop')
-        return super().checkout(**post)
+        return super().shop_payment(**post)

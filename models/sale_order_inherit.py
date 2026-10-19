@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, api, _
+from markupsafe import Markup
+from odoo import Command, api, fields, models, _
 from odoo.exceptions import ValidationError, UserError
 import logging
 from .bcra_service import consultar_bcra_completo, SITUACION_LABELS
@@ -81,26 +82,24 @@ class SaleOrderInherit(models.Model):
     equipo_cotizado_id = fields.Many2one(
         'product.template',
         string='Equipo Cotizado',
-        domain="['|', ('categ_id.name', 'ilike', 'Maquina'), ('categ_id.complete_name', 'ilike', 'Maquina')]",
+        domain="[('is_maquina', '=', True)]",
         compute='_compute_equipo_cotizado_id',
         store=True,
         readonly=False,
         help='Modelo de máquina cotizada (categoría Máquina).',
     )
 
+    def _get_maquina_template(self):
+        """Primera máquina presente en las líneas."""
+        self.ensure_one()
+        return self.order_line.product_id.product_tmpl_id.filtered('is_maquina')[:1]
+
     @api.depends('order_line.product_id')
     def _compute_equipo_cotizado_id(self):
         for order in self:
-            maquina_lines = order.order_line.filtered(
-                lambda l: l.product_id and (
-                    'maquina' in (l.product_id.product_tmpl_id.categ_id.name or '').lower() or
-                    'maquina' in (l.product_id.product_tmpl_id.categ_id.complete_name or '').lower() or
-                    'máquina' in (l.product_id.product_tmpl_id.categ_id.name or '').lower() or
-                    'máquina' in (l.product_id.product_tmpl_id.categ_id.complete_name or '').lower()
-                )
-            )
-            if maquina_lines:
-                order.equipo_cotizado_id = maquina_lines[0].product_id.product_tmpl_id
+            maquina = order._get_maquina_template()
+            if maquina:
+                order.equipo_cotizado_id = maquina
             elif not order.equipo_cotizado_id:
                 order.equipo_cotizado_id = False
 
@@ -170,7 +169,7 @@ class SaleOrderInherit(models.Model):
             prod_lines = order.order_line.filtered(
                 lambda l: not l.display_type and not l.is_descuento and not l.is_equipo_usado
             )
-            subtotal = round(sum(l.price_unit * l.product_uom_qty for l in prod_lines), 2)
+            subtotal = round(sum(prod_lines.mapped('price_subtotal')), 2)
             iva = round(sum(l.price_tax for l in prod_lines), 2)
             total_base = round(subtotal + iva, 2)
 
@@ -287,16 +286,8 @@ class SaleOrderInherit(models.Model):
         for order in self:
             modelo_maquina = order.equipo_cotizado_id
             if not modelo_maquina:
-                maquina_lines = order.order_line.filtered(
-                    lambda l: l.product_id and (
-                        'maquina' in (l.product_id.product_tmpl_id.categ_id.name or '').lower() or
-                        'maquina' in (l.product_id.product_tmpl_id.categ_id.complete_name or '').lower() or
-                        'máquina' in (l.product_id.product_tmpl_id.categ_id.name or '').lower() or
-                        'máquina' in (l.product_id.product_tmpl_id.categ_id.complete_name or '').lower()
-                    )
-                )
-                modelo_maquina = maquina_lines[0].product_id.product_tmpl_id if maquina_lines else False
-                if modelo_maquina and not order.equipo_cotizado_id:
+                modelo_maquina = order._get_maquina_template()
+                if modelo_maquina:
                     order.equipo_cotizado_id = modelo_maquina.id
             monto = order.amount_saldo_cancelar if order.amount_saldo_cancelar else order.amount_total
 
@@ -338,11 +329,10 @@ class SaleOrderInherit(models.Model):
 
     @api.onchange('equipo_cotizado_id')
     def _onchange_equipo_cotizado_id_pricelist(self):
-        """Asigna automáticamente la lista de precios en USD si el equipo cotizado es una máquina."""
-        if self.equipo_cotizado_id and self.equipo_cotizado_id.is_maquina:
-            usd_pl = self.env['product.pricelist'].search([('currency_id.name', '=', 'USD')], limit=1)
-            if usd_pl:
-                self.pricelist_id = usd_pl.id
+        """Las cotizaciones de máquinas usan la lista de precios configurada en la compañía."""
+        pricelist = self.company_id.cotizador_pricelist_id
+        if self.equipo_cotizado_id.is_maquina and pricelist:
+            self.pricelist_id = pricelist
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -353,10 +343,9 @@ class SaleOrderInherit(models.Model):
                 )
             if vals.get('equipo_cotizado_id') and not vals.get('pricelist_id'):
                 equipo = self.env['product.template'].browse(vals['equipo_cotizado_id'])
-                if equipo.exists() and equipo.is_maquina:
-                    usd_pl = self.env['product.pricelist'].search([('currency_id.name', '=', 'USD')], limit=1)
-                    if usd_pl:
-                        vals['pricelist_id'] = usd_pl.id
+                company = self.env['res.company'].browse(vals.get('company_id')) or self.env.company
+                if equipo.is_maquina and company.cotizador_pricelist_id:
+                    vals['pricelist_id'] = company.cotizador_pricelist_id.id
         orders = super().create(vals_list)
         for order in orders:
             order._sync_with_crm()
@@ -376,7 +365,7 @@ class SaleOrderInherit(models.Model):
             'require_signature': True,
         })
         self.message_post(
-            body=_("El asesor comercial ha <strong>habilitado</strong> la aceptación y firma online de esta cotización para el cliente en el portal."),
+            body=Markup(_("El asesor comercial ha <strong>habilitado</strong> la aceptación y firma online de esta cotización para el cliente en el portal.")),
             message_type='notification',
             subtype_xmlid='mail.mt_note'
         )
@@ -388,7 +377,7 @@ class SaleOrderInherit(models.Model):
             'portal_confirmation_allowed': False,
         })
         self.message_post(
-            body=_("El asesor comercial ha <strong>deshabilitado</strong> la aceptación y firma online de esta cotización en el portal."),
+            body=Markup(_("El asesor comercial ha <strong>deshabilitado</strong> la aceptación y firma online de esta cotización en el portal.")),
             message_type='notification',
             subtype_xmlid='mail.mt_note'
         )
@@ -454,7 +443,7 @@ class SaleOrderInherit(models.Model):
             if order.opportunity_id:
                 if won_stage:
                     order.opportunity_id.write({'stage_id': won_stage.id})
-                elif hasattr(order.opportunity_id, 'action_set_won'):
+                else:
                     order.opportunity_id.action_set_won()
 
         return res
@@ -488,24 +477,91 @@ class SaleOrderInherit(models.Model):
             return report.with_context(print_planes_mode=mode).report_action(self)
         return super().print_quotation()
 
+    # --- Alta de una configuración de sembradora en la cotización ---
+
+    def _cotizador_price_date(self):
+        return self.date_order or fields.Datetime.now()
+
+    def _cotizador_machine_price(self, config):
+        """Precio de la máquina de una configuración con la lista de precios y moneda de la orden."""
+        self.ensure_one()
+        return self.pricelist_id._get_product_price(
+            config.modelo_id._with_matrix_price(config.price), 1.0,
+            currency=self.currency_id, date=self._cotizador_price_date(),
+        )
+
+    def _cotizador_accessory_price(self, item):
+        """Precio unitario de un accesorio (ítem de _get_accessory_offer) con la lista de precios de la orden."""
+        self.ensure_one()
+        return self.pricelist_id._get_product_price(
+            item['product']._with_matrix_price(item['price_unit']), item['quantity'],
+            currency=self.currency_id, date=self._cotizador_price_date(),
+        )
+
+    def _cotizador_add_configuration(self, config, acc_lines=None):
+        """
+        Agrega a la orden la máquina configurada y los accesorios elegidos, con precios
+        calculados en el servidor (nunca se confía en precios enviados por el cliente).
+        Máquina y accesorios toman el precio de la matriz pasado por la lista de precios y
+        la moneda de la orden (ver product.template._price_compute).
+
+        Secciones generadas:
+          - Máquina: la variante configurada.
+          - Equipamiento: accesorios estándar y la opción elegida de cada grupo de opción única.
+          - Accesorios: resto de los accesorios elegidos.
+
+        :param config: sembradora.config.rel
+        :param acc_lines: sembradora.config.accessory.line seleccionadas
+        """
+        self.ensure_one()
+        config.ensure_one()
+        acc_lines = acc_lines or self.env['sembradora.config.accessory.line']
+        config._check_accessory_selection(acc_lines)
+
+        tax = self.company_id.cotizador_tax_id
+        # Sin impuesto configurado se usan los impuestos del producto (cálculo estándar de Odoo)
+        tax_vals = {'tax_ids': [Command.set(tax.ids)]} if tax else {}
+        variant = config._get_or_create_variant()
+
+        vals_list = [
+            {'order_id': self.id, 'name': _('Máquina'), 'display_type': 'line_section',
+             'cotizador_section': 'maquina'},
+            {
+                'order_id': self.id,
+                'product_id': variant.id,
+                'product_uom_qty': 1.0,
+                'name': config._get_variant_description(),
+                'price_unit': self._cotizador_machine_price(config),
+                **tax_vals,
+            },
+        ]
+        offer = [item for item in config._get_accessory_offer() if item['line'] in acc_lines]
+        for section, label, items in (
+            ('equipamiento', _('Equipamiento'), [i for i in offer if i['is_standard'] or i['choice_rule']]),
+            ('accesorios', _('Accesorios'), [i for i in offer if not (i['is_standard'] or i['choice_rule'])]),
+        ):
+            if not items:
+                continue
+            vals_list.append({'order_id': self.id, 'name': label, 'display_type': 'line_section',
+                              'cotizador_section': section})
+            vals_list += [{
+                'order_id': self.id,
+                'product_id': item['product'].id,
+                'product_uom_qty': item['quantity'],
+                'price_unit': self._cotizador_accessory_price(item),
+                **tax_vals,
+            } for item in items]
+
+        lines = self.env['sale.order.line'].create(vals_list)
+        if self.opportunity_id:
+            self.opportunity_id._sync_expected_revenue_from_orders()
+        return lines
+
     # --- Acciones y Asistentes ---
 
     def action_open_config_wizard(self):
-        """Abre el configurador de sembradora (Visual OWL o Wizard Legacy según la configuración del sistema)."""
+        """Abre el configurador visual (OWL) de sembradoras sobre esta cotización."""
         order_id = self.id or self.env.context.get('active_id') or self.env.context.get('params', {}).get('id')
-        use_legacy = self.env['ir.config_parameter'].sudo().get_param(
-            'cotizador.use_legacy_wizard', default='False'
-        )
-        if use_legacy == 'True':
-            return {
-                'type': 'ir.actions.act_window',
-                'name': 'Configurar Equipo (Legacy)',
-                'res_model': 'sembradora.config.wizard',
-                'view_mode': 'form',
-                'target': 'new',
-                'context': {'default_sale_order_id': order_id},
-            }
-
         return {
             'type': 'ir.actions.client',
             'tag': 'cotizador_configurator',
@@ -584,72 +640,42 @@ class SaleOrderLineInherit(models.Model):
     is_plan_pago = fields.Boolean(default=False)
     is_equipo_usado = fields.Boolean(default=False)
     is_descuento = fields.Boolean(default=False, string='Es Descuento Comercial')
+    cotizador_section = fields.Selection([
+        ('maquina', 'Máquina'),
+        ('equipamiento', 'Equipamiento'),
+        ('accesorios', 'Accesorios'),
+        ('descuentos', 'Descuentos'),
+        ('usados', 'Equipo Usado'),
+    ], string='Sección del Cotizador', copy=True,
+        help='Identifica las secciones que genera el cotizador (independiente del texto de la sección).')
+
+    def _get_parent_order(self):
+        """Orden de la línea, o la del contexto si la línea aún no fue guardada."""
+        if self.order_id:
+            return self.order_id
+        ctx = self.env.context
+        parent_id = (
+            ctx.get('default_sale_order_id') or
+            ctx.get('order_id') or
+            ctx.get('active_id') or
+            ctx.get('default_order_id') or
+            ctx.get('params', {}).get('id')
+        )
+        if not parent_id:
+            raise ValidationError(_("No se pudo identificar la orden de venta activa. Por favor, guarde la cotización antes de continuar."))
+        return self.env['sale.order'].browse(parent_id)
 
     def action_open_config_wizard(self):
         """Delegación del botón del listado de líneas al sale.order padre."""
-        order_id = False
-        if self.order_id:
-            order_id = self.order_id
-        else:
-            ctx = self.env.context
-            parent_id = (
-                ctx.get('default_sale_order_id') or
-                ctx.get('order_id') or
-                ctx.get('active_id') or 
-                ctx.get('default_order_id') or 
-                ctx.get('params', {}).get('id')
-            )
-            if parent_id:
-                order_id = self.env['sale.order'].browse(parent_id)
-
-        if not order_id:
-            raise ValidationError("No se pudo identificar la orden de venta activa. Por favor, guarde la cotización antes de configurar.")
-
-        return order_id.action_open_config_wizard()
+        return self._get_parent_order().action_open_config_wizard()
 
     def action_open_equipo_usado_wizard(self):
         """Delegación del botón del listado de líneas al sale.order padre."""
-        order_id = False
-        if self.order_id:
-            order_id = self.order_id
-        else:
-            ctx = self.env.context
-            parent_id = (
-                ctx.get('default_sale_order_id') or
-                ctx.get('order_id') or
-                ctx.get('active_id') or 
-                ctx.get('default_order_id') or 
-                ctx.get('params', {}).get('id')
-            )
-            if parent_id:
-                order_id = self.env['sale.order'].browse(parent_id)
-
-        if not order_id:
-            raise ValidationError("No se pudo identificar la orden de venta activa. Por favor, guarde la cotización antes de continuar.")
-
-        return order_id.action_open_equipo_usado_wizard()
+        return self._get_parent_order().action_open_equipo_usado_wizard()
 
     def action_open_descuento_wizard(self):
         """Delegación del botón del listado de líneas al sale.order padre."""
-        order_id = False
-        if self.order_id:
-            order_id = self.order_id
-        else:
-            ctx = self.env.context
-            parent_id = (
-                ctx.get('default_sale_order_id') or
-                ctx.get('order_id') or
-                ctx.get('active_id') or 
-                ctx.get('default_order_id') or 
-                ctx.get('params', {}).get('id')
-            )
-            if parent_id:
-                order_id = self.env['sale.order'].browse(parent_id)
-
-        if not order_id:
-            raise ValidationError("No se pudo identificar la orden de venta activa. Por favor, guarde la cotización antes de continuar.")
-
-        return order_id.action_open_descuento_wizard()
+        return self._get_parent_order().action_open_descuento_wizard()
 
     def action_open_discount_wizard(self):
         """Delegación del botón nativo de descuento al wizard del Cotizador."""

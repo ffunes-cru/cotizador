@@ -1,5 +1,15 @@
-from odoo import models, fields, api
+import json
+
 from markupsafe import Markup
+
+from odoo import api, fields, models
+from odoo.http import request
+from odoo.tools import ormcache
+
+
+def _in_category(categ, root):
+    """True si `categ` es `root` o una de sus subcategorías."""
+    return bool(categ and root and (categ.parent_path or '').startswith(root.parent_path or '\0'))
 
 
 class ProductTemplate(models.Model):
@@ -7,27 +17,21 @@ class ProductTemplate(models.Model):
 
     is_maquina = fields.Boolean(
         string="Es Máquina",
-        compute="_compute_is_maquina",
+        compute="_compute_cotizador_kind",
         store=True,
-        help="Indica si este producto pertenece a la categoría de máquinas configurables."
+        help="El producto está en la categoría Máquina (o una subcategoría): es una máquina configurable."
     )
-    available_attribute_ids = fields.Many2many(
-        'product.attribute',
-        string="Atributos de la Máquina",
-        compute="_compute_available_attributes",
-        help="Atributos configurados en las líneas de variantes de esta máquina."
+    is_accesorio = fields.Boolean(
+        string="Es Accesorio",
+        compute="_compute_cotizador_kind",
+        store=True,
+        help="El producto está en la categoría Accesorio (o una subcategoría)."
     )
     available_attribute_value_ids = fields.Many2many(
         'product.attribute.value',
         string="Valores de Atributos Disponibles",
         compute="_compute_available_attributes",
         help="Todos los valores de atributo disponibles para configurar en esta máquina."
-    )
-    description_attribute_id = fields.Many2one(
-        'product.attribute',
-        string="Atributo Rector (Opcional)",
-        domain="[('id', 'in', available_attribute_ids)]",
-        help="Atributo de referencia si desea categorizar por una característica principal."
     )
     description_line_ids = fields.One2many(
         'product.template.description.line',
@@ -40,15 +44,18 @@ class ProductTemplate(models.Model):
         help="Descripción general de respaldo si la combinación configurada no coincide con ninguna regla específica."
     )
 
-    @api.depends('categ_id', 'categ_id.name')
-    def _compute_is_maquina(self):
+    @api.depends('categ_id', 'categ_id.parent_path')
+    def _compute_cotizador_kind(self):
+        # Durante la instalación el campo se calcula antes de cargar los datos del módulo
+        cat_maquina = self.env.ref('cotizador.cat_maquina', raise_if_not_found=False)
+        cat_accesorio = self.env.ref('cotizador.cat_accesorio_base', raise_if_not_found=False)
         for tmpl in self:
-            tmpl.is_maquina = bool(tmpl.categ_id and tmpl.categ_id.name == 'Maquina')
+            tmpl.is_maquina = _in_category(tmpl.categ_id, cat_maquina)
+            tmpl.is_accesorio = _in_category(tmpl.categ_id, cat_accesorio)
 
     @api.depends('attribute_line_ids', 'attribute_line_ids.attribute_id', 'attribute_line_ids.value_ids')
     def _compute_available_attributes(self):
         for tmpl in self:
-            tmpl.available_attribute_ids = tmpl.attribute_line_ids.mapped('attribute_id')
             tmpl.available_attribute_value_ids = tmpl.attribute_line_ids.mapped('value_ids')
 
     def get_config_description(self, value_ids):
@@ -62,17 +69,15 @@ class ProductTemplate(models.Model):
         self.ensure_one()
         if self.description_line_ids and value_ids:
             selected_set = set(value_ids.ids)
-            matching_rules = []
-            for rule in self.description_line_ids:
-                if rule.value_ids and set(rule.value_ids.ids).issubset(selected_set):
-                    matching_rules.append(rule)
-
+            matching_rules = [
+                rule for rule in self.description_line_ids
+                if rule.value_ids and set(rule.value_ids.ids).issubset(selected_set)
+            ]
             if matching_rules:
                 # Ordenar: primero las que requieren más atributos (más específicas), luego por secuencia
                 matching_rules.sort(key=lambda r: (-len(r.value_ids), r.sequence))
-                best_rule = matching_rules[0]
-                if best_rule.description:
-                    return best_rule.description
+                if matching_rules[0].description:
+                    return matching_rules[0].description
 
         return self.description_default or self.description_sale or ''
 
@@ -103,8 +108,7 @@ class ProductTemplate(models.Model):
         self.ensure_one()
         if not self.is_maquina:
             return "{}"
-        import json
-        configs = self.env['sembradora.config.rel'].search([('modelo_id', '=', self.id)])
+        configs = self.env['sembradora.config.rel'].sudo().search([('modelo_id', '=', self.id)])
         steps = []
         for ptal in self.attribute_line_ids:
             ptavs = ptal.product_template_value_ids._only_active()
@@ -118,150 +122,144 @@ class ProductTemplate(models.Model):
                     'name': ptav.name,
                 } for ptav in ptavs]
             })
-        configs_data = []
-        for c in configs:
-            configs_data.append({
-                'id': c.id,
-                'name': c.name,
-                'price': c.price,
-                'val_ids': c.value_ids.ids,
-            })
-        currency_sym = 'USD $' if self.is_maquina else (self.currency_id.symbol or '$')
+        # Precios con la lista de precios de la sesión web (mismas reglas que el resto de la tienda)
+        pricelist = request.pricelist
+        currency = pricelist.currency_id or request.website.currency_id
+        configs_data = [{
+            'id': c.id,
+            'name': c.name,
+            'price': pricelist._get_product_price(
+                self._with_matrix_price(c.price), 1.0, currency=currency,
+            ) if c.price else 0.0,
+            'val_ids': c.value_ids.ids,
+        } for c in configs]
         json_data = json.dumps({
             'template_id': self.id,
             'template_name': self.name,
             'steps': steps,
             'configs': configs_data,
-            'currency_symbol': currency_sym,
+            'currency_symbol': f"{currency.name} {currency.symbol}",
         }).replace('</', r'<\/')
         return Markup(json_data)
 
+    # -------------------------------------------------------------------------
+    #  Índice de configuraciones (cacheado; se invalida al escribir la matriz)
+    # -------------------------------------------------------------------------
+
+    @api.model
+    @ormcache('tmpl_id')
+    def _cotizador_config_index(self, tmpl_id):
+        """((config_id, frozenset(value_ids), price), ...) de las configuraciones de una máquina."""
+        configs = self.env['sembradora.config.rel'].sudo().search([('modelo_id', '=', tmpl_id)])
+        return tuple((c.id, frozenset(c.value_ids.ids), c.price) for c in configs)
+
+    def _cotizador_find_config(self, value_ids):
+        """Configuración cuya combinación es exactamente `value_ids` (o vacío)."""
+        self.ensure_one()
+        value_ids = frozenset(value_ids)
+        for config_id, config_values, _price in self._cotizador_config_index(self.id):
+            if config_values == value_ids:
+                return self.env['sembradora.config.rel'].sudo().browse(config_id)
+        return self.env['sembradora.config.rel']
+
     def _is_combination_possible(self, combination, parent_combination=None, ignore_no_variant=False):
         """
-        Para máquinas configurables, restringe la posibilidad de combinaciones a aquellas
-        que existan en sembradora.config.rel (ingeniería técnica).
+        Para máquinas configurables, una combinación (completa o parcial) es posible solo si
+        alguna configuración de la matriz de ingeniería la contiene.
         """
         self.ensure_one()
-        if not self.is_maquina:
+        index = self._cotizador_config_index(self.id) if self.is_maquina else ()
+        if not index:
             return super()._is_combination_possible(
                 combination, parent_combination=parent_combination, ignore_no_variant=ignore_no_variant
             )
+        val_ids = set(combination.product_attribute_value_id.ids)
+        return any(val_ids <= config_values for _id, config_values, _price in index)
 
-        configs = self.env['sembradora.config.rel'].search([('modelo_id', '=', self.id)])
-        if not configs:
-            return super()._is_combination_possible(
-                combination, parent_combination=parent_combination, ignore_no_variant=ignore_no_variant
-            )
+    # -------------------------------------------------------------------------
+    #  Precios: el precio de lista de máquinas y accesorios es el de la matriz (en la
+    #  moneda de la matriz de la compañía). Se engancha en _price_compute, que es la base
+    #  de TODAS las reglas de listas de precios de Odoo (tienda, portal y backend): las
+    #  reglas, conversiones de moneda y descuentos son los nativos.
+    #
+    #  Contexto `cotizador_matrix_price = (modelo, id, precio)`: precio de matriz explícito
+    #  para ese registro (configuración elegida, precio del accesorio en una configuración).
+    # -------------------------------------------------------------------------
 
-        val_ids = set(combination.mapped('product_attribute_value_id.id'))
-        if val_ids:
-            if not any(val_ids.issubset(set(c.value_ids.ids)) for c in configs):
-                return False
+    def _with_matrix_price(self, price):
+        self.ensure_one()
+        return self.with_context(cotizador_matrix_price=(self._name, self.id, price))
 
-        return True
-
-    def _get_combination_info(
-        self, combination=False, product_id=False, add_qty=1.0, uom_id=False, only_template=False,
-    ):
-        """
-        Sobreescribe el cálculo de precios en eCommerce/web para que las máquinas
-        tomen su precio base real desde sembradora.config.rel y no desde list_price genérico.
-        Aplica reglas de lista de precios (porcentajes, fórmulas) sobre dicho precio base.
-        """
-        try:
-            res = super()._get_combination_info(
-                combination=combination, product_id=product_id, add_qty=add_qty, uom_id=uom_id, only_template=only_template
-            )
-        except Exception:
-            res = {
-                'price': self.list_price,
-                'list_price': self.list_price,
-                'has_discounted_price': False,
-                'is_combination_possible': True,
-                'product_id': product_id or False,
-                'product_template_id': self.id,
-                'display_name': self.display_name,
-            }
-
-        if not self.is_maquina:
-            return res
-
-        configs = self.env['sembradora.config.rel'].search([('modelo_id', '=', self.id)])
-        if not configs:
-            return res
-
-        if only_template:
-            prices = [c.price for c in configs if c.price]
-            min_price = min(prices) if prices else self.list_price
-            res['price'] = min_price
-            res['list_price'] = min_price
-            return res
-
-        val_ids = set()
-        if combination:
-            val_ids = set(combination.mapped('product_attribute_value_id.id'))
-        elif product_id:
-            prod = self.env['product.product'].browse(product_id)
-            if prod.exists():
-                val_ids = set(prod.product_template_attribute_value_ids.mapped('product_attribute_value_id.id'))
-
-        matching_config = False
-        if val_ids:
-            for c in configs:
-                if set(c.value_ids.ids) == val_ids:
-                    matching_config = c
-                    break
-            if not matching_config:
-                for c in configs:
-                    if val_ids.issubset(set(c.value_ids.ids)):
-                        matching_config = c
-                        break
-
-        if matching_config and matching_config.price:
-            base_price = matching_config.price
-            final_price = base_price
-
-            pricelist = False
-            try:
-                from odoo.http import request
-                if hasattr(request, 'website') and request.website:
-                    pricelist = request.website.get_current_pricelist()
-            except Exception:
-                pass
-
-            if not pricelist:
-                ctx_pl = self.env.context.get('pricelist')
-                if ctx_pl:
-                    pricelist = self.env['product.pricelist'].browse(ctx_pl)
-
-            if pricelist and pricelist.exists():
-                product = self.env['product.product'].browse(res.get('product_id')) if res.get('product_id') else False
-                product_or_tmpl = product if (product and product.exists()) else self
-                rules = pricelist._get_applicable_rules(product_or_tmpl, fields.Datetime.now())
-                suitable_rule = self.env['product.pricelist.item']
-                for rule in rules:
-                    if rule._is_applicable_for(product_or_tmpl, add_qty or 1.0):
-                        suitable_rule = rule
-                        break
-                if suitable_rule:
-                    if suitable_rule.compute_price == 'percentage':
-                        final_price = round(base_price - (base_price * (suitable_rule.percent_price / 100.0)), 2)
-                    elif suitable_rule.compute_price == 'formula':
-                        discount = suitable_rule.price_discount
-                        final_price = round(base_price - (base_price * (discount / 100.0)) + suitable_rule.price_surcharge, 2)
-                        if suitable_rule.price_min_margin:
-                            final_price = max(final_price, base_price + suitable_rule.price_min_margin)
-                        if suitable_rule.price_max_margin:
-                            final_price = min(final_price, base_price + suitable_rule.price_max_margin)
-                    elif suitable_rule.compute_price == 'fixed':
-                        final_price = suitable_rule.fixed_price
-
-            res['price'] = final_price
-            res['list_price'] = base_price
-            res['has_discounted_price'] = bool(final_price < base_price)
-            res['is_combination_possible'] = True
-
+    def _get_product_price_context(self, combination):
+        """En la tienda, una combinación sin variante creada se cotiza con su configuración."""
+        res = super()._get_product_price_context(combination)
+        if self.is_maquina:
+            config = self._cotizador_find_config(combination.product_attribute_value_id.ids)
+            if config:
+                res['cotizador_matrix_price'] = (self._name, self.id, config.price)
         return res
+
+    def _cotizador_convert_matrix_price(self, price, uom=None, currency=None, company=None, date=False):
+        """Convierte un precio de la matriz a la UdM y moneda pedidas (o la del producto)."""
+        self.ensure_one()
+        company = company or self.env.company
+        if uom:
+            price = self.uom_id._compute_price(price, uom)
+        return company.cotizador_matrix_currency_id._convert(
+            price, currency or self.currency_id, company, date or fields.Date.context_today(self), round=False,
+        )
+
+    def _cotizador_matrix_list_price(self):
+        """Precio de matriz de la plantilla: el del contexto o, para máquinas, el "desde"."""
+        self.ensure_one()
+        model, res_id, price = self.env.context.get('cotizador_matrix_price') or (None, None, None)
+        if (model, res_id) == (self._name, self.id):
+            return price
+        if self.is_maquina:
+            prices = [price for _id, _values, price in self._cotizador_config_index(self.id) if price]
+            return min(prices) if prices else None
+        return None
+
+    def _price_compute(self, price_type, uom=None, currency=None, company=None, date=False):
+        prices = super()._price_compute(price_type, uom=uom, currency=currency, company=company, date=date)
+        if price_type == 'list_price':
+            for tmpl in self:
+                price = tmpl._cotizador_matrix_list_price()
+                if price is not None:
+                    prices[tmpl.id] = tmpl._cotizador_convert_matrix_price(price, uom, currency, company, date)
+        return prices
+
+
+class ProductProduct(models.Model):
+    _inherit = 'product.product'
+
+    def _with_matrix_price(self, price):
+        self.ensure_one()
+        return self.with_context(cotizador_matrix_price=(self._name, self.id, price))
+
+    def _cotizador_matrix_list_price(self):
+        """Precio de matriz de la variante: el del contexto o el de su configuración (máquinas)."""
+        self.ensure_one()
+        model, res_id, price = self.env.context.get('cotizador_matrix_price') or (None, None, None)
+        if (model, res_id) == (self._name, self.id):
+            return price
+        if self.is_maquina:
+            config = self.product_tmpl_id._cotizador_find_config(
+                self.product_template_attribute_value_ids.product_attribute_value_id.ids
+            )
+            return config.price if config else None
+        return None
+
+    def _price_compute(self, price_type, uom=None, currency=None, company=None, date=False):
+        prices = super()._price_compute(price_type, uom=uom, currency=currency, company=company, date=date)
+        if price_type == 'list_price':
+            for product in self:
+                price = product._cotizador_matrix_list_price()
+                if price is not None:
+                    prices[product.id] = product.product_tmpl_id._cotizador_convert_matrix_price(
+                        price, uom, currency, company, date,
+                    )
+        return prices
 
 
 class ProductTemplateDescriptionLine(models.Model):

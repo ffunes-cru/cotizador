@@ -112,7 +112,7 @@
                             <div class="p-3 rounded-3 border bg-body-tertiary shadow-sm">
                                 <div class="text-muted small fw-bold text-uppercase">Accesorios en Catálogo</div>
                                 <div class="fs-4 fw-bold text-body mt-1">
-                                    <t t-esc="(state.modelData and state.modelData.accessories_catalog and state.modelData.accessories_catalog.length) || 0"/>
+                                    <t t-esc="(state.modelData and state.modelData.accessories_count) || 0"/>
                                 </div>
                                 <div class="small text-muted">Disponibles para vincular</div>
                             </div>

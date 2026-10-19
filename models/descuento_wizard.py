@@ -115,11 +115,7 @@ class CotizadorDescuentoWizard(models.TransientModel):
         precio_negativo = -abs(monto)
 
         # Buscar si ya existe la sección 'Descuentos'
-        existing_section = order.order_line.filtered(
-            lambda l: l.display_type == 'line_section'
-            and l.name
-            and l.name.strip().lower() == 'descuentos'
-        )
+        existing_section = order.order_line.filtered(lambda l: l.cotizador_section == 'descuentos')
 
         max_sequence = max(order.order_line.mapped('sequence') or [0])
 
@@ -129,6 +125,7 @@ class CotizadorDescuentoWizard(models.TransientModel):
                 'order_id': order.id,
                 'name': 'Descuentos',
                 'display_type': 'line_section',
+                'cotizador_section': 'descuentos',
                 'sequence': max_sequence,
             })
 
@@ -143,7 +140,7 @@ class CotizadorDescuentoWizard(models.TransientModel):
             'sequence': max_sequence,
         })
 
-        if order.opportunity_id and hasattr(order.opportunity_id, '_sync_expected_revenue_from_orders'):
+        if order.opportunity_id:
             order.opportunity_id._sync_expected_revenue_from_orders()
 
         return {'type': 'ir.actions.act_window_close'}

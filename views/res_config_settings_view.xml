@@ -12,11 +12,6 @@
                              help="Exigir la selección de un Plan de Pago antes de confirmar la cotización.">
                         <field name="cotizador_plan_pago_required"/>
                     </setting>
-                    <setting id="cotizador_use_legacy_wizard_setting"
-                             string="Configurador Clásico (Legacy)"
-                             help="Usar el wizard clásico estándar de Odoo en lugar del nuevo configurador visual interactivo en JavaScript.">
-                        <field name="cotizador_use_legacy_wizard"/>
-                    </setting>
                     <setting id="cotizador_modo_silencioso_setting"
                              string="Modo Silencioso"
                              help="Oculta el precio unitario de los accesorios en el configurador, mostrando únicamente el precio total.">
@@ -26,6 +21,43 @@
                              string="Modo de la Tienda Online"
                              help="Define si la tienda online permite solicitar cotizaciones directamente al CRM o si opera como un eCommerce con checkout y cobro.">
                         <field name="cotizador_ecommerce_mode" widget="radio"/>
+                    </setting>
+                    <setting id="cotizador_pricing_setting"
+                             string="Precios del Configurador"
+                             help="Moneda de la matriz importada, impuesto de máquinas y accesorios, y lista de precios de las cotizaciones de máquinas.">
+                        <div class="row mt-2">
+                            <label for="cotizador_matrix_currency_id" class="col-lg-5 o_light_label"/>
+                            <field name="cotizador_matrix_currency_id" class="col-lg-6" options="{'no_create': True}"/>
+                        </div>
+                        <div class="row">
+                            <label for="cotizador_tax_id" class="col-lg-5 o_light_label"/>
+                            <field name="cotizador_tax_id" class="col-lg-6" options="{'no_create': True}"/>
+                        </div>
+                        <div class="row">
+                            <label for="cotizador_pricelist_id" class="col-lg-5 o_light_label"/>
+                            <field name="cotizador_pricelist_id" class="col-lg-6" options="{'no_create': True}"/>
+                        </div>
+                    </setting>
+                    <setting id="cotizador_quote_protection_setting"
+                             string="Protección del Formulario de Solicitud Web"
+                             help="Límites por hora para solicitudes anónimas (0 = sin límite) y tiempo mínimo de llenado.">
+                        <field name="cotizador_captcha_configured" invisible="1"/>
+                        <div class="alert alert-warning mt-2 mb-2" role="alert" invisible="cotizador_captcha_configured">
+                            Sin captcha configurado: configure reCAPTCHA o Cloudflare Turnstile en Ajustes del Sitio Web.
+                            El formulario lo usa automáticamente.
+                        </div>
+                        <div class="row mt-2">
+                            <label for="cotizador_quote_rate_limit_ip" class="col-lg-6 o_light_label"/>
+                            <field name="cotizador_quote_rate_limit_ip" class="col-lg-2"/>
+                        </div>
+                        <div class="row">
+                            <label for="cotizador_quote_rate_limit_contact" class="col-lg-6 o_light_label"/>
+                            <field name="cotizador_quote_rate_limit_contact" class="col-lg-2"/>
+                        </div>
+                        <div class="row">
+                            <label for="cotizador_quote_min_seconds" class="col-lg-6 o_light_label"/>
+                            <field name="cotizador_quote_min_seconds" class="col-lg-2"/>
+                        </div>
                     </setting>
                     <setting id="cotizador_portal_confirmation_mode_setting"
                              string="Aceptación de Cotizaciones en el Portal"

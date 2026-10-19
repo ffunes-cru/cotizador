@@ -2,8 +2,9 @@
 
 {
     "name": "Cotizador",
-    "version": '19.0.1.0.0',
+    "version": '19.0.2.0.0',
     "author": "Franco Funes",
+    "license": "AGPL-3",
     "depends": [
         'base',
         'base_import_module',
@@ -14,13 +15,16 @@
         'website_sale',
     ],
     'data': [
+        'security/cotizador_security.xml',
         'security/ir.model.access.csv',
         'views/views.xml',
         'views/config_view.xml',
         'views/product_template_view.xml',
         'views/plan_pago_views.xml',
         'views/product_attribute_view.xml',
+        'views/product_category_view.xml',
         'data/product_category_data.xml',
+        'data/product_plan_pago_data.xml',
         'views/import_wizard_view.xml',
         'views/accessory_rule_view.xml',
         'views/res_config_settings_view.xml',
@@ -42,11 +46,14 @@
             'cotizador/static/src/components/configurador/**/*',
             'cotizador/static/src/components/configurador_studio/**/*',
         ],
+        'web.assets_tests': [
+            'cotizador/static/tests/tours/**/*',
+        ],
         'web.assets_frontend': [
             'cotizador/static/src/css/cotizador_sequential_configurator.css',
             'cotizador/static/src/js/cotizador_sequential_configurator.js',
+            'cotizador/static/src/js/cotizador_quote_form.js',
         ],
     },
     'installable': True,
-    'post_init_hook': '_post_init_hook',
 }

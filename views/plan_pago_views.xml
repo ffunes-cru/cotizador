@@ -62,12 +62,12 @@
                             <field name="opcion" 
                                    column_invisible="parent.tipo != 'canje_cereal'" 
                                    required="parent.tipo == 'canje_cereal'"/>
-                            <field name="entrega_canje" 
+                            <field name="entrega_canje" string="Entrega"
                                    column_invisible="parent.tipo != 'canje_cereal'"/>
                             <field name="condicion" 
                                    column_invisible="parent.tipo != 'canje_cereal'"/>
                             <!-- Cheques (Solo visible si el tipo de plantilla es cheques) -->
-                            <field name="plan_cheques" 
+                            <field name="plan_cheques" string="Plan"
                                    column_invisible="parent.tipo != 'cheques'"
                                    required="parent.tipo == 'cheques'"/>
                             <field name="promedio_dias" 
@@ -75,10 +75,10 @@
                             <field name="cheques_desc" 
                                    column_invisible="parent.tipo != 'cheques'"/>
                             <!-- Documentos (Solo visible si el tipo de plantilla es documentos) -->
-                            <field name="plan_documentos" 
+                            <field name="plan_documentos" string="Plan"
                                    column_invisible="parent.tipo != 'documentos'"
                                    required="parent.tipo == 'documentos'"/>
-                            <field name="entrega_pct" 
+                            <field name="entrega_pct" string="Entrega"
                                    column_invisible="parent.tipo != 'documentos'"/>
                             <field name="saldo" 
                                    column_invisible="parent.tipo != 'documentos'"/>
@@ -118,6 +118,7 @@
     </record>
 
     <menuitem id="menu_plan_pago_template"
+              groups="cotizador.group_cotizador_manager"
               name="Plantillas Planes de Pago"
               parent="menu_sembradora_config_root"
               sequence="30"

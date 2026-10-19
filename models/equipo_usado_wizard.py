@@ -45,11 +45,7 @@ class EquipoUsadoWizard(models.TransientModel):
         precio_negativo = -abs(raw_monto)
 
         # Verificar si ya existe una sección 'Equipo Usado'
-        existing_section = order.order_line.filtered(
-            lambda l: l.display_type == 'line_section'
-            and l.name
-            and l.name.strip().lower() == 'equipo usado'
-        )
+        existing_section = order.order_line.filtered(lambda l: l.cotizador_section == 'usados')
 
         max_sequence = max(order.order_line.mapped('sequence') or [0])
 
@@ -59,6 +55,7 @@ class EquipoUsadoWizard(models.TransientModel):
                 'order_id': order.id,
                 'name': 'Equipo Usado',
                 'display_type': 'line_section',
+                'cotizador_section': 'usados',
                 'sequence': max_sequence,
             })
 
@@ -75,7 +72,7 @@ class EquipoUsadoWizard(models.TransientModel):
         })
 
         # Sincronización automática de CRM si existe oportunidad vinculada
-        if order.opportunity_id and hasattr(order.opportunity_id, '_sync_expected_revenue_from_orders'):
+        if order.opportunity_id:
             order.opportunity_id._sync_expected_revenue_from_orders()
 
         return {'type': 'ir.actions.act_window_close'}

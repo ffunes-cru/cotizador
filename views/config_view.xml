@@ -23,6 +23,7 @@
                         <list editable="bottom">
                             <field name="product_id"/>
                             <field name="rule_ids" widget="many2many_tags" string="Reglas"/>
+                            <field name="is_standard" optional="show"/>
                             <field name="is_trigger" string="Trigger" optional="show"/>
                             <field name="price"/>
                             <field name="quantity" optional="hide"/>
@@ -57,6 +58,7 @@
               sequence="100"/>
 
     <menuitem id="menu_sembradora_config_matriz"
+              groups="cotizador.group_cotizador_manager"
               name="Matriz Base (Datos Raw)"
               parent="menu_sembradora_config_root"
               sequence="40"
@@ -67,15 +69,14 @@
         <field name="name">sembradora.config.accessory.line.list</field>
         <field name="model">sembradora.config.accessory.line</field>
         <field name="arch" type="xml">
-            <list editable="bottom">
-                <field name="ext_id" optional="hide"/>
-                <field name="config_id"/>
-                <field name="product_id"/>
-                <field name="rule_ids" widget="many2many_tags" string="Reglas"/>
-                <field name="is_trigger" string="Trigger" optional="show"/>
+            <list editable="bottom" create="0">
+                <field name="config_id" readonly="1"/>
+                <field name="product_id" readonly="1"/>
+                <field name="rule_ids" readonly="1" widget="many2many_tags" string="Reglas"/>
+                <field name="is_standard" readonly="1" optional="show"/>
+                <field name="is_trigger" readonly="1" string="Trigger" optional="show"/>
                 <field name="price"/>
-                <field name="quantity" optional="hide"/>
-                <field name="exclusion_group" optional="hide" string="Grupo (legacy)"/>
+                <field name="quantity" readonly="1" optional="hide"/>
             </list>
         </field>
     </record>
@@ -87,6 +88,7 @@
     </record>
 
     <menuitem id="menu_sembradora_config_acc_line"
+              groups="cotizador.group_cotizador_manager"
               name="Accesorios por Configuración"
               parent="menu_sembradora_config_root"
               sequence="20"

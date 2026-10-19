@@ -1,366 +1,326 @@
-import base64
 import csv
 import io
 import json
 import logging
-import os
-from odoo import models, fields, api
+import re
+import unicodedata
+
+from markupsafe import Markup
+
+from odoo import Command, fields, models
 from odoo.exceptions import UserError
+
+from .sembradora_config import validate_rule_set
 
 _logger = logging.getLogger(__name__)
 
-# Mapeo de Calc_param del CSV → XML ID de categoría hija de Accesorio.
-# Las claves deben coincidir exactamente con los valores de la columna Calc_param.
-CALC_PARAM_CATEGORY_MAP = {
-    'Cantidad de Líneas': 'cotizador.cat_accesorio_cantidad_lineas',
-    'Distancia Entre Líneas': 'cotizador.cat_accesorio_distancia_lineas',
+# Módulo de los xmlids que el importador asigna a lo que crea: es su única forma de
+# reencontrar registros (nunca busca por nombre), así renombrar en Odoo no rompe la re-importación.
+IMPORT_MODULE = 'cotizador_import'
+
+# Columnas con significado fijo. Las de atributos llevan el prefijo ATTRIBUTE_PREFIX.
+FIXED_COLUMNS = {
+    'ID_Configuracion', 'Modelo', 'Tipo_Item', 'Precio_Base', 'Nombre_Item', 'Precio_Item',
+    'Calc_param', 'Reglas', 'Descripcion',
 }
-# Categoría fallback para accesorios sin Calc_param (precio fijo de la matriz)
-CATEGORY_FALLBACK_XMLID = 'cotizador.cat_accesorio_por_maquina'
-# Categoría base de accesorios (padre de todas las subcategorías)
-CATEGORY_BASE_XMLID = 'cotizador.cat_accesorio_base'
+ATTRIBUTE_PREFIX = 'ATR_'
+
+TYPE_BASE = 'BASE'
+TYPE_OPTIONAL = 'OPCIONAL'
+TYPE_STANDARD = 'ESTANDAR'  # accesorio preseleccionado (equipamiento estándar)
+ITEM_TYPES = {TYPE_BASE, TYPE_OPTIONAL, TYPE_STANDARD}
+
+# Sufijo de regla → (tipo, es trigger)
+RULE_SUFFIXES = {
+    'e': ('exclusion', False),
+    'et': ('exclusion', True),
+    'i': ('inclusion', False),
+    'it': ('inclusion', True),
+    'u': ('choice', False),
+}
+
+
+def _strip_accents(text):
+    return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+
+
+def slugify(text):
+    """'Cantidad de Líneas' → 'cantidad_de_lineas' (parte de un xmlid)."""
+    return re.sub(r'[^a-z0-9]+', '_', _strip_accents(text).lower()).strip('_')
+
+
+def first_number(text):
+    """'16 Líneas' → 16.0, '52,5 cm' → 52.5; None si no hay número."""
+    match = re.search(r'\d+(?:[.,]\d+)?', text or '')
+    return float(match.group().replace(',', '.')) if match else None
+
+
+def parse_price(price_str):
+    """
+    Convierte un precio del CSV a float; None si está vacío o no es un número.
+      'USD $248.866,00' → 248866.0 (punto miles, coma decimal)   '248866,5' → 248866.5
+      '248.866' → 248866.0 (punto miles)   '248866.00' → 248866.0   '248,866.00' → 248866.0
+    """
+    clean = re.sub(r'[^\d.,\-]', '', price_str or '')
+    if not re.search(r'\d', clean):
+        return None
+    if ',' in clean and '.' in clean:
+        # El último separador que aparece es el decimal
+        if clean.rfind(',') > clean.rfind('.'):
+            clean = clean.replace('.', '').replace(',', '.')
+        else:
+            clean = clean.replace(',', '')
+    elif ',' in clean:
+        clean = clean.replace(',', '.')
+    elif re.fullmatch(r'-?\d{1,3}(\.\d{3})+', clean):
+        clean = clean.replace('.', '')
+    try:
+        return float(clean)
+    except ValueError:
+        return None
 
 
 class SembradoraImportWizard(models.TransientModel):
     _name = 'sembradora.import.wizard'
     _description = 'Importador CSV de Configuraciones de Sembradora'
 
-    # --- Paso 1: Carga ---
     csv_file_ids = fields.Many2many('ir.attachment', string='Archivos CSV')
-
-    # --- Resultado del análisis ---
     state = fields.Selection([
         ('draft', 'Borrador'),
         ('analyzed', 'Analizado'),
         ('done', 'Importado'),
     ], default='draft', string='Estado')
-
-    analysis_summary = fields.Html(string='Resumen del Análisis', readonly=True)
-
-    # Checkboxes para creación automática
-    create_missing_products = fields.Boolean(
-        string='Crear productos faltantes',
-        default=True,
-        help='Crea automáticamente los product.template (Máquina) y product.product (Accesorio) '
-             'que no existan en el sistema.')
-    create_missing_attributes = fields.Boolean(
-        string='Crear atributos/valores faltantes',
-        default=True,
-        help='Crea automáticamente los product.attribute y product.attribute.value que no existan.')
-    create_missing_categories = fields.Boolean(
-        string='Crear categorías faltantes',
-        default=True,
-        help='Crea subcategorías hijas de Accesorio para nuevos valores de Calc_param.')
-
-    # Campo interno: datos parseados almacenados como texto para no re-parsear
-    _parsed_data = fields.Text(string='Datos Parseados', readonly=True)
+    has_errors = fields.Boolean(string='Tiene Errores', readonly=True)
+    analysis_summary = fields.Html(string='Resumen del Análisis', readonly=True, sanitize=False)
+    # Archivos leídos en el análisis, para importar exactamente lo analizado
+    parsed_data = fields.Text(string='Datos Parseados', readonly=True)
 
     # =========================================================================
-    #  UTILIDADES
+    #  LECTURA Y VALIDACIÓN (sin escribir nada)
     # =========================================================================
 
-    def _parse_price(self, price_str):
-        """Convierte 'USD $248.866,00' → 248866.00"""
-        if not price_str:
-            return 0.0
-        clean = price_str.replace('USD', '').replace('$', '').replace('"', '').strip()
-        # Formato argentino: punto = miles, coma = decimal
-        clean = clean.replace('.', '').replace(',', '.')
-        try:
-            return float(clean)
-        except ValueError:
-            _logger.warning("No se pudo parsear el precio: '%s'", price_str)
-            return 0.0
-
-    def _make_ext_id(self, conf_id_raw, modelo_name):
-        """
-        Genera un ext_id único prefijado por el nombre del modelo si no lo incluye ya.
-        Evita colisiones entre configuraciones de distintos modelos que usen el mismo ID.
-        Ejemplos:
-          conf_id_raw='CONF-001', modelo_name='Pionera' -> 'C-PIONERA-CONF-001'
-          conf_id_raw='001', modelo_name='Pionera' -> 'C-PIONERA-001'
-          conf_id_raw='C-PIONERA-001', modelo_name='Pionera' -> 'C-PIONERA-001'
-        """
-        if not conf_id_raw:
-            return ''
-        conf_id = conf_id_raw.strip()
-        if not modelo_name:
-            return conf_id
-
-        mod_clean = modelo_name.strip().upper().replace(' ', '-')
-        conf_upper = conf_id.upper()
-
-        if conf_upper.startswith(f"C-{mod_clean}") or mod_clean in conf_upper:
-            return conf_id
-        if conf_upper.startswith("C-"):
-            return f"C-{mod_clean}-{conf_id[2:]}"
-        return f"C-{mod_clean}-{conf_id}"
-
-    def _parse_rules_str(self, rules_str):
-        """
-        Parsea la cadena de reglas del CSV.
-
-        Formato soportado:
-          - "Kit Grano grueso"           → exclusion, not trigger
-          - "Kit Grano grueso:e"         → exclusion, not trigger (explícito)
-          - "Requiere Monitor:i"         → inclusion, not trigger
-          - "Requiere Monitor:it"        → inclusion, IS trigger
-          - "Kit GG:e|Requiere Monitor:it" → dos reglas
-
-        Retorna: list of dicts:
-            [{'name': str, 'rule_type': 'exclusion'|'inclusion', 'is_trigger': bool}]
-        """
-        if not rules_str or not rules_str.strip():
-            return []
-
-        result = []
-        parts = rules_str.strip().split('|')
-        for part in parts:
-            part = part.strip()
-            if not part:
-                continue
-
-            is_trigger = False
-            rule_type = 'exclusion'  # default
-
-            if part.endswith(':it'):
-                rule_type = 'inclusion'
-                is_trigger = True
-                name = part[:-3].strip()
-            elif part.endswith(':i'):
-                rule_type = 'inclusion'
-                is_trigger = False
-                name = part[:-2].strip()
-            elif part.endswith(':et'):
-                rule_type = 'exclusion'
-                is_trigger = True
-                name = part[:-3].strip()
-            elif part.endswith(':e'):
-                rule_type = 'exclusion'
-                is_trigger = False
-                name = part[:-2].strip()
-            else:
-                name = part
-
-            if name:
-                result.append({
-                    'name': name,
-                    'rule_type': rule_type,
-                    'is_trigger': is_trigger,
-                })
-        return result
-
-    def _read_csv(self):
-        """Lee los CSVs subidos en csv_file_ids o recupera los datos parseados de _parsed_data."""
-        if self._parsed_data:
-            try:
-                return json.loads(self._parsed_data)
-            except Exception as e:
-                _logger.warning("No se pudo parsear _parsed_data: %s", e)
-
+    def _read_files(self):
+        """[(nombre_archivo, encabezado, [(n_linea, fila), ...]), ...]"""
         if not self.csv_file_ids:
-            raise UserError("Por favor, seleccione al menos un archivo CSV.")
-
-        all_rows = []
+            raise UserError("Seleccione al menos un archivo CSV.")
+        files = []
         for att in self.csv_file_ids:
-            raw = att.raw
-            if not raw:
-                continue
+            raw = att.raw or b''
             try:
                 text = raw.decode('utf-8-sig')
             except UnicodeDecodeError:
                 text = raw.decode('latin-1')
             reader = csv.DictReader(io.StringIO(text))
-            file_rows = list(reader)
-            all_rows.extend(file_rows)
+            rows = [(reader.line_num, row) for row in reader]
+            files.append((att.name, reader.fieldnames or [], rows))
+        return files
 
-        if not all_rows:
-            raise UserError("Los archivos CSV seleccionados están vacíos o no tienen el formato esperado.")
-        return all_rows
-
-    def _get_attribute_columns(self, rows):
+    def _parse(self, files):
         """
-        Detecta dinámicamente las columnas de atributos de variante.
-        Son las columnas que NO están en el set de columnas fijas del CSV.
+        Valida el CSV completo y lo convierte a una estructura independiente de Odoo.
+        :return: (data, errors) — si hay errores, no se debe importar.
         """
-        fixed_columns = {
-            'ID_Configuracion', 'Modelo', 'Precio_Base', 'Tipo_Item',
-            'Nombre_Item', 'Precio_Item', 'Calc_param', 'Grupo de exclusion',
-            'Reglas',  # Nueva columna para el formato con reglas
+        errors = []
+        data = {
+            'attributes': {},      # columna → {'name', 'values': {valor: cantidad|None}}
+            'qty_columns': set(),  # columnas de atributo usadas como Calc_param
+            'models': {},          # modelo → {columna: set(valores)}
+            'accessories': {},     # nombre → columna Calc_param ('' si no tiene)
+            'rules': set(),        # (nombre, tipo)
+            'configs': {},         # (modelo, id) → {...}
         }
-        if not rows:
-            return []
-        all_columns = list(rows[0].keys())
-        return [col for col in all_columns if col not in fixed_columns]
+        accessory_origin = {}
+
+        for fname, header, rows in files:
+            unknown = [c for c in header if c not in FIXED_COLUMNS and not c.startswith(ATTRIBUTE_PREFIX)]
+            if unknown:
+                errors.append(
+                    f"{fname}: columnas desconocidas {', '.join(unknown)}. Las columnas de atributos "
+                    f"deben empezar con '{ATTRIBUTE_PREFIX}' (p.ej. {ATTRIBUTE_PREFIX}Cantidad_de_Lineas)."
+                )
+                continue
+            missing = {'ID_Configuracion', 'Modelo', 'Tipo_Item'} - set(header)
+            if missing:
+                errors.append(f"{fname}: faltan las columnas {', '.join(sorted(missing))}.")
+                continue
+            attr_columns = [c for c in header if c.startswith(ATTRIBUTE_PREFIX)]
+            for col in attr_columns:
+                name = col[len(ATTRIBUTE_PREFIX):].replace('_', ' ').strip()
+                if not name:
+                    errors.append(f"{fname}: la columna '{col}' no tiene nombre de atributo.")
+                data['attributes'].setdefault(col, {'name': name, 'values': {}})
+
+            for line_num, row in rows:
+                where = f"{fname}, línea {line_num}"
+                cell = {k: (v or '').strip() for k, v in row.items() if k}
+                tipo = _strip_accents(cell.get('Tipo_Item', '')).upper()
+                modelo, conf_id = cell.get('Modelo', ''), cell.get('ID_Configuracion', '')
+                if tipo not in ITEM_TYPES:
+                    errors.append(f"{where}: Tipo_Item '{cell.get('Tipo_Item', '')}' inválido "
+                                  f"(use BASE, OPCIONAL o ESTANDAR).")
+                    continue
+                if not modelo or not conf_id:
+                    errors.append(f"{where}: Modelo e ID_Configuracion son obligatorios.")
+                    continue
+                config = data['configs'].setdefault((modelo, conf_id), {
+                    'modelo': modelo, 'conf_id': conf_id, 'base': False,
+                    'values': {}, 'price': 0.0, 'description': '', 'lines': [],
+                })
+
+                if tipo == TYPE_BASE:
+                    if config['base']:
+                        errors.append(f"{where}: la configuración {modelo}/{conf_id} tiene más de una fila BASE.")
+                        continue
+                    price = parse_price(cell.get('Precio_Base'))
+                    if price is None:
+                        errors.append(f"{where}: Precio_Base '{cell.get('Precio_Base', '')}' no es un precio válido.")
+                    config.update(base=True, price=price or 0.0, description=cell.get('Descripcion', ''))
+                    model_values = data['models'].setdefault(modelo, {})
+                    for col in attr_columns:
+                        if cell.get(col):
+                            config['values'][col] = cell[col]
+                            data['attributes'][col]['values'].setdefault(cell[col], None)
+                            model_values.setdefault(col, set()).add(cell[col])
+                    if not config['values']:
+                        errors.append(f"{where}: la fila BASE no tiene valores de atributos ({ATTRIBUTE_PREFIX}…).")
+                    continue
+
+                # Accesorio (OPCIONAL / ESTANDAR)
+                nombre = cell.get('Nombre_Item', '')
+                if not nombre:
+                    errors.append(f"{where}: Nombre_Item es obligatorio en filas de accesorio.")
+                    continue
+                price = parse_price(cell.get('Precio_Item'))
+                if price is None:
+                    errors.append(f"{where}: Precio_Item '{cell.get('Precio_Item', '')}' no es un precio válido.")
+                calc_param = cell.get('Calc_param', '')
+                if calc_param and calc_param not in attr_columns:
+                    errors.append(f"{where}: Calc_param '{calc_param}' debe ser el nombre exacto de una "
+                                  f"columna de atributo del archivo ({', '.join(attr_columns) or 'no hay'}).")
+                    continue
+                if calc_param:
+                    data['qty_columns'].add(calc_param)
+                previous = data['accessories'].setdefault(nombre, calc_param)
+                accessory_origin.setdefault(nombre, where)
+                if previous != calc_param:
+                    errors.append(f"{where}: '{nombre}' tiene Calc_param '{calc_param}', pero en "
+                                  f"{accessory_origin[nombre]} tiene '{previous}'.")
+
+                rules, is_trigger = [], False
+                for part in filter(None, (p.strip() for p in cell.get('Reglas', '').split('|'))):
+                    name, sep, suffix = part.rpartition(':')
+                    suffix = suffix.strip().lower()
+                    if not sep or not name.strip() or suffix not in RULE_SUFFIXES:
+                        errors.append(f"{where}: regla '{part}' inválida; use Nombre:sufijo con sufijo "
+                                      f"{', '.join(':' + s for s in RULE_SUFFIXES)}.")
+                        continue
+                    rtype, trigger = RULE_SUFFIXES[suffix]
+                    rules.append((name.strip(), rtype))
+                    data['rules'].add((name.strip(), rtype))
+                    is_trigger = is_trigger or trigger
+                if any(line['name'] == nombre for line in config['lines']):
+                    errors.append(f"{where}: '{nombre}' aparece dos veces en la configuración {modelo}/{conf_id}.")
+                    continue
+                config['lines'].append({
+                    'name': nombre, 'price': price or 0.0, 'calc_param': calc_param,
+                    'is_standard': tipo == TYPE_STANDARD, 'is_trigger': is_trigger, 'rules': rules,
+                })
+
+        errors += self._validate_parsed(data)
+        return data, errors
+
+    def _validate_parsed(self, data):
+        """Validaciones que necesitan el CSV completo."""
+        errors = []
+        # Atributos de cantidad: cada valor debe contener un número
+        for col in sorted(data['qty_columns']):
+            values = data['attributes'][col]['values']
+            for value in values:
+                values[value] = first_number(value)
+                if values[value] is None:
+                    errors.append(f"Atributo de cantidad {col}: el valor '{value}' no contiene un número.")
+
+        combinations = {}
+        for (modelo, conf_id), config in data['configs'].items():
+            label = f"Configuración {modelo}/{conf_id}"
+            if not config['base']:
+                errors.append(f"{label}: no tiene fila BASE.")
+                continue
+            combo = (modelo, frozenset(config['values'].items()))
+            if combo in combinations:
+                errors.append(f"{label}: misma combinación de atributos que {modelo}/{combinations[combo]}.")
+            combinations.setdefault(combo, conf_id)
+            for line in config['lines']:
+                if line['calc_param'] and line['calc_param'] not in config['values']:
+                    errors.append(f"{label}: '{line['name']}' se cotiza por {line['calc_param']}, "
+                                  f"pero la fila BASE no tiene valor en esa columna.")
+            errors += [f"{label}: {e}" for e in validate_rule_set([{
+                **line, 'rules': [((name, rtype), rtype, name) for name, rtype in line['rules']],
+            } for line in config['lines']])]
+
+        # Dos textos distintos no pueden producir el mismo xmlid
+        def check_slugs(kind, names):
+            seen = {}
+            for name in names:
+                other = seen.setdefault(slugify(name), name)
+                if other != name:
+                    errors.append(f"{kind} '{name}' y '{other}' son indistinguibles para el importador "
+                                  f"(solo difieren en acentos, mayúsculas o símbolos).")
+        check_slugs('Modelo', data['models'])
+        check_slugs('Accesorio', data['accessories'])
+        check_slugs('Atributo', [a['name'] for a in data['attributes'].values()])
+        for attr in data['attributes'].values():
+            check_slugs(f"Valor de {attr['name']}", attr['values'])
+        for rtype, _trigger in set(RULE_SUFFIXES.values()):
+            check_slugs('Regla', [name for name, t in data['rules'] if t == rtype])
+        for modelo in data['models']:
+            check_slugs(f"ID_Configuracion de {modelo}", [c for m, c in data['configs'] if m == modelo])
+        return errors
+
+    # =========================================================================
+    #  IDENTIDAD: xmlids propios del importador
+    # =========================================================================
+
+    def _xmlid_name(self, kind, *parts):
+        return '_'.join([kind, *(slugify(p) for p in parts)])
+
+    def _find(self, model, xmlid_name):
+        record = self.env.ref(f'{IMPORT_MODULE}.{xmlid_name}', raise_if_not_found=False)
+        return record if record and record._name == model else self.env[model]
+
+    def _find_or_create(self, model, xmlid_name, create_vals, counters, counter_key):
+        record = self._find(model, xmlid_name)
+        if not record:
+            record = self.env[model].create(create_vals)
+            self.env['ir.model.data'].create({
+                'module': IMPORT_MODULE, 'name': xmlid_name, 'model': model,
+                'res_id': record.id, 'noupdate': True,
+            })
+            counters[counter_key] += 1
+        return record
 
     # =========================================================================
     #  PASO 1: ANÁLISIS
     # =========================================================================
 
     def action_analyze(self):
-        """Parsea el CSV y genera un resumen de lo que se importará/creará."""
+        """Valida el CSV y resume lo que se creará o actualizará; no escribe nada."""
         self.ensure_one()
-        rows = self._read_csv()
-        attribute_columns = self._get_attribute_columns(rows)
-
-        # --- Recolectar datos únicos ---
-        modelos = set()
-        configs = {}  # {conf_id: {modelo, attrs:{col: val}, precio, nombre_base}}
-        accesorios = {}  # {nombre_item: {calc_param, precios}}
-        attr_values = {}  # {nombre_atributo: set(valores)}
-        rules_detected = {}  # {(name, type): {'is_trigger_seen': bool}}
-        calc_params = set()
-
-        for row in rows:
-            conf_id_raw = row.get('ID_Configuracion', '').strip()
-            modelo = row.get('Modelo', '').strip()
-            tipo = row.get('Tipo_Item', '').strip().upper()
-            conf_id = self._make_ext_id(conf_id_raw, modelo)
-
-            if modelo:
-                modelos.add(modelo)
-
-            # Recoger valores de atributos de las columnas dinámicas
-            for col in attribute_columns:
-                val = row.get(col, '').strip()
-                if val:
-                    attr_name = col.replace('_', ' ')
-                    attr_values.setdefault(attr_name, set()).add(val)
-
-            if tipo == 'BASE':
-                if conf_id not in configs:
-                    attrs = {}
-                    for col in attribute_columns:
-                        val = row.get(col, '').strip()
-                        if val:
-                            attrs[col.replace('_', ' ')] = val
-                    configs[conf_id] = {
-                        'modelo': modelo,
-                        'attrs': attrs,
-                        'precio': self._parse_price(row.get('Precio_Base', '')),
-                        'nombre_base': row.get('Nombre_Item', '').strip(),
-                    }
-            elif tipo == 'OPCIONAL':
-                nombre_item = row.get('Nombre_Item', '').strip()
-                calc_param = row.get('Calc_param', '').strip()
-                # Soportar ambas columnas: nueva "Reglas" y legacy "Grupo de exclusion"
-                rules_str = row.get('Reglas', '').strip() or row.get('Grupo de exclusion', '').strip()
-
-                if nombre_item:
-                    if nombre_item not in accesorios:
-                        accesorios[nombre_item] = {
-                            'calc_param': calc_param,
-                        }
-                if calc_param:
-                    calc_params.add(calc_param)
-                # Parsear reglas
-                parsed_rules = self._parse_rules_str(rules_str)
-                for pr in parsed_rules:
-                    key = (pr['name'], pr['rule_type'])
-                    if key not in rules_detected:
-                        rules_detected[key] = {'is_trigger_seen': False}
-                    if pr['is_trigger']:
-                        rules_detected[key]['is_trigger_seen'] = True
-
-        # --- Verificar existencia en Odoo ---
-        # --- Verificar existencia en Odoo (optimizado en lote) ---
-        ProductTemplate = self.env['product.template']
-        ProductProduct = self.env['product.product']
-        ProductAttribute = self.env['product.attribute']
-        ProductAttributeValue = self.env['product.attribute.value']
-
-        # Modelos (product.template con categ "Maquina")
-        found_templates = ProductTemplate.search([
-            ('name', 'in', list(modelos)),
-            ('categ_id.name', '=', 'Maquina')
-        ]) if modelos else ProductTemplate
-        modelos_existentes = set(found_templates.mapped('name'))
-        modelos_faltantes = modelos - modelos_existentes
-
-        # Atributos y valores (en lote)
-        all_attr_names = list(attr_values.keys())
-        found_attrs = ProductAttribute.search([('name', 'in', all_attr_names)]) if all_attr_names else ProductAttribute
-        attr_by_name = {a.name: a for a in found_attrs}
-
-        all_val_strings = set()
-        for vals in attr_values.values():
-            all_val_strings.update(vals)
-        found_vals = ProductAttributeValue.search([
-            ('name', 'in', list(all_val_strings)),
-            ('attribute_id', 'in', [a.id for a in found_attrs])
-        ]) if (found_attrs and all_val_strings) else ProductAttributeValue
-        val_exist_set = set((v.name, v.attribute_id.id) for v in found_vals)
-
-        attrs_existentes = {}
-        attrs_faltantes = {}
-        valores_existentes = {}
-        valores_faltantes = {}
-
-        for attr_name, values in attr_values.items():
-            if attr_name in attr_by_name:
-                attr = attr_by_name[attr_name]
-                attrs_existentes[attr_name] = attr
-                for v in values:
-                    if (v, attr.id) in val_exist_set:
-                        valores_existentes.setdefault(attr_name, set()).add(v)
-                    else:
-                        valores_faltantes.setdefault(attr_name, set()).add(v)
-            else:
-                attrs_faltantes[attr_name] = values
-
-        # Accesorios (product.product en lote)
-        cat_base = self.env.ref(CATEGORY_BASE_XMLID, raise_if_not_found=False)
-        child_cat_ids = []
-        if cat_base:
-            child_cats = self.env['product.category'].search([('id', 'child_of', cat_base.id)])
-            child_cat_ids = child_cats.ids
-
-        acc_domain = [('name', 'in', list(accesorios.keys()))]
-        if child_cat_ids:
-            acc_domain.append(('categ_id', 'in', child_cat_ids))
-
-        found_prods = ProductProduct.search(acc_domain) if accesorios else ProductProduct
-        accs_existentes = set(found_prods.mapped('name'))
-        accs_faltantes = set(accesorios.keys()) - accs_existentes
-
-        # Categorías de Calc_param (en lote)
-        cats_faltantes_param = set()
-        if cat_base and calc_params:
-            existing_cats = self.env['product.category'].search([
-                ('parent_id', '=', cat_base.id)
-            ])
-            existing_cat_names = set(existing_cats.mapped('name'))
-            for cp in calc_params:
-                xmlid = CALC_PARAM_CATEGORY_MAP.get(cp)
-                if xmlid:
-                    cat = self.env.ref(xmlid, raise_if_not_found=False)
-                    if not cat:
-                        cats_faltantes_param.add(cp)
-                elif cp not in existing_cat_names:
-                    cats_faltantes_param.add(cp)
-
-        # Configs existentes (por ext_id en lote)
-        ConfigRel = self.env['sembradora.config.rel']
-        found_configs = ConfigRel.search([('ext_id', 'in', list(configs.keys()))]) if configs else ConfigRel
-        configs_existentes = set(found_configs.mapped('ext_id'))
-        configs_nuevas = set(configs.keys()) - configs_existentes
-
-        # --- Generar HTML del resumen ---
-        html = self._build_analysis_html(
-            modelos, modelos_existentes, modelos_faltantes,
-            attr_values, attrs_existentes, attrs_faltantes,
-            valores_existentes, valores_faltantes,
-            accesorios, accs_existentes, accs_faltantes,
-            configs, configs_existentes, configs_nuevas,
-            rules_detected, calc_params, cats_faltantes_param,
-        )
-
+        files = self._read_files()
+        data, errors = self._parse(files)
         self.write({
             'state': 'analyzed',
-            'analysis_summary': html,
-            '_parsed_data': json.dumps(rows),
+            'has_errors': bool(errors),
+            'analysis_summary': self._build_analysis_html(data, errors),
+            'parsed_data': json.dumps(files),
         })
+        return self._reopen()
 
+    def action_back_to_upload(self):
+        self.write({'state': 'draft', 'has_errors': False, 'analysis_summary': False, 'parsed_data': False})
+        return self._reopen()
+
+    def _reopen(self):
         return {
             'type': 'ir.actions.act_window',
             'res_model': self._name,
@@ -369,636 +329,201 @@ class SembradoraImportWizard(models.TransientModel):
             'target': 'new',
         }
 
-    def _build_analysis_html(self, modelos, modelos_exist, modelos_falt,
-                              attr_values, attrs_exist, attrs_falt,
-                              valores_exist, valores_falt,
-                              accesorios, accs_exist, accs_falt,
-                              configs, configs_exist, configs_new,
-                              rules_detected, calc_params, cats_falt):
-        """Genera HTML del resumen del análisis."""
-        lines = ['<div style="font-family: sans-serif; font-size: 13px;">']
+    def _build_analysis_html(self, data, errors):
+        html = Markup('<div style="font-size: 13px;">')
+        if errors:
+            html += Markup('<h3 style="color: #c62828;">❌ %s errores: corríjalos y vuelva a analizar</h3><ul>') % len(errors)
+            for error in errors[:200]:
+                html += Markup('<li style="color: #c62828;">%s</li>') % error
+            if len(errors) > 200:
+                html += Markup('<li><i>… y %s más.</i></li>') % (len(errors) - 200)
+            html += Markup('</ul>')
 
-        # Configuraciones
-        lines.append(f'<h3>📋 Configuraciones: {len(configs)}</h3>')
-        lines.append('<ul>')
-        sorted_cids = sorted(configs.keys())
-        max_configs = 25
-        for cid in sorted_cids[:max_configs]:
-            status = '✅ existente' if cid in configs_exist else '🆕 nueva'
-            c = configs[cid]
-            attrs_str = ', '.join(f'{k}: {v}' for k, v in c['attrs'].items())
-            lines.append(f'<li><b>{cid}</b> — {c["modelo"]} ({attrs_str}) — ${c["precio"]:,.2f} — {status}</li>')
-        if len(sorted_cids) > max_configs:
-            lines.append(f'<li><i>... y {len(sorted_cids) - max_configs} configuraciones más.</i></li>')
-        lines.append('</ul>')
+        def existing(kind, model, keys, xmlid_parts):
+            found = sum(1 for k in keys if self._find(model, self._xmlid_name(kind, *xmlid_parts(k))))
+            return found, len(keys) - found
 
-        # Modelos
-        lines.append(f'<h3>🚜 Modelos de Máquina: {len(modelos)}</h3>')
-        if modelos_falt:
-            lines.append(f'<p style="color: #e65100;">⚠️ Faltantes (se crearán): {", ".join(sorted(modelos_falt))}</p>')
-        if modelos_exist:
-            lines.append(f'<p style="color: #2e7d32;">✅ Existentes: {", ".join(sorted(modelos_exist))}</p>')
+        configs = [c for c in data['configs'].values() if c['base']]
+        rows = [
+            ('📋 Configuraciones', *existing('cfg', 'sembradora.config.rel', configs,
+                                             lambda c: (c['modelo'], c['conf_id']))),
+            ('🚜 Modelos', *existing('modelo', 'product.template', list(data['models']), lambda m: (m,))),
+            ('🏷️ Atributos', *existing('attr', 'product.attribute',
+                                        [a['name'] for a in data['attributes'].values()], lambda n: (n,))),
+            ('🔧 Accesorios', *existing('acc', 'product.product', list(data['accessories']), lambda n: (n,))),
+            ('📏 Reglas', *existing('rule', 'sembradora.accessory.rule', list(data['rules']),
+                                     lambda r: (r[1], r[0]))),
+        ]
+        html += Markup('<table class="table table-sm w-auto"><tr><th></th><th>Existentes</th><th>Nuevos</th></tr>')
+        for label, found, new in rows:
+            html += Markup('<tr><td>%s</td><td>%s</td><td>%s</td></tr>') % (label, found, new)
+        html += Markup('</table>')
 
-        # Atributos
-        lines.append(f'<h3>🏷️ Atributos de Variante</h3>')
-        for attr_name, values in attr_values.items():
-            if attr_name in attrs_exist:
-                lines.append(f'<p>✅ <b>{attr_name}</b>: existente</p>')
-                falt = valores_falt.get(attr_name, set())
-                exist = valores_exist.get(attr_name, set())
-                if exist:
-                    lines.append(f'<ul><li>Valores existentes: {", ".join(sorted(exist))}</li></ul>')
-                if falt:
-                    lines.append(f'<ul><li style="color: #e65100;">Valores a crear: {", ".join(sorted(falt))}</li></ul>')
-            elif attr_name in attrs_falt:
-                lines.append(f'<p style="color: #e65100;">🆕 <b>{attr_name}</b>: a crear con valores: {", ".join(sorted(values))}</p>')
-
-        # Accesorios
-        lines.append(f'<h3>🔧 Accesorios: {len(accesorios)}</h3>')
-        if accs_falt:
-            lines.append('<p style="color: #e65100;">⚠️ A crear:</p><ul>')
-            sorted_accs = sorted(accs_falt)
-            max_accs = 25
-            for a in sorted_accs[:max_accs]:
-                cp = accesorios[a]['calc_param']
-                cp_str = f' (Calc: {cp})' if cp else ''
-                lines.append(f'<li>{a}{cp_str}</li>')
-            if len(sorted_accs) > max_accs:
-                lines.append(f'<li><i>... y {len(sorted_accs) - max_accs} accesorios más.</i></li>')
-            lines.append('</ul>')
-        if accs_exist:
-            lines.append(f'<p style="color: #2e7d32;">✅ Existentes: {len(accs_exist)} accesorios</p>')
-
-        # Categorías de Calc_param
-        if cats_falt:
-            lines.append(f'<h3>📂 Categorías a crear (nuevos Calc_param)</h3>')
-            lines.append('<ul>')
-            for cp in sorted(cats_falt):
-                lines.append(f'<li style="color: #e65100;">🆕 {cp} (subcategoría de Accesorio)</li>')
-            lines.append('</ul>')
-
-        # Reglas de exclusión/inclusión
-        if rules_detected:
-            lines.append(f'<h3>📏 Reglas de Exclusión/Inclusión: {len(rules_detected)}</h3>')
-            lines.append('<ul>')
-            sorted_rules = sorted(rules_detected.items())
-            max_rules = 25
-            found_rules = self.env['sembradora.accessory.rule'].search([])
-            existing_rule_keys = set((r.name, r.rule_type) for r in found_rules)
-            for (name, rtype), info in sorted_rules[:max_rules]:
-                tipo_label = '🚫 Exclusión' if rtype == 'exclusion' else '🔗 Inclusión'
-                trigger_str = ' (con trigger)' if info['is_trigger_seen'] else ''
-                status = '✅' if (name, rtype) in existing_rule_keys else '🆕'
-                lines.append(f'<li>{status} <b>{name}</b> — {tipo_label}{trigger_str}</li>')
-            if len(sorted_rules) > max_rules:
-                lines.append(f'<li><i>... y {len(sorted_rules) - max_rules} reglas más.</i></li>')
-            lines.append('</ul>')
-
-        lines.append('</div>')
-        return '\n'.join(lines)
+        lines = [line for c in configs for line in c['lines']]
+        choice_groups = {name for name, rtype in data['rules'] if rtype == 'choice'}
+        html += Markup('<p>⭐ Líneas de accesorio: <b>%s</b> (estándar: <b>%s</b>) · '
+                       'Grupos de opción única: <b>%s</b></p>') % (
+            len(lines), sum(1 for line in lines if line['is_standard']), len(choice_groups))
+        if data['qty_columns']:
+            html += Markup('<p>📐 Atributos de cantidad (Calc_param): %s</p>') % ', '.join(
+                data['attributes'][col]['name'] for col in sorted(data['qty_columns']))
+        return html + Markup('</div>')
 
     # =========================================================================
     #  PASO 2: IMPORTACIÓN
     # =========================================================================
 
     def action_import(self):
-        """Ejecuta la importación creando/actualizando todos los registros."""
+        """Crea/actualiza todo lo analizado. Re-valida: si hay errores no escribe nada."""
         self.ensure_one()
-        if self.state != 'analyzed':
+        if self.state != 'analyzed' or not self.parsed_data:
             raise UserError("Primero debe analizar el CSV.")
+        # El wizard solo es accesible al grupo Administrador del Configurador (ACL); los datos
+        # maestros que necesita (productos, atributos, categorías) se crean con sudo.
+        self = self.sudo()
+        data, errors = self._parse(json.loads(self.parsed_data))
+        if errors:
+            raise UserError("El CSV tiene errores; vuelva a analizarlo:\n" + "\n".join(errors[:50]))
 
-        rows = self._read_csv()
-        attribute_columns = self._get_attribute_columns(rows)
-
-        counters = {
-            'configs_created': 0,
-            'configs_updated': 0,
-            'acc_lines_created': 0,
-            'acc_lines_updated': 0,
-            'products_created': 0,
-            'attributes_created': 0,
-            'values_created': 0,
-            'categories_created': 0,
-            'rules_created': 0,
-        }
-
-        # 1. Asegurar atributos y valores existen
-        attr_map = self._ensure_attributes(rows, attribute_columns, counters)
-
-        # 2. Asegurar que los modelos (product.template) existen
-        template_map = self._ensure_templates(rows, attr_map, attribute_columns, counters)
-
-        # 3. Asegurar categorías de Calc_param
-        category_map = self._ensure_categories(rows, counters)
-
-        # 4. Asegurar productos de accesorio existen
-        acc_product_map = self._ensure_accessory_products(rows, category_map, counters)
-
-        # 5. Asegurar reglas de exclusión/inclusión existen
-        rule_map = self._ensure_rules(rows, counters)
-
-        # 6. Crear/actualizar configuraciones y líneas de accesorio
-        self._upsert_configs_and_lines(
-            rows, attribute_columns, attr_map, template_map,
-            acc_product_map, rule_map, counters
-        )
-
-        # Resumen final
-        summary = (
-            f"<div style='font-family: sans-serif;'>"
-            f"<h3>✅ Importación completada</h3>"
-            f"<ul>"
-            f"<li>Configuraciones creadas: <b>{counters['configs_created']}</b></li>"
-            f"<li>Configuraciones actualizadas: <b>{counters['configs_updated']}</b></li>"
-            f"<li>Líneas de accesorio creadas: <b>{counters['acc_lines_created']}</b></li>"
-            f"<li>Líneas de accesorio actualizadas: <b>{counters['acc_lines_updated']}</b></li>"
-            f"<li>Productos creados: <b>{counters['products_created']}</b></li>"
-            f"<li>Atributos creados: <b>{counters['attributes_created']}</b></li>"
-            f"<li>Valores de atributo creados: <b>{counters['values_created']}</b></li>"
-            f"<li>Categorías creadas: <b>{counters['categories_created']}</b></li>"
-            f"<li>Reglas creadas: <b>{counters['rules_created']}</b></li>"
-            f"</ul></div>"
-        )
+        counters = dict.fromkeys([
+            'configs_created', 'configs_updated', 'lines', 'standard_lines', 'models_created',
+            'accessories_created', 'attributes_created', 'values_created', 'categories_created',
+            'rules_created',
+        ], 0)
+        values = self._import_attributes(data, counters)
+        qty_categories = self._import_qty_categories(data, values, counters)
+        templates = self._import_models(data, values, counters)
+        accessories = self._import_accessories(data, qty_categories, counters)
+        rules = self._import_rules(data, counters)
+        self._import_configs(data, values, templates, accessories, rules, counters)
 
         self.write({
             'state': 'done',
-            'analysis_summary': summary,
+            'analysis_summary': Markup(
+                "<h3>✅ Importación completada</h3><ul>"
+                "<li>Configuraciones creadas / actualizadas: <b>%(configs_created)s</b> / <b>%(configs_updated)s</b></li>"
+                "<li>Líneas de accesorio: <b>%(lines)s</b> (estándar: <b>%(standard_lines)s</b>)</li>"
+                "<li>Modelos creados: <b>%(models_created)s</b> · Accesorios creados: <b>%(accessories_created)s</b></li>"
+                "<li>Atributos / valores creados: <b>%(attributes_created)s</b> / <b>%(values_created)s</b></li>"
+                "<li>Categorías de cantidad creadas: <b>%(categories_created)s</b> · Reglas creadas: <b>%(rules_created)s</b></li>"
+                "</ul>"
+            ) % counters,
         })
+        return self._reopen()
 
-        return {
-            'type': 'ir.actions.act_window',
-            'res_model': self._name,
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-        }
-
-    # =========================================================================
-    #  SUB-PASOS DE IMPORTACIÓN
-    # =========================================================================
-
-    def _ensure_attributes(self, rows, attribute_columns, counters):
-        """
-        Asegura que existan los product.attribute y product.attribute.value.
-        Retorna: {attr_name: {value_str: product.attribute.value record}}
-        """
-        ProductAttribute = self.env['product.attribute']
-        ProductAttributeValue = self.env['product.attribute.value']
-
-        # Recolectar todos los valores únicos por atributo
-        attr_values = {}
-        for row in rows:
-            for col in attribute_columns:
-                val = row.get(col, '').strip()
-                if val:
-                    attr_name = col.replace('_', ' ')
-                    attr_values.setdefault(attr_name, set()).add(val)
-
-        attr_map = {}  # {attr_name: {value_str: record}}
-
-        for idx, col in enumerate(attribute_columns, start=10):
-            attr_name = col.replace('_', ' ')
-            if attr_name not in attr_values:
+    def _import_attributes(self, data, counters):
+        """:return: {(columna, valor): product.attribute.value}"""
+        values = {}
+        for sequence, (col, attr_data) in enumerate(data['attributes'].items(), start=1):
+            if not attr_data['values']:
                 continue
-            values = attr_values[attr_name]
-            # Buscar o crear el atributo
-            attr = ProductAttribute.search([('name', '=', attr_name)], limit=1)
-            if not attr:
-                if self.create_missing_attributes:
-                    attr = ProductAttribute.create({
-                        'name': attr_name,
-                        'sequence': idx,
-                        'create_variant': 'dynamic',
+            attribute = self._find_or_create('product.attribute', self._xmlid_name('attr', attr_data['name']), {
+                'name': attr_data['name'], 'create_variant': 'dynamic',
+            }, counters, 'attributes_created')
+            attribute.sequence = sequence * 10
+            for value_name, qty in attr_data['values'].items():
+                value = self._find_or_create(
+                    'product.attribute.value', self._xmlid_name('val', attr_data['name'], value_name),
+                    {'name': value_name, 'attribute_id': attribute.id}, counters, 'values_created',
+                )
+                if col in data['qty_columns'] and value.cotizador_qty != qty:
+                    value.cotizador_qty = qty
+                values[col, value_name] = value
+        return values
+
+    def _import_qty_categories(self, data, values, counters):
+        """Una subcategoría de Accesorio por atributo de cantidad, vinculada a él. :return: {columna: categoría}"""
+        cat_base = self.env.ref('cotizador.cat_accesorio_base')
+        categories = {}
+        for col in data['qty_columns']:
+            attribute = next(v.attribute_id for (c, _name), v in values.items() if c == col)
+            categ = self._find_or_create('product.category', self._xmlid_name('qty', attribute.name), {
+                'name': attribute.name, 'parent_id': cat_base.id,
+            }, counters, 'categories_created')
+            if categ.cotizador_qty_attribute_id != attribute:
+                categ.cotizador_qty_attribute_id = attribute
+            categories[col] = categ
+        return categories
+
+    def _import_models(self, data, values, counters):
+        """Máquinas (categoría Máquina) con sus líneas de atributo. :return: {modelo: product.template}"""
+        cat_maquina = self.env.ref('cotizador.cat_maquina')
+        attr_sequence = {col: i * 10 for i, col in enumerate(data['attributes'], start=1)}
+        templates = {}
+        for modelo, model_values in data['models'].items():
+            tmpl = self._find_or_create('product.template', self._xmlid_name('modelo', modelo), {
+                'name': modelo, 'categ_id': cat_maquina.id, 'type': 'consu',
+            }, counters, 'models_created')
+            for col, value_names in model_values.items():
+                value_records = self.env['product.attribute.value'].union(*(values[col, v] for v in value_names))
+                ptal = tmpl.attribute_line_ids.filtered(lambda l: l.attribute_id == value_records.attribute_id)
+                if ptal:
+                    ptal.write({'sequence': attr_sequence[col], 'value_ids': [Command.link(v.id) for v in value_records]})
+                else:
+                    self.env['product.template.attribute.line'].create({
+                        'product_tmpl_id': tmpl.id, 'attribute_id': value_records.attribute_id.id,
+                        'sequence': attr_sequence[col], 'value_ids': [Command.set(value_records.ids)],
                     })
-                    counters['attributes_created'] += 1
-                    _logger.info("Atributo creado: %s (secuencia: %d, variantes: dynamic)", attr_name, idx)
-                else:
-                    raise UserError(
-                        f"El atributo '{attr_name}' no existe y la opción de crear faltantes está desactivada."
-                    )
-            else:
-                write_vals = {'sequence': idx}
-                # Forzar modo dinámico si está en 'always' para evitar explosión combinatoria
-                if attr.create_variant == 'always' and not attr.number_related_products:
-                    write_vals['create_variant'] = 'dynamic'
-                attr.write(write_vals)
+            templates[modelo] = tmpl
+        return templates
 
-            attr_map[attr_name] = {}
-            for val_str in values:
-                val = ProductAttributeValue.search([
-                    ('name', '=', val_str),
-                    ('attribute_id', '=', attr.id)
-                ], limit=1)
-                if not val:
-                    if self.create_missing_attributes:
-                        val = ProductAttributeValue.create({
-                            'name': val_str,
-                            'attribute_id': attr.id,
-                        })
-                        counters['values_created'] += 1
-                        _logger.info("Valor de atributo creado: %s → %s", attr_name, val_str)
-                    else:
-                        raise UserError(
-                            f"El valor '{val_str}' del atributo '{attr_name}' no existe "
-                            f"y la opción de crear faltantes está desactivada."
-                        )
-                attr_map[attr_name][val_str] = val
+    def _import_accessories(self, data, qty_categories, counters):
+        """:return: {nombre: product.product}"""
+        cat_base = self.env.ref('cotizador.cat_accesorio_base')
+        accessories = {}
+        for nombre, calc_param in data['accessories'].items():
+            categ = qty_categories[calc_param] if calc_param else cat_base
+            product = self._find_or_create('product.product', self._xmlid_name('acc', nombre), {
+                'name': nombre, 'categ_id': categ.id, 'type': 'consu',
+            }, counters, 'accessories_created')
+            if product.categ_id != categ:
+                product.categ_id = categ
+            accessories[nombre] = product
+        return accessories
 
-        return attr_map
-
-    def _ensure_templates(self, rows, attr_map, attribute_columns, counters):
-        """
-        Asegura que existan los product.template (Máquina) y que tengan
-        las attribute lines asignadas.
-        Retorna: {modelo_name: product.template record}
-        """
-        ProductTemplate = self.env['product.template']
-
-        # Buscar o crear categoría "Maquina"
-        cat_maquina = self.env['product.category'].search([('name', '=', 'Maquina')], limit=1)
-        if not cat_maquina:
-            if self.create_missing_products:
-                cat_maquina = self.env['product.category'].create({'name': 'Maquina'})
-                _logger.info("Categoría 'Maquina' creada.")
-            else:
-                raise UserError("La categoría 'Maquina' no existe.")
-
-        modelos = set()
-        for row in rows:
-            m = row.get('Modelo', '').strip()
-            if m:
-                modelos.add(m)
-
-        template_map = {}
-        for modelo_name in modelos:
-            tmpl = ProductTemplate.search([
-                ('name', '=', modelo_name),
-                ('categ_id', '=', cat_maquina.id)
-            ], limit=1)
-            if not tmpl:
-                if self.create_missing_products:
-                    tmpl = ProductTemplate.create({
-                        'name': modelo_name,
-                        'categ_id': cat_maquina.id,
-                        'type': 'consu',
-                    })
-                    counters['products_created'] += 1
-                    _logger.info("Template de máquina creado: %s", modelo_name)
-                else:
-                    raise UserError(
-                        f"El producto template '{modelo_name}' con categoría 'Maquina' no existe "
-                        f"y la opción de crear faltantes está desactivada."
-                    )
-
-            # Asegurar que el template tenga las attribute lines necesarias
-            self._ensure_template_attribute_lines(tmpl, attr_map, rows, attribute_columns, modelo_name)
-            template_map[modelo_name] = tmpl
-
-        return template_map
-
-    def _ensure_template_attribute_lines(self, tmpl, attr_map, rows, attribute_columns, modelo_name):
-        """
-        Asegura que el product.template tenga product.template.attribute.line
-        para cada atributo, con los valores correspondientes y su secuencia.
-        """
-        PTAL = self.env['product.template.attribute.line']
-
-        # Recoger todos los valores usados por este modelo en el CSV
-        model_attr_values = {}  # {attr_name: set(value_str)}
-        for row in rows:
-            if row.get('Modelo', '').strip() != modelo_name:
-                continue
-            for col in attribute_columns:
-                val = row.get(col, '').strip()
-                if val:
-                    attr_name = col.replace('_', ' ')
-                    model_attr_values.setdefault(attr_name, set()).add(val)
-
-        for idx, col in enumerate(attribute_columns, start=10):
-            attr_name = col.replace('_', ' ')
-            if attr_name not in model_attr_values:
-                continue
-            value_strs = model_attr_values[attr_name]
-            if attr_name not in attr_map:
-                continue
-            attr_record = list(attr_map[attr_name].values())[0].attribute_id if attr_map[attr_name] else None
-            if not attr_record:
-                continue
-
-            value_records = [attr_map[attr_name][vs] for vs in value_strs if vs in attr_map[attr_name]]
-            if not value_records:
-                continue
-
-            # Buscar si ya existe la attribute line
-            existing_ptal = PTAL.search([
-                ('product_tmpl_id', '=', tmpl.id),
-                ('attribute_id', '=', attr_record.id),
-            ], limit=1)
-
-            value_ids = [v.id for v in value_records]
-
-            if existing_ptal:
-                current_ids = existing_ptal.value_ids.ids
-                new_ids = list(set(current_ids + value_ids))
-                write_vals = {'sequence': idx}
-                if set(new_ids) != set(current_ids):
-                    write_vals['value_ids'] = [(6, 0, new_ids)]
-                existing_ptal.write(write_vals)
-                _logger.info("Secuencia y valores actualizados en attribute line de %s / %s (secuencia: %d)", tmpl.name, attr_name, idx)
-            else:
-                PTAL.create({
-                    'product_tmpl_id': tmpl.id,
-                    'attribute_id': attr_record.id,
-                    'sequence': idx,
-                    'value_ids': [(6, 0, value_ids)],
-                })
-                _logger.info("Attribute line creada para %s / %s con secuencia %d", tmpl.name, attr_name, idx)
-
-    def _ensure_categories(self, rows, counters):
-        """
-        Asegura que existan las subcategorías de Accesorio para cada Calc_param.
-        Retorna: {calc_param_str: product.category record}
-        """
-        cat_base = self.env.ref(CATEGORY_BASE_XMLID, raise_if_not_found=False)
-        if not cat_base:
-            raise UserError("La categoría base 'Accesorio' (cat_accesorio_base) no existe. "
-                            "Instale los datos de categorías primero.")
-
-        calc_params = set()
-        for row in rows:
-            cp = row.get('Calc_param', '').strip()
-            if cp:
-                calc_params.add(cp)
-
-        category_map = {}
-
-        for cp in calc_params:
-            xmlid = CALC_PARAM_CATEGORY_MAP.get(cp)
-            if xmlid:
-                cat = self.env.ref(xmlid, raise_if_not_found=False)
-                if cat:
-                    category_map[cp] = cat
-                    continue
-
-            # Buscar por nombre como hija de Accesorio
-            cat = self.env['product.category'].search([
-                ('name', '=', cp),
-                ('parent_id', '=', cat_base.id)
-            ], limit=1)
-
-            if not cat:
-                if self.create_missing_categories:
-                    cat = self.env['product.category'].create({
-                        'name': cp,
-                        'parent_id': cat_base.id,
-                    })
-                    counters['categories_created'] += 1
-                    _logger.info("Categoría de accesorio creada: %s", cp)
-                else:
-                    raise UserError(
-                        f"La categoría para Calc_param '{cp}' no existe y la opción de crear está desactivada."
-                    )
-            category_map[cp] = cat
-
-        # Agregar el fallback (Por Máquina) para accesorios sin Calc_param
-        #cat_fallback = self.env.ref(CATEGORY_FALLBACK_XMLID, raise_if_not_found=False)
-        #if cat_fallback:
-        #    category_map[''] = cat_fallback
-        #else:
-        category_map[''] = cat_base
-
-        return category_map
-
-    def _ensure_accessory_products(self, rows, category_map, counters):
-        """
-        Asegura que existan los product.product para accesorios.
-        Retorna: {nombre_item: product.product record}
-        """
-        ProductProduct = self.env['product.product']
-        cat_base = self.env.ref(CATEGORY_BASE_XMLID, raise_if_not_found=False)
-
-        # Recoger accesorios únicos con su calc_param
-        accesorios = {}
-        for row in rows:
-            tipo = row.get('Tipo_Item', '').strip().upper()
-            if tipo != 'OPCIONAL':
-                continue
-            nombre = row.get('Nombre_Item', '').strip()
-            cp = row.get('Calc_param', '').strip()
-            precio_str = row.get('Precio_Item', '')
-
-            if nombre and nombre not in accesorios:
-                accesorios[nombre] = {
-                    'calc_param': cp,
-                    'precio': self._parse_price(precio_str)
-                }
-
-        # IDs de todas las categorías hijas de Accesorio (para búsqueda)
-        child_cat_ids = []
-        if cat_base:
-            child_cats = self.env['product.category'].search([
-                ('id', 'child_of', cat_base.id)
-            ])
-            child_cat_ids = child_cats.ids
-
-        acc_map = {}
-
-        for nombre, info in accesorios.items():
-            cp = info['calc_param']
-            precio = info['precio']
-            
-            domain = [('name', '=', nombre)]
-            if child_cat_ids:
-                domain.append(('categ_id', 'in', child_cat_ids))
-
-            prod = ProductProduct.search(domain, limit=1)
-            if not prod:
-                if self.create_missing_products:
-
-                    categ = category_map.get(cp, category_map.get(''))
-                    create_vals = {
-                        'name': nombre,
-                        'categ_id': categ.id if categ else (cat_base.id if cat_base else False),
-                        'type': 'consu',
-                    }
-
-                    if cp:
-                        create_vals['list_price'] = precio
-
-                    prod = ProductProduct.create(create_vals)
-                    counters['products_created'] += 1
-                    _logger.info("Producto accesorio creado: %s (categoría: %s)", nombre, categ.name if categ else 'N/A')
-                else:
-                    raise UserError(
-                        f"El producto accesorio '{nombre}' no existe y la opción de crear está desactivada."
-                    )
-            else:
-                # Si el producto ya existe y se especificó Calc_param, actualizar la categoría si cambió
-                if cp:
-                    categ = category_map.get(cp, category_map.get(''))
-                    if categ and prod.categ_id != categ:
-                        prod.write({'categ_id': categ.id})
-                        _logger.info("Categoría de accesorio '%s' actualizada a: %s", nombre, categ.name)
-            acc_map[nombre] = prod
-
-        return acc_map
-
-    def _ensure_rules(self, rows, counters):
-        """
-        Asegura que existan los sembradora.accessory.rule para cada regla
-        mencionada en el CSV.
-        Retorna: {(name, rule_type): sembradora.accessory.rule record}
-        """
+    def _import_rules(self, data, counters):
+        """:return: {(nombre, tipo): sembradora.accessory.rule}"""
         Rule = self.env['sembradora.accessory.rule']
+        rules = {}
+        for name, rtype in data['rules']:
+            xmlid_name = self._xmlid_name('rule', rtype, name)
+            if not self._find(Rule._name, xmlid_name) and Rule.search_count([('name', '=', name), ('rule_type', '=', rtype)]):
+                # La restricción unique(name, rule_type) impediría crearla: avisar claramente
+                raise UserError(f"Ya existe una regla '{name}' ({rtype}) creada fuera del importador. "
+                                f"Renómbrela o elimínela antes de importar.")
+            rules[name, rtype] = self._find_or_create(
+                Rule._name, xmlid_name, {'name': name, 'rule_type': rtype}, counters, 'rules_created',
+            )
+        return rules
 
-        # Recoger todas las reglas únicas del CSV
-        rules_needed = {}  # {(name, rule_type): bool}
-        for row in rows:
-            tipo = row.get('Tipo_Item', '').strip().upper()
-            if tipo != 'OPCIONAL':
-                continue
-            rules_str = row.get('Reglas', '').strip() or row.get('Grupo de exclusion', '').strip()
-            parsed = self._parse_rules_str(rules_str)
-            for pr in parsed:
-                key = (pr['name'], pr['rule_type'])
-                rules_needed[key] = True
-
-        rule_map = {}
-        for (name, rtype) in rules_needed:
-            rule = Rule.search([('name', '=', name), ('rule_type', '=', rtype)], limit=1)
-            if not rule:
-                rule = Rule.create({
-                    'name': name,
-                    'rule_type': rtype,
-                })
-                counters['rules_created'] += 1
-                _logger.info("Regla creada: %s (%s)", name, rtype)
-            rule_map[(name, rtype)] = rule
-
-        return rule_map
-
-    def _upsert_configs_and_lines(self, rows, attribute_columns, attr_map,
-                                   template_map, acc_product_map, rule_map, counters):
-        """Crea o actualiza sembradora.config.rel y sus accessory lines."""
-        ConfigRel = self.env['sembradora.config.rel']
-        AccLine = self.env['sembradora.config.accessory.line']
-
-        # Agrupar filas por ID_Configuracion prefijado por modelo
-        grouped = {}
-        for row in rows:
-            conf_id_raw = row.get('ID_Configuracion', '').strip()
-            modelo_name = row.get('Modelo', '').strip()
-            ext_id = self._make_ext_id(conf_id_raw, modelo_name)
-            if ext_id:
-                grouped.setdefault(ext_id, []).append(row)
-
-        for ext_id, conf_rows in grouped.items():
-            # Tomar datos de la primera fila BASE
-            base_row = None
-            for r in conf_rows:
-                if r.get('Tipo_Item', '').strip().upper() == 'BASE':
-                    base_row = r
-                    break
-            if not base_row:
-                _logger.warning("Configuración %s sin fila BASE, usando primera fila.", ext_id)
-                base_row = conf_rows[0]
-
-            modelo_name = base_row.get('Modelo', '').strip()
-            tmpl = template_map.get(modelo_name)
-            if not tmpl:
-                _logger.error("Template no encontrado para modelo '%s' en config %s", modelo_name, ext_id)
-                continue
-
-            # Construir los value_ids (product.attribute.value) de la combinación
-            value_ids = []
-            for col in attribute_columns:
-                val_str = base_row.get(col, '').strip()
-                if val_str:
-                    attr_name = col.replace('_', ' ')
-                    val_record = attr_map.get(attr_name, {}).get(val_str)
-                    if val_record:
-                        value_ids.append(val_record.id)
-
-            precio = self._parse_price(base_row.get('Precio_Base', ''))
-            descripcion = base_row.get('Descripcion', '').strip()
-
-            # Buscar config existente por ext_id
-            config = ConfigRel.search([('ext_id', '=', ext_id)], limit=1)
-            config_vals = {
-                'modelo_id': tmpl.id,
-                'value_ids': [(6, 0, value_ids)],
-                'price': precio,
+    def _import_configs(self, data, values, templates, accessories, rules, counters):
+        """Crea/actualiza configuraciones y reemplaza sus líneas de accesorio en un solo write."""
+        Config = self.env['sembradora.config.rel']
+        for (modelo, conf_id), config_data in data['configs'].items():
+            xmlid_name = self._xmlid_name('cfg', modelo, conf_id)
+            vals = {
+                'modelo_id': templates[modelo].id,
+                'value_ids': [Command.set([values[col, v].id for col, v in config_data['values'].items()])],
+                'price': config_data['price'],
             }
-            if descripcion:
-                config_vals['description'] = descripcion
-
+            if config_data['description']:
+                vals['description'] = config_data['description']
+            config = self._find(Config._name, xmlid_name)
             if config:
-                config.write(config_vals)
+                config.write(vals)
                 counters['configs_updated'] += 1
-                _logger.info("Config actualizada: %s", ext_id)
             else:
-                config_vals['ext_id'] = ext_id
-                config = ConfigRel.create(config_vals)
-                counters['configs_created'] += 1
-                _logger.info("Config creada: %s", ext_id)
-
-            # --- Líneas de accesorio ---
-            existing_acc_lines = AccLine.search([('config_id', '=', config.id)])
-            existing_by_product = {line.product_id.id: line for line in existing_acc_lines}
-            processed_product_ids = set()
-
-            for r in conf_rows:
-                if r.get('Tipo_Item', '').strip().upper() != 'OPCIONAL':
-                    continue
-                nombre_item = r.get('Nombre_Item', '').strip()
-                if not nombre_item:
-                    continue
-
-                acc_prod = acc_product_map.get(nombre_item)
-                if not acc_prod:
-                    _logger.warning("Accesorio '%s' no encontrado en mapa, saltando.", nombre_item)
-                    continue
-
-                precio_item = self._parse_price(r.get('Precio_Item', ''))
-                # Parsear reglas de esta fila
-                rules_str = r.get('Reglas', '').strip() or r.get('Grupo de exclusion', '').strip()
-                parsed_rules = self._parse_rules_str(rules_str)
-                
-                rule_ids = []
-                is_trigger = False
-                for pr in parsed_rules:
-                    key = (pr['name'], pr['rule_type'])
-                    rule = rule_map.get(key)
-                    if rule:
-                        rule_ids.append(rule.id)
-                        if pr.get('is_trigger'):
-                            is_trigger = True
-
-                if acc_prod.id in existing_by_product:
-                    # Actualizar línea existente
-                    acc_line = existing_by_product[acc_prod.id]
-                    acc_line.write({
-                        'price': precio_item,
-                        'rule_ids': [(6, 0, rule_ids)],
-                        'is_trigger': is_trigger,
-                    })
-                    counters['acc_lines_updated'] += 1
-                else:
-                    # Crear nueva línea
-                    acc_line = AccLine.create({
-                        'config_id': config.id,
-                        'product_id': acc_prod.id,
-                        'price': precio_item,
-                        'rule_ids': [(6, 0, rule_ids)],
-                        'is_trigger': is_trigger,
-                    })
-                    counters['acc_lines_created'] += 1
-
-                processed_product_ids.add(acc_prod.id)
-
-            # Líneas de accesorio que estaban antes y ya no están en el CSV → se eliminan
-            for prod_id, line in existing_by_product.items():
-                if prod_id not in processed_product_ids:
-                    _logger.info("Eliminando línea de accesorio obsoleta: %s en config %s",
-                                 line.product_id.name, conf_id)
-                    line.unlink()
+                config = self._find_or_create(Config._name, xmlid_name, {**vals, 'ext_id': conf_id},
+                                              counters, 'configs_created')
+            # Un solo write: las restricciones de reglas se validan sobre el estado final
+            config.write({'accessory_line_ids': [Command.delete(line.id) for line in config.accessory_line_ids] + [
+                Command.create({
+                    'product_id': accessories[line['name']].id,
+                    'price': line['price'],
+                    'is_standard': line['is_standard'],
+                    'is_trigger': line['is_trigger'],
+                    'rule_ids': [Command.set([rules[r].id for r in line['rules']])],
+                }) for line in config_data['lines']
+            ]})
+            counters['lines'] += len(config_data['lines'])
+            counters['standard_lines'] += sum(1 for line in config_data['lines'] if line['is_standard'])

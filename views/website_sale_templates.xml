@@ -13,6 +13,14 @@
 
         <!-- Insertar el Asistente Secuencial de Pasos para Máquinas -->
         <xpath expr="//ul[contains(@t-attf-class, 'o_wsale_product_page_variants')][1]" position="before">
+            <!-- Motivo de rechazo de una solicitud de cotización (ver controllers/main.py) -->
+            <t t-set="quote_error" t-value="request.params.get('quote_error')"/>
+            <div t-if="quote_error" class="alert alert-warning my-3" role="alert">
+                <i class="fa fa-exclamation-triangle me-1" title="Atención"/>
+                <t t-if="quote_error == 'captcha'">No pudimos validar que la solicitud la envía una persona. Recargue la página e intente nuevamente.</t>
+                <t t-elif="quote_error == 'rate_limit'">Recibimos varias solicitudes en poco tiempo. Por favor, intente nuevamente más tarde o comuníquese con nosotros.</t>
+                <t t-else="">Complete su nombre y un email o teléfono de contacto para solicitar la cotización.</t>
+            </div>
             <t t-if="product.is_maquina">
                 <div id="cotizador_sequential_wizard" class="cotizador-wizard-wrapper my-3">
                     <!-- Encabezado con Título y Barra de Progreso Moderna -->
@@ -112,11 +120,12 @@
             <t t-if="ecommerce_mode == 'quote_only' or product.is_maquina">
                 <div class="modal fade" id="modal_solicitar_cotizacion" tabindex="-1" aria-labelledby="modalSolicitarCotizacionLabel" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg my-2" style="max-height: calc(100vh - 2rem);">
-                        <form action="/cotizador/solicitar_cotizacion" method="POST" class="modal-content shadow-lg border-0 rounded-4 overflow-hidden d-flex flex-column" style="max-height: calc(100vh - 2rem);">
+                        <form action="/cotizador/solicitar_cotizacion" method="POST" data-captcha="cotizador_quote" data-cotizador-quote-form="1" class="modal-content shadow-lg border-0 rounded-4 overflow-hidden d-flex flex-column" style="max-height: calc(100vh - 2rem);">
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                             <input type="hidden" name="product_template_id" t-att-value="product.id"/>
                             <input type="hidden" class="o_not_editable product_id" name="product_id" t-att-value="product_variant.id if product_variant else ''"/>
                             <input type="hidden" name="config_id" id="modal_input_config_id" value=""/>
+                            <input type="hidden" name="cotizador_form_token" value=""/>
                             <!-- Honeypot anti-bot oculto para seguridad -->
                             <input type="text" name="website_quick_check" style="display:none !important;" tabindex="-1" autocomplete="off" aria-hidden="true"/>
 
@@ -255,5 +264,28 @@
                 </div>
             </t>
         </xpath>
+    </template>
+
+    <!-- ============================================================== -->
+    <!-- Confirmación para visitantes anónimos (sin enlace a la cotización) -->
+    <!-- ============================================================== -->
+    <template id="quote_request_received" name="Solicitud de Cotización Recibida">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure">
+                <div class="container py-5" style="max-width: 720px;">
+                    <div class="text-center">
+                        <i class="fa fa-check-circle fa-4x text-success mb-3" title="Recibida"/>
+                        <h1 class="h3 fw-bold">¡Solicitud de cotización recibida!</h1>
+                        <p class="lead text-muted mt-3">
+                            Un asesor comercial revisará su configuración y se comunicará con usted
+                            a la brevedad con la propuesta técnica y comercial.
+                        </p>
+                        <a href="/shop" class="btn btn-danger mt-3">
+                            <i class="fa fa-shopping-cart me-1"/> Volver a la Tienda
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </t>
     </template>
 </odoo>

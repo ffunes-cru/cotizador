@@ -24,7 +24,7 @@ class EngineeringCodeWizard(models.TransientModel):
         'product.template',
         string='Modelo de Máquina',
         required=True,
-        domain=[('categ_id.name', '=', 'Maquina')],
+        domain=[('is_maquina', '=', True)],
         help='Seleccione el modelo de máquina a sincronizar con Teamcenter.'
     )
 

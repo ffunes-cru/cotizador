@@ -44,17 +44,17 @@ class PlanPagoTemplateLine(models.Model):
 
     # === Campos Plan Canje Cereal ===
     opcion = fields.Char(string='Opción')
-    entrega_canje = fields.Char(string='Entrega')
+    entrega_canje = fields.Char(string='Entrega (Canje)')
     condicion = fields.Char(string='Condición')
 
     # === Campos Plan Cheques ===
-    plan_cheques = fields.Char(string='Plan')
+    plan_cheques = fields.Char(string='Plan (Cheques)')
     promedio_dias = fields.Integer(string='Promedio de Días')
     cheques_desc = fields.Char(string='Cheques')
 
     # === Campos Plan Documentos ===
-    plan_documentos = fields.Char(string='Plan')
-    entrega_pct = fields.Char(string='Entrega')
+    plan_documentos = fields.Char(string='Plan (Documentos)')
+    entrega_pct = fields.Char(string='Entrega (%)')
     saldo = fields.Char(string='Saldo')
 
     # === Campos Plan Crédito Bancario ===
@@ -131,22 +131,9 @@ class PlanPagoTemplateLine(models.Model):
         if order.order_line.filtered('is_plan_pago'):
             raise ValidationError("Ya existe un Plan de pago seleccionado. Elimine el existente antes de añadir uno nuevo.")
         
-        payplan = self.env['product.product'].search([
-            ('name', '=', tipo_legible),
-        ],limit=1)
+        payplan = self.env.ref(f'cotizador.product_plan_{self.tipo}')
+        payprice = order.amount_total * (self.descuento / 100)
 
-        payprice = ( order.amount_total * ( self.descuento / 100 ) )
-
-        if payplan:
-            payplan.write({'list_price': payprice})
-            #_logger.info("Plan de pago actualizada exitosamente con ID %s y precio %s", payplan.id, payplan.list_price)
-        else:
-            payplan = self.env['product.product'].create({
-                'name': tipo_legible,
-                'list_price': payprice
-            })
-            #_logger.info("Plan de pago creada exitosamente con ID %s y precio %s", payplan.id, payplan.list_price)
-        
         max_sequence = max(order.order_line.mapped('sequence') or [0])
 
         self.env['sale.order.line'].create({
@@ -170,80 +157,6 @@ class PlanPagoTemplateLine(models.Model):
 
 
         return {'type': 'ir.actions.act_window_close'}
-
-
-# class PlanPago(models.Model):
-#     """Plan de pago vinculado a una cotización específica.
-#     Solo se guarda un registro (el seleccionado)."""
-#     _name = 'cotizador.plan.pago'
-#     _description = 'Plan de Pago de Cotización'
-#     _order = 'tipo, sequence, id'
-
-#     sale_order_id = fields.Many2one(
-#         'sale.order',
-#         string='Cotización',
-#         required=True,
-#         ondelete='cascade')
-
-#     template_line_id = fields.Many2one(
-#         'cotizador.plan.pago.template.line',
-#         string='Línea de Plantilla Origen',
-#         readonly=True)
-
-#     sequence = fields.Integer(string='Secuencia', default=10)
-#     tipo = fields.Selection(TIPO_PLAN_SELECTION, string='Tipo de Plan', required=True)
-#     selected = fields.Boolean(string='Seleccionado', default=True)
-
-#     # === Campos Plan Canje Cereal ===
-#     opcion = fields.Char(string='Opción', readonly=True)
-#     entrega_canje = fields.Char(string='Entrega', readonly=True)
-#     condicion = fields.Char(string='Condición', readonly=True)
-
-#     # === Campos Plan Cheques ===
-#     plan_cheques = fields.Char(string='Plan', readonly=True)
-#     promedio_dias = fields.Integer(string='Promedio de Días', readonly=True)
-#     cheques_desc = fields.Char(string='Cheques', readonly=True)
-
-#     # === Campos Plan Documentos ===
-#     plan_documentos = fields.Char(string='Plan', readonly=True)
-#     entrega_pct = fields.Char(string='Entrega', readonly=True)
-#     saldo = fields.Char(string='Saldo', readonly=True)
-
-#     # === Campos Plan Crédito Bancario ===
-#     banco_linea = fields.Char(string='Banco - Moneda - Línea', readonly=True)
-#     plazo_tasa = fields.Char(string='Plazo - Tasa', readonly=True)
-#     financiacion = fields.Char(string='Financiación', readonly=True)
-
-#     # === Campos dinámicos ===
-#     descuento = fields.Float(string='Descuento o Recargo (%)', readonly=True)
-#     precio_base = fields.Float(string='Precio Base', compute='_compute_precio_base', store=True)
-#     total = fields.Float(string='Total', compute='_compute_total', store=True)
-
-#     name = fields.Char(string='Descripción', compute='_compute_name')
-
-#     @api.depends('sale_order_id.amount_untaxed')
-#     def _compute_precio_base(self):
-#         for rec in self:
-#             rec.precio_base = rec.sale_order_id.amount_untaxed if rec.sale_order_id else 0
-
-#     @api.depends('precio_base', 'descuento')
-#     def _compute_total(self):
-#         for rec in self:
-#             rec.total = rec.precio_base * (1 + rec.descuento / 100)
-
-#     @api.depends('tipo', 'opcion', 'plan_cheques', 'plan_documentos', 'banco_linea')
-#     def _compute_name(self):
-#         for rec in self:
-#             if rec.tipo == 'canje_cereal':
-#                 rec.name = f"Canje Cereal - Opción {rec.opcion or ''}"
-#             elif rec.tipo == 'cheques':
-#                 rec.name = f"Cheques - Plan {rec.plan_cheques or ''}"
-#             elif rec.tipo == 'documentos':
-#                 rec.name = f"Documentos - {rec.plan_documentos or ''}"
-#             elif rec.tipo == 'credito_bancario':
-#                 rec.name = f"Crédito - {rec.banco_linea or ''}"
-#             else:
-#                 rec.name = "Plan de Pago"
 
 
 class PlanPagoWizard(models.TransientModel):

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Producto de servicio de cada tipo de plan de pago (xmlid = product_plan_<tipo>).
+         El importe del plan se fija en la línea de la cotización, nunca en el producto. -->
+    <data noupdate="1">
+        <record id="product_plan_canje_cereal" model="product.product">
+            <field name="name">Plan Canje Cereal</field>
+            <field name="type">service</field>
+            <field name="list_price">0</field>
+            <field name="taxes_id" eval="[(5, 0, 0)]"/>
+        </record>
+        <record id="product_plan_cheques" model="product.product">
+            <field name="name">Plan Cheques</field>
+            <field name="type">service</field>
+            <field name="list_price">0</field>
+            <field name="taxes_id" eval="[(5, 0, 0)]"/>
+        </record>
+        <record id="product_plan_documentos" model="product.product">
+            <field name="name">Plan Documentos</field>
+            <field name="type">service</field>
+            <field name="list_price">0</field>
+            <field name="taxes_id" eval="[(5, 0, 0)]"/>
+        </record>
+        <record id="product_plan_credito_bancario" model="product.product">
+            <field name="name">Plan Crédito Bancario</field>
+            <field name="type">service</field>
+            <field name="list_price">0</field>
+            <field name="taxes_id" eval="[(5, 0, 0)]"/>
+        </record>
+    </data>
+</odoo>

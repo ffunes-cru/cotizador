@@ -12,6 +12,9 @@
                 <field name="show_incompatible_alternatives"
                        help="Si está activo, se mostraran las alternativas incompatibles en el wizard de configuración."/>
             </xpath>
+            <xpath expr="//field[@name='value_ids']/list/field[@name='name']" position="after">
+                <field name="cotizador_qty" optional="show"/>
+            </xpath>
         </field>
     </record>
 </odoo>

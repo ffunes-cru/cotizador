@@ -1,10 +1,8 @@
 from . import product_template_inherit
+from . import product_category_inherit
 from . import sembradora_config
 from . import sembradora_accessory_rule
 from . import sembradora_config_acc_line
-from . import sembradora_wizard
-from . import sembradora_wizard_line
-from . import sembradora_wizard_acc_line
 from . import bcra_service
 from . import bcra_wizard
 from . import sale_order_inherit
@@ -20,3 +18,5 @@ from . import studio_service
 from . import equipo_usado_wizard
 from . import descuento_wizard
 from . import res_users_inherit
+from . import res_company
+
