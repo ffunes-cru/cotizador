@@ -44,6 +44,10 @@ o `tests/test_public_quote.py`):
   recalcula solo y tiene su renglón; la hoja de planes del PDF usa el mismo cálculo.
 - *Actualizar precios* ponía en 0 descuentos, usados y planes; cambiar la cantidad de un accesorio lo
   llevaba al precio de venta del producto. Ahora la línea guarda su precio de matriz.
+- Importador: un atributo borrado dejaba identificadores de sus valores sin registro y la importación
+  siguiente fallaba con "duplicate key … ir_model_data_module_name_uniq_index"; re-importar sobre
+  configuraciones con accesorios compartidos (versión anterior) fallaba con "pertenece al modelo
+  'ninguno'".
 - Variantes: se creaban al cotizar (atributos dinámicos), y una plantilla de Teamcenter podía mezclar ids
   de variantes y de configuraciones. Ahora hay una variante por configuración, creada con la matriz, y el
   `ID_Odoo` se confirma con los valores de atributo.

@@ -132,3 +132,38 @@ class TestImporter(CotizadorCase):
         wizard = self._wizard(MATRIX_CSV)
         with self.assertRaisesRegex(UserError, 'creada fuera del importador'):
             wizard.action_import()
+
+    def test_orphan_identifier_is_reused(self):
+        """Un atributo borrado deja los xmlids de sus valores sin registro: se reutilizan."""
+        self._import(MATRIX_CSV)
+        distancia = self._imported('attr_distancia')
+        self.env['sembradora.config.rel'].search([]).unlink()
+        self._imported('modelo_pionera').unlink()
+        distancia.unlink()  # sus valores se borran en cascada en la base, sin borrar sus xmlids
+        orphan = self.env['ir.model.data'].search([('module', '=', 'cotizador_import'), ('name', '=', 'val_distancia_52_cm')])
+        self.assertTrue(orphan)
+        self.assertFalse(self.env.ref('cotizador_import.val_distancia_52_cm', raise_if_not_found=False))
+
+        self._import(MATRIX_CSV)
+        value = self._imported('val_distancia_52_cm')
+        self.assertEqual(value.name, '52 cm')
+        self.assertEqual(value.attribute_id, self._imported('attr_distancia'))
+        self.assertEqual(orphan.res_id, value.id)
+
+    def test_reimport_replaces_lines_with_accessories_of_another_criterion(self):
+        """Re-importar sobre líneas cuyo accesorio no es del modelo (criterio anterior) las reemplaza."""
+        self._import(MATRIX_CSV)
+        config = self._imported('cfg_pionera_001')
+        old_monitor = self._imported('acc_pionera_monitor')
+        # Como lo dejaba la versión anterior: accesorio compartido (sin modelo) y xmlid sin modelo
+        self.env.cr.execute("UPDATE product_template SET cotizador_modelo_id = NULL WHERE id = %s",
+                            [old_monitor.product_tmpl_id.id])
+        self.env.cr.execute("UPDATE ir_model_data SET name = 'acc_monitor' "
+                            "WHERE module = 'cotizador_import' AND name = 'acc_pionera_monitor'")
+        self.env.invalidate_all()
+        self.env.registry.clear_cache()
+
+        self._import(MATRIX_CSV)
+        monitor_line = config.accessory_line_ids.filtered(lambda l: l.product_id.name == 'Monitor')
+        self.assertNotEqual(monitor_line.product_id, old_monitor)
+        self.assertEqual(monitor_line.product_id.cotizador_modelo_id, config.modelo_id)

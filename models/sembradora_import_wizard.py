@@ -421,12 +421,29 @@ class SembradoraImportWizard(models.TransientModel):
         record = self._find(model, xmlid_name)
         if not record:
             record = self.env[model].create(create_vals)
-            self.env['ir.model.data'].create({
-                'module': IMPORT_MODULE, 'name': xmlid_name, 'model': model,
-                'res_id': record.id, 'noupdate': True,
-            })
+            self._register_xmlid(model, xmlid_name, record)
             counters[counter_key] += 1
         return record
+
+    def _register_xmlid(self, model, xmlid_name, record):
+        """Asocia el xmlid del importador a un registro recién creado.
+
+        Si el xmlid ya existe es un identificador **huérfano**: su registro se borró sin borrar
+        el identificador (p. ej. los valores de un atributo borrado, que la base elimina en
+        cascada sin pasar por el ORM). En ese caso se reutiliza apuntándolo al registro nuevo, en
+        lugar de fallar por la clave única (módulo, nombre).
+
+        @param model Modelo del registro.
+        @param xmlid_name Nombre del xmlid en IMPORT_MODULE.
+        @param record Registro recién creado.
+        """
+        IrModelData = self.env['ir.model.data']
+        vals = {'model': model, 'res_id': record.id, 'noupdate': True}
+        orphan = IrModelData.search([('module', '=', IMPORT_MODULE), ('name', '=', xmlid_name)], limit=1)
+        if orphan:
+            orphan.write(vals)
+        else:
+            IrModelData.create({'module': IMPORT_MODULE, 'name': xmlid_name, **vals})
 
     # =========================================================================
     #  PASO 1: ANÁLISIS
@@ -714,8 +731,10 @@ class SembradoraImportWizard(models.TransientModel):
     def _import_configs(self, data, values, templates, accessories, rules, counters):
         """Crea o actualiza configuraciones y reemplaza sus líneas de accesorio.
 
-        Las líneas se reemplazan en un solo `write`, así las restricciones de reglas se validan
-        sobre el estado final. El `ext_id` se fija solo al crear.
+        Datos y líneas se escriben en una sola operación, así las restricciones (reglas,
+        accesorios del mismo modelo) se validan sobre el estado final: re-importar sobre líneas
+        con accesorios de otro criterio (p. ej. compartidos entre modelos) las reemplaza sin
+        fallar. El `ext_id` se fija solo al crear.
 
         @param data Estructura de _parse().
         @param values Salida de _import_attributes().
@@ -734,22 +753,22 @@ class SembradoraImportWizard(models.TransientModel):
             }
             if config_data['description']:
                 vals['description'] = config_data['description']
+            # Datos de la configuración y líneas en una sola operación: las restricciones (reglas,
+            # accesorios del mismo modelo) se validan sobre el estado final, no con las líneas
+            # viejas todavía puestas.
+            vals['accessory_line_ids'] = [Command.create({
+                'product_id': accessories[modelo, line['name']].id,
+                'price': line['price'],
+                'is_standard': line['is_standard'],
+                'is_trigger': line['is_trigger'],
+                'rule_ids': [Command.set([rules[r].id for r in line['rules']])],
+            }) for line in config_data['lines']]
             config = self._find(Config._name, xmlid_name)
             if config:
+                vals['accessory_line_ids'] = [Command.delete(line.id) for line in config.accessory_line_ids] + vals['accessory_line_ids']
                 config.write(vals)
                 counters['configs_updated'] += 1
             else:
-                config = self._find_or_create(Config._name, xmlid_name, {**vals, 'ext_id': conf_id},
-                                              counters, 'configs_created')
-            # Un solo write: las restricciones de reglas se validan sobre el estado final
-            config.write({'accessory_line_ids': [Command.delete(line.id) for line in config.accessory_line_ids] + [
-                Command.create({
-                    'product_id': accessories[modelo, line['name']].id,
-                    'price': line['price'],
-                    'is_standard': line['is_standard'],
-                    'is_trigger': line['is_trigger'],
-                    'rule_ids': [Command.set([rules[r].id for r in line['rules']])],
-                }) for line in config_data['lines']
-            ]})
+                self._find_or_create(Config._name, xmlid_name, {**vals, 'ext_id': conf_id}, counters, 'configs_created')
             counters['lines'] += len(config_data['lines'])
             counters['standard_lines'] += sum(1 for line in config_data['lines'] if line['is_standard'])

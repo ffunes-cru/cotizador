@@ -196,10 +196,13 @@ Consecuencias:
   **error**: producirían el mismo identificador.
 - Registros creados **a mano** en Odoo no se reutilizan. Si existe una regla manual con el mismo
   nombre y tipo, la importación se detiene y pide renombrarla o eliminarla.
+- **Registros borrados**: si se borra en Odoo algo que creó el importador, la próxima importación lo
+  vuelve a crear. Puede quedar el identificador sin registro (al borrar un atributo, la base borra sus
+  valores sin borrar sus identificadores); el importador lo reutiliza para el registro nuevo.
 
 | Al re-importar… | Resultado |
 |---|---|
-| Configuración que está en el CSV | Se actualizan modelo, combinación, precio y descripción; sus líneas de accesorio se **reemplazan** por las del CSV. |
+| Configuración que está en el CSV | Se actualizan modelo, combinación, precio y descripción, y sus líneas de accesorio se **reemplazan** por las del CSV, todo junto (también si las líneas viejas usaban accesorios compartidos de una versión anterior). |
 | Configuración que no está en el CSV | No se toca. |
 | Productos, atributos, categorías, reglas | Se crean si faltan; nunca se borran. |
 | `ID Externo` (código de ingeniería / Teamcenter) | Se fija al crear la configuración; después lo administra Studio / Teamcenter. |
