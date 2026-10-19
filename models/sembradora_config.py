@@ -71,8 +71,9 @@ class SembradoraConfigRel(models.Model):
         'config_id',
         string='Accesorios con Precio')
 
-    price = fields.Float(string="Precio de Configuración",
-                         help="En la moneda de la matriz de la compañía (Ajustes › Ventas).")
+    currency_id = fields.Many2one(related='modelo_id.cotizador_currency_id', string='Moneda')
+    price = fields.Monetary(string="Precio de Configuración",
+                            help="En la Moneda del Cotizador del modelo.")
     description = fields.Html(
         string="Descripción",
         compute="_compute_description",
@@ -136,6 +137,10 @@ class SembradoraConfigRel(models.Model):
                     modelo=config.modelo_id.name, other=duplicate[0].ext_id or duplicate[0].name,
                 ))
 
+    @api.constrains('modelo_id')
+    def _check_accessories_modelo(self):
+        self.accessory_line_ids._check_product_modelo()
+
     @api.constrains('accessory_line_ids', 'value_ids')
     def _check_accessories(self):
         """Reglas coherentes y, para accesorios de cantidad dinámica, el atributo presente."""
@@ -168,7 +173,7 @@ class SembradoraConfigRel(models.Model):
 
     def _get_accessory_offer(self):
         """
-        Calcula cantidad y precio unitario (en moneda de la matriz) de cada accesorio.
+        Calcula cantidad y precio unitario (en la Moneda del Cotizador del accesorio) de cada accesorio.
 
         Cantidad:
           1. ``quantity`` explícita (> 0) en la línea de accesorio.
@@ -177,7 +182,7 @@ class SembradoraConfigRel(models.Model):
              configuración (``product.attribute.value.cotizador_qty``).
           3. Resto → 1.
 
-        Precio unitario: el de la línea (matriz por configuración); si es 0, el de lista del producto.
+        Precio unitario: el de la línea (matriz por configuración); 0 es un precio válido (sin cargo).
 
         :return: list of dicts, uno por ``sembradora.config.accessory.line``.
         """
@@ -193,7 +198,7 @@ class SembradoraConfigRel(models.Model):
                 quantity = value_by_attr[qty_attribute].cotizador_qty
             else:
                 quantity = 1.0
-            price_unit = line.price or product.list_price
+            price_unit = line.price
             offer.append({
                 'line': line,
                 'product': product,

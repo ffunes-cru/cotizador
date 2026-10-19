@@ -24,6 +24,7 @@ class CotizadorPriceWizardService(models.AbstractModel):
             'id': t.id,
             'name': t.name,
             'default_code': t.default_code or '',
+            'currency': t.cotizador_currency_id.name,
             'config_count': config_count_by_model.get(t.id, 0),
         } for t in templates]
 
@@ -162,7 +163,7 @@ class CotizadorPriceWizardService(models.AbstractModel):
             prod_lines = acc_lines.filtered(lambda l: l.product_id.id == prod.id)
             configs_count = len(prod_lines)
             
-            current_price = prod_lines[0].price if prod_lines else prod.list_price
+            current_price = prod_lines[0].price
 
             if is_subcat:
                 if prod.id not in global_acc_map:
@@ -171,6 +172,7 @@ class CotizadorPriceWizardService(models.AbstractModel):
                         'product_name': prod.name,
                         'default_code': prod.default_code or '',
                         'category_name': categ.name,
+                        'currency': prod.cotizador_currency_id.name,
                         'price': current_price,
                         'configs_count': configs_count,
                     }
@@ -184,6 +186,7 @@ class CotizadorPriceWizardService(models.AbstractModel):
                         'product_name': prod.name,
                         'default_code': prod.default_code or '',
                         'category_name': categ.name if categ else 'Accesorio',
+                        'currency': prod.cotizador_currency_id.name,
                         'price': line.price,
                         'attr_values': config_attr_map.get(line.config_id.id, {}),
                     })

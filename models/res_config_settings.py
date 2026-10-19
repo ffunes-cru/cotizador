@@ -54,8 +54,6 @@ class ResConfigSettings(models.TransientModel):
         config_parameter='cotizador.quote_min_seconds',
     )
     cotizador_captcha_configured = fields.Boolean(compute='_compute_cotizador_captcha_configured')
-    cotizador_matrix_currency_id = fields.Many2one(
-        related='company_id.cotizador_matrix_currency_id', readonly=False)
     cotizador_tax_id = fields.Many2one(related='company_id.cotizador_tax_id', readonly=False)
     cotizador_pricelist_id = fields.Many2one(related='company_id.cotizador_pricelist_id', readonly=False)
     cotizador_condiciones_generales_default = fields.Text(

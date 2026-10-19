@@ -225,7 +225,7 @@
                                 <t t-foreach="state.baseAttributes" t-as="attr" t-key="attr.id">
                                     <th><t t-esc="attr.name"/></th>
                                 </t>
-                                <th style="width: 200px;" class="text-end pe-4">Precio Base ($)</th>
+                                <th style="width: 200px;" class="text-end pe-4">Precio Base</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -244,7 +244,7 @@
                                     </t>
                                     <td class="text-end pe-3">
                                         <div class="input-group input-group-sm justify-content-end">
-                                            <span class="input-group-text">$</span>
+                                            <span class="input-group-text" t-esc="state.selectedModel.currency"/>
                                             <input type="text"
                                                    class="form-control text-end fw-bold"
                                                    style="max-width: 150px;"
@@ -364,7 +364,7 @@
                                     <th>Accesorio</th>
                                     <th style="width: 200px;">Subcategoría / Factor</th>
                                     <th style="width: 160px;" class="text-center">Configuraciones Afectadas</th>
-                                    <th style="width: 200px;" class="text-end pe-4">Precio Unitario ($)</th>
+                                    <th style="width: 200px;" class="text-end pe-4">Precio Unitario</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -387,7 +387,7 @@
                                         </td>
                                         <td class="text-end pe-3">
                                             <div class="input-group input-group-sm justify-content-end">
-                                                <span class="input-group-text">$</span>
+                                                <span class="input-group-text" t-esc="acc.currency"/>
                                                 <input type="text"
                                                        class="form-control text-end fw-bold"
                                                        style="max-width: 150px;"
@@ -549,7 +549,7 @@
                                     <th>Accesorio</th>
                                     <th>Atributos del Grupo</th>
                                     <th style="width: 170px;" class="text-center">Configuraciones</th>
-                                    <th style="width: 200px;" class="text-end pe-4">Precio del Grupo ($)</th>
+                                    <th style="width: 200px;" class="text-end pe-4">Precio del Grupo</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -583,7 +583,7 @@
                                         </td>
                                         <td class="text-end pe-3">
                                             <div class="input-group input-group-sm justify-content-end">
-                                                <span class="input-group-text">$</span>
+                                                <span class="input-group-text" t-esc="group.currency"/>
                                                 <input type="text"
                                                        class="form-control text-end fw-bold"
                                                        style="max-width: 150px;"
@@ -613,7 +613,7 @@
                                     <th style="width: 50px;" class="text-center">#</th>
                                     <th>Accesorio</th>
                                     <th>Configuración de Máquina</th>
-                                    <th style="width: 200px;" class="text-end pe-4">Precio en Config ($)</th>
+                                    <th style="width: 200px;" class="text-end pe-4">Precio en Config</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -629,7 +629,7 @@
                                         </td>
                                         <td class="text-end pe-3">
                                             <div class="input-group input-group-sm justify-content-end">
-                                                <span class="input-group-text">$</span>
+                                                <span class="input-group-text" t-esc="line.currency"/>
                                                 <input type="text"
                                                        class="form-control text-end fw-bold"
                                                        style="max-width: 150px;"

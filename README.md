@@ -29,6 +29,9 @@ Cotizador de maquinaria agrícola configurable para Odoo 19:
   Un producto es máquina o accesorio si está en esa categoría o en una subcategoría (`is_maquina`,
   `is_accesorio`). Se pueden renombrar.
 - Un producto de servicio por tipo de plan de pago (`cotizador.product_plan_<tipo>`).
+- **Accesorios por modelo**: cada accesorio pertenece a una máquina (*Modelo de Máquina* en la ficha)
+  y solo se usa en configuraciones de esa máquina. El importador crea un producto por modelo aunque
+  el nombre se repita.
 - Lo que crea el importador queda identificado con xmlids `cotizador_import.*`
   (ver [doc/IMPORTADOR.md §7](doc/IMPORTADOR.md)).
 
@@ -41,10 +44,11 @@ Cotizador de maquinaria agrícola configurable para Odoo 19:
    - Al instalar solo `admin` recibe el grupo.
 2. **Ajustes › Ventas › Cotizador de Sembradoras**:
    - **Precios del Configurador**:
-     - *Moneda de la Matriz*: moneda de los precios importados; USD por defecto.
      - *Impuesto de Maquinaria*: impuesto de máquinas y accesorios. Si está vacío, se usan los
        impuestos de cada producto.
      - *Lista de Precios de Cotizaciones*: para las cotizaciones de máquinas, del backend y de la web.
+       Una cotización creada a mano pasa a esta lista al configurar su primera máquina, si todavía
+       no tiene productos. Si ya tiene, conserva su lista y los precios se convierten a su moneda.
    - **Protección del Formulario de Solicitud Web**:
      - límites por hora, por IP y por email/teléfono (0 = sin límite);
      - tiempo mínimo para completar el formulario;
@@ -59,11 +63,15 @@ Cotizador de maquinaria agrícola configurable para Odoo 19:
 ## Precios
 
 - **Base: la matriz.** El precio de la configuración (máquina) y el de la línea de accesorio de esa
-  configuración son el *precio de lista* para Odoo (`_price_compute`), en la moneda de la matriz. Por
+  configuración son el *precio de lista* para Odoo (`_price_compute`), en la **Moneda del Cotizador**
+  del producto (campo de la ficha; la fija el importador). La moneda de la compañía puede ser otra
+  (p. ej. ARS con la matriz en USD). Por
   eso las reglas de listas de precios, la conversión de moneda y los descuentos nativos se aplican
   igual en la tienda, en el configurador y en la cotización.
 - **Listado de la tienda.** Sin combinación elegida, la máquina muestra su configuración más barata
   ("desde").
+- **Precio 0.** Un accesorio con precio 0 en la configuración se cotiza sin cargo; no se usa el
+  precio de venta del producto.
 - **Cantidad dinámica.** Para accesorios con *Calc_param*, la cantidad es el número guardado en el
   valor del atributo (ver el doc del importador, §5).
 - **Opción única (`:u`).** Cada opción se cotiza a su precio completo; el configurador muestra la

@@ -4,17 +4,6 @@ from odoo import fields, models
 class ResCompany(models.Model):
     _inherit = 'res.company'
 
-    def _default_cotizador_matrix_currency(self):
-        return self.env.ref('base.USD', raise_if_not_found=False)
-
-    cotizador_matrix_currency_id = fields.Many2one(
-        'res.currency',
-        string='Moneda de la Matriz',
-        default=_default_cotizador_matrix_currency,
-        required=True,
-        help='Moneda en la que están cargados los precios de configuraciones y accesorios '
-             '(columnas Precio_Base y Precio_Item del importador).',
-    )
     cotizador_tax_id = fields.Many2one(
         'account.tax',
         string='Impuesto de Maquinaria',

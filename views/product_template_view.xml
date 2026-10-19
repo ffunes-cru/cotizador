@@ -1,5 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+    <!-- Plantilla y variante (product_normal_form_view hereda de esta vista) -->
+    <record id="product_template_form_view_inherit_cotizador" model="ir.ui.view">
+        <field name="name">product.template.form.inherit.cotizador</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='categ_id']" position="after">
+                <field name="is_maquina" invisible="1"/>
+                <field name="is_accesorio" invisible="1"/>
+                <field name="cotizador_currency_id" options="{'no_create': True}"
+                       invisible="not is_maquina and not is_accesorio"/>
+                <field name="cotizador_modelo_id" options="{'no_create': True}"
+                       invisible="not is_accesorio" required="is_accesorio"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Búsqueda de plantillas y variantes: accesorios por modelo -->
+    <record id="product_template_search_view_inherit_cotizador" model="ir.ui.view">
+        <field name="name">product.template.search.inherit.cotizador</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='categ_id']" position="after">
+                <field name="cotizador_modelo_id"/>
+            </xpath>
+            <xpath expr="//filter[@name='group_by_categ_id']" position="after">
+                <filter string="Modelo de Máquina" name="group_by_cotizador_modelo_id"
+                        context="{'group_by': 'cotizador_modelo_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
     <record id="product_template_only_form_view_inherit_cotizador" model="ir.ui.view">
         <field name="name">product.template.form.inherit.cotizador.description</field>
         <field name="model">product.template</field>

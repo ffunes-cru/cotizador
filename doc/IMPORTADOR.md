@@ -11,7 +11,8 @@ compatibles con su precio, reglas entre accesorios y equipamiento estándar.
 
 ## 1. Flujo
 
-1. **Cargar** uno o varios CSV (se procesan juntos, como un solo archivo).
+1. **Cargar** uno o varios CSV (se procesan juntos, como un solo archivo) y elegir la **Moneda de
+   los Precios** (§6).
 2. **📊 Analizar CSV**: valida **todo** el archivo y muestra:
    - la lista completa de **errores**, con archivo y línea. Si hay alguno, el botón *Importar* no
      aparece: corrija el CSV y use *Cargar otros archivos*;
@@ -35,7 +36,7 @@ coma (`"USD $248.866,00"`). Los nombres de columna distinguen mayúsculas.
 | `Modelo` | Sí | Nombre de la máquina. |
 | `Tipo_Item` | Sí | `BASE`, `OPCIONAL` o `ESTANDAR` (§3). Se aceptan minúsculas y acentos (`Estándar`). |
 | `Precio_Base` | En `BASE` | Precio de la máquina en esta configuración (§6). |
-| `Nombre_Item` | En accesorios | Nombre del accesorio. |
+| `Nombre_Item` | En accesorios | Nombre del accesorio, propio del modelo (§7). |
 | `Precio_Item` | En accesorios | Precio unitario del accesorio en **esta** configuración (§6). |
 | `Calc_param` | No | Columna de atributo que define la **cantidad** del accesorio (§5). |
 | `Reglas` | No | Reglas entre accesorios (§4). |
@@ -71,7 +72,8 @@ Errores que detecta el análisis:
 - `BASE` sin ningún valor `ATR_`;
 - dos configuraciones del mismo modelo con la misma combinación de atributos;
 - el mismo accesorio dos veces en una configuración;
-- precios vacíos o que no son números.
+- precios vacíos o que no son números;
+- precios que indican otra moneda que la elegida (§6).
 
 ---
 
@@ -128,15 +130,23 @@ Algunos accesorios se cotizan por unidad de un atributo (p. ej. un sensor **por 
   Cantidad* de la categoría). Ese vínculo es lo único que usa el cálculo.
 - **Cantidad cotizada** = número del valor de ese atributo en la configuración. Ejemplo:
   `Lineas = 16 Lineas`, `Precio_Item = 10` → 16 × 10 = 160.
-- Un mismo accesorio debe tener el mismo `Calc_param` en todas sus filas.
+- Un mismo accesorio de un modelo debe tener el mismo `Calc_param` en todas sus filas.
 - La fila `BASE` de cada configuración que lo use debe tener valor en esa columna.
 
 ---
 
 ## 6. Precios
 
-Los precios se cargan en la **moneda de la matriz** (*Ajustes › Ventas › Precios del Configurador*,
-USD por defecto). El texto (`USD`, `$`, espacios) se descarta:
+Todos los precios del CSV están en la **Moneda de los Precios** elegida en el importador (por
+defecto, la de la compañía). Al importar se guarda como **Moneda del Cotizador** de cada modelo y
+accesorio del CSV (campo de la ficha del producto, editable). Para cargar productos en monedas
+distintas, impórtelos en archivos separados.
+
+- Si un precio indica un código de moneda (`USD $1.000`), tiene que ser el elegido. Si no, es un
+  **error**: evita cargar precios en USD como si fueran ARS.
+- La moneda tiene que estar activa en Odoo para poder elegirla y para convertir.
+
+El resto del texto (`$`, espacios) se descarta:
 
 | CSV | Valor |
 |---|---|
@@ -147,7 +157,8 @@ USD por defecto). El texto (`USD`, `$`, espacios) se descarta:
 | vacío o texto | **error** |
 
 **En la cotización y en la tienda**, máquina y accesorios pasan por la lista de precios de la
-cotización (o de la sesión web), con sus reglas y la conversión a su moneda.
+cotización (o de la sesión web), con sus reglas y la conversión de la Moneda del Cotizador de cada
+producto a la moneda de la lista.
 
 ---
 
@@ -161,11 +172,15 @@ identificador externo propio (módulo `cotizador_import`), armado con el texto d
 | Máquina | `cotizador_import.modelo_<modelo>` |
 | Configuración | `cotizador_import.cfg_<modelo>_<id_configuracion>` |
 | Atributo / valor | `attr_<atributo>` / `val_<atributo>_<valor>` |
-| Accesorio | `acc_<nombre>` |
+| Accesorio | `acc_<modelo>_<nombre>` |
 | Categoría de cantidad | `qty_<atributo>` |
 | Regla | `rule_<tipo>_<nombre>` |
 
 (`<…>` en minúsculas, sin acentos, con `_` en lugar de espacios y símbolos.)
+
+**Cada accesorio es propio de un modelo.** El mismo `Nombre_Item` en dos modelos crea **dos
+productos** distintos, cada uno con su *Modelo de Máquina*. Un accesorio solo puede usarse en
+configuraciones de su modelo (también al editar a mano).
 
 Consecuencias:
 
@@ -235,3 +250,4 @@ python3 scripts/split_csv.py matriz_completa.csv 150   # 150 configuraciones por
 | `debe tener exactamente un accesorio ESTANDAR` | Cada grupo `:u` necesita un único `ESTANDAR` por configuración. |
 | `son indistinguibles para el importador` | Unificar la escritura de ese nombre en todo el CSV. |
 | `regla … creada fuera del importador` | Renombrar o eliminar la regla manual con ese nombre y tipo. |
+| `está en USD, pero la moneda de los precios elegida es …` | Elegir la moneda correcta en el importador, o separar los productos en otro archivo. |

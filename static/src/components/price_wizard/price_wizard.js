@@ -720,6 +720,7 @@ export class CotizadorPriceWizard extends Component {
                     product_name: line.product_name,
                     default_code: line.default_code,
                     category_name: line.category_name,
+                    currency: line.currency,
                     original_price: line.price,
                     group_attr_values: groupAttrValues,
                     lines: [],

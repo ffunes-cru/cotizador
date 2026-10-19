@@ -563,7 +563,7 @@ export class CotizadorConfiguratorStudio extends Component {
     formatCurrency(amount) {
         return new Intl.NumberFormat("es-AR", {
             style: "currency",
-            currency: "ARS",
+            currency: this.state.modelData.modelo.currency,
             maximumFractionDigits: 0,
         }).format(amount || 0);
     }

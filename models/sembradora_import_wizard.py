@@ -55,6 +55,11 @@ def first_number(text):
     return float(match.group().replace(',', '.')) if match else None
 
 
+def price_currency_codes(price_str):
+    """Códigos ISO de moneda escritos en un precio: 'USD $248.866,00' → {'USD'}."""
+    return set(re.findall(r'\b[A-Z]{3}\b', price_str or ''))
+
+
 def parse_price(price_str):
     """
     Convierte un precio del CSV a float; None si está vacío o no es un número.
@@ -85,6 +90,12 @@ class SembradoraImportWizard(models.TransientModel):
     _description = 'Importador CSV de Configuraciones de Sembradora'
 
     csv_file_ids = fields.Many2many('ir.attachment', string='Archivos CSV')
+    currency_id = fields.Many2one(
+        'res.currency', string='Moneda de los Precios', required=True,
+        default=lambda self: self.env.company.currency_id,
+        help='Moneda de Precio_Base y Precio_Item. Se guarda como Moneda del Cotizador de los '
+             'modelos y accesorios importados.',
+    )
     state = fields.Selection([
         ('draft', 'Borrador'),
         ('analyzed', 'Analizado'),
@@ -125,7 +136,7 @@ class SembradoraImportWizard(models.TransientModel):
             'attributes': {},      # columna → {'name', 'values': {valor: cantidad|None}}
             'qty_columns': set(),  # columnas de atributo usadas como Calc_param
             'models': {},          # modelo → {columna: set(valores)}
-            'accessories': {},     # nombre → columna Calc_param ('' si no tiene)
+            'accessories': {},     # (modelo, nombre) → columna Calc_param ('' si no tiene)
             'rules': set(),        # (nombre, tipo)
             'configs': {},         # (modelo, id) → {...}
         }
@@ -174,6 +185,7 @@ class SembradoraImportWizard(models.TransientModel):
                     price = parse_price(cell.get('Precio_Base'))
                     if price is None:
                         errors.append(f"{where}: Precio_Base '{cell.get('Precio_Base', '')}' no es un precio válido.")
+                    errors += self._check_price_currency(where, 'Precio_Base', cell.get('Precio_Base'))
                     config.update(base=True, price=price or 0.0, description=cell.get('Descripcion', ''))
                     model_values = data['models'].setdefault(modelo, {})
                     for col in attr_columns:
@@ -193,6 +205,7 @@ class SembradoraImportWizard(models.TransientModel):
                 price = parse_price(cell.get('Precio_Item'))
                 if price is None:
                     errors.append(f"{where}: Precio_Item '{cell.get('Precio_Item', '')}' no es un precio válido.")
+                errors += self._check_price_currency(where, 'Precio_Item', cell.get('Precio_Item'))
                 calc_param = cell.get('Calc_param', '')
                 if calc_param and calc_param not in attr_columns:
                     errors.append(f"{where}: Calc_param '{calc_param}' debe ser el nombre exacto de una "
@@ -200,11 +213,11 @@ class SembradoraImportWizard(models.TransientModel):
                     continue
                 if calc_param:
                     data['qty_columns'].add(calc_param)
-                previous = data['accessories'].setdefault(nombre, calc_param)
-                accessory_origin.setdefault(nombre, where)
+                previous = data['accessories'].setdefault((modelo, nombre), calc_param)
+                accessory_origin.setdefault((modelo, nombre), where)
                 if previous != calc_param:
-                    errors.append(f"{where}: '{nombre}' tiene Calc_param '{calc_param}', pero en "
-                                  f"{accessory_origin[nombre]} tiene '{previous}'.")
+                    errors.append(f"{where}: '{nombre}' de {modelo} tiene Calc_param '{calc_param}', pero en "
+                                  f"{accessory_origin[modelo, nombre]} tiene '{previous}'.")
 
                 rules, is_trigger = [], False
                 for part in filter(None, (p.strip() for p in cell.get('Reglas', '').split('|'))):
@@ -228,6 +241,14 @@ class SembradoraImportWizard(models.TransientModel):
 
         errors += self._validate_parsed(data)
         return data, errors
+
+    def _check_price_currency(self, where, column, price_str):
+        """Un precio que indica su moneda (p.ej. 'USD 1.000') debe estar en la moneda elegida."""
+        codes = price_currency_codes(price_str)
+        if codes and codes != {self.currency_id.name}:
+            return [f"{where}: {column} '{price_str}' está en {', '.join(sorted(codes))}, pero la "
+                    f"moneda de los precios elegida es {self.currency_id.name}."]
+        return []
 
     def _validate_parsed(self, data):
         """Validaciones que necesitan el CSV completo."""
@@ -267,7 +288,8 @@ class SembradoraImportWizard(models.TransientModel):
                     errors.append(f"{kind} '{name}' y '{other}' son indistinguibles para el importador "
                                   f"(solo difieren en acentos, mayúsculas o símbolos).")
         check_slugs('Modelo', data['models'])
-        check_slugs('Accesorio', data['accessories'])
+        for modelo in data['models']:
+            check_slugs(f"Accesorio de {modelo}", [n for m, n in data['accessories'] if m == modelo])
         check_slugs('Atributo', [a['name'] for a in data['attributes'].values()])
         for attr in data['attributes'].values():
             check_slugs(f"Valor de {attr['name']}", attr['values'])
@@ -331,6 +353,8 @@ class SembradoraImportWizard(models.TransientModel):
 
     def _build_analysis_html(self, data, errors):
         html = Markup('<div style="font-size: 13px;">')
+        html += Markup('<p>💱 Moneda de los precios: <b>%s</b> (se guarda en los modelos y accesorios importados)</p>') % (
+            self.currency_id.name)
         if errors:
             html += Markup('<h3 style="color: #c62828;">❌ %s errores: corríjalos y vuelva a analizar</h3><ul>') % len(errors)
             for error in errors[:200]:
@@ -350,7 +374,7 @@ class SembradoraImportWizard(models.TransientModel):
             ('🚜 Modelos', *existing('modelo', 'product.template', list(data['models']), lambda m: (m,))),
             ('🏷️ Atributos', *existing('attr', 'product.attribute',
                                         [a['name'] for a in data['attributes'].values()], lambda n: (n,))),
-            ('🔧 Accesorios', *existing('acc', 'product.product', list(data['accessories']), lambda n: (n,))),
+            ('🔧 Accesorios', *existing('acc', 'product.product', list(data['accessories']), lambda a: a)),
             ('📏 Reglas', *existing('rule', 'sembradora.accessory.rule', list(data['rules']),
                                      lambda r: (r[1], r[0]))),
         ]
@@ -393,7 +417,7 @@ class SembradoraImportWizard(models.TransientModel):
         values = self._import_attributes(data, counters)
         qty_categories = self._import_qty_categories(data, values, counters)
         templates = self._import_models(data, values, counters)
-        accessories = self._import_accessories(data, qty_categories, counters)
+        accessories = self._import_accessories(data, templates, qty_categories, counters)
         rules = self._import_rules(data, counters)
         self._import_configs(data, values, templates, accessories, rules, counters)
 
@@ -453,7 +477,10 @@ class SembradoraImportWizard(models.TransientModel):
         for modelo, model_values in data['models'].items():
             tmpl = self._find_or_create('product.template', self._xmlid_name('modelo', modelo), {
                 'name': modelo, 'categ_id': cat_maquina.id, 'type': 'consu',
+                'cotizador_currency_id': self.currency_id.id,
             }, counters, 'models_created')
+            if tmpl.cotizador_currency_id != self.currency_id:
+                tmpl.cotizador_currency_id = self.currency_id
             for col, value_names in model_values.items():
                 value_records = self.env['product.attribute.value'].union(*(values[col, v] for v in value_names))
                 ptal = tmpl.attribute_line_ids.filtered(lambda l: l.attribute_id == value_records.attribute_id)
@@ -467,18 +494,26 @@ class SembradoraImportWizard(models.TransientModel):
             templates[modelo] = tmpl
         return templates
 
-    def _import_accessories(self, data, qty_categories, counters):
-        """:return: {nombre: product.product}"""
+    def _import_accessories(self, data, templates, qty_categories, counters):
+        """
+        Cada accesorio es propio de un modelo: el mismo nombre en dos modelos son dos productos.
+        :return: {(modelo, nombre): product.product}
+        """
         cat_base = self.env.ref('cotizador.cat_accesorio_base')
         accessories = {}
-        for nombre, calc_param in data['accessories'].items():
-            categ = qty_categories[calc_param] if calc_param else cat_base
-            product = self._find_or_create('product.product', self._xmlid_name('acc', nombre), {
-                'name': nombre, 'categ_id': categ.id, 'type': 'consu',
+        for (modelo, nombre), calc_param in data['accessories'].items():
+            vals = {
+                'categ_id': (qty_categories[calc_param] if calc_param else cat_base).id,
+                'cotizador_modelo_id': templates[modelo].id,
+                'cotizador_currency_id': self.currency_id.id,
+            }
+            product = self._find_or_create('product.product', self._xmlid_name('acc', modelo, nombre), {
+                **vals, 'name': nombre, 'type': 'consu',
             }, counters, 'accessories_created')
-            if product.categ_id != categ:
-                product.categ_id = categ
-            accessories[nombre] = product
+            product.product_tmpl_id.write({
+                field: value for field, value in vals.items() if product.product_tmpl_id[field].id != value
+            })
+            accessories[modelo, nombre] = product
         return accessories
 
     def _import_rules(self, data, counters):
@@ -518,7 +553,7 @@ class SembradoraImportWizard(models.TransientModel):
             # Un solo write: las restricciones de reglas se validan sobre el estado final
             config.write({'accessory_line_ids': [Command.delete(line.id) for line in config.accessory_line_ids] + [
                 Command.create({
-                    'product_id': accessories[line['name']].id,
+                    'product_id': accessories[modelo, line['name']].id,
                     'price': line['price'],
                     'is_standard': line['is_standard'],
                     'is_trigger': line['is_trigger'],

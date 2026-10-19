@@ -24,12 +24,8 @@
                     </setting>
                     <setting id="cotizador_pricing_setting"
                              string="Precios del Configurador"
-                             help="Moneda de la matriz importada, impuesto de máquinas y accesorios, y lista de precios de las cotizaciones de máquinas.">
+                             help="Impuesto de máquinas y accesorios, y lista de precios de las cotizaciones de máquinas. La moneda de los precios de la matriz se define en cada producto (Moneda del Cotizador).">
                         <div class="row mt-2">
-                            <label for="cotizador_matrix_currency_id" class="col-lg-5 o_light_label"/>
-                            <field name="cotizador_matrix_currency_id" class="col-lg-6" options="{'no_create': True}"/>
-                        </div>
-                        <div class="row">
                             <label for="cotizador_tax_id" class="col-lg-5 o_light_label"/>
                             <field name="cotizador_tax_id" class="col-lg-6" options="{'no_create': True}"/>
                         </div>

@@ -110,8 +110,8 @@ class CotizadorStudioService(models.AbstractModel):
             total_variants = theoretical_total
         coded_variants = max(coded_variants, coded_configs)
 
-        # 4. Cantidad de accesorios del catálogo (se muestra como métrica en el Studio)
-        accessories_count = self.env['product.product'].search_count([('is_accesorio', '=', True)])
+        # 4. Cantidad de accesorios del modelo (se muestra como métrica en el Studio)
+        accessories_count = self.env['product.product'].search_count([('cotizador_modelo_id', '=', tmpl.id)])
 
         return {
             'modelo': {
@@ -119,6 +119,7 @@ class CotizadorStudioService(models.AbstractModel):
                 'name': tmpl.name,
                 'default_code': tmpl.default_code or '',
                 'list_price': tmpl.list_price,
+                'currency': tmpl.cotizador_currency_id.name,
             },
             'attributes': attributes_data,
             'configs': configs_data,

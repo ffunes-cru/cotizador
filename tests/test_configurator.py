@@ -80,18 +80,45 @@ class TestConfigurator(CotizadorCase):
         self.config.price = 500.0
         self.assertAlmostEqual(self.pricelist._get_product_price(tmpl, 1.0, currency=self.usd), 500.0)
 
-    def test_matrix_currency_and_tax_settings(self):
+    def test_product_currency_and_tax_setting(self):
         eur = self.env.ref('base.EUR')
         eur.active = True
         self.env['res.currency.rate'].create({'currency_id': eur.id, 'rate': 2.0, 'name': '2000-01-01'})
         tax = self.env['account.tax'].create({'name': 'IVA Maquinaria', 'amount': 10.5, 'type_tax_use': 'sale'})
-        self.env.company.write({'cotizador_matrix_currency_id': eur.id, 'cotizador_tax_id': tax.id})
+        self.env.company.cotizador_tax_id = tax
+        lines = self._lines(self.config)
+        (self.config.modelo_id | lines['Monitor'].product_id.product_tmpl_id).cotizador_currency_id = eur
         order = self._order()
         self.service.confirm_configuration(order.id, self.config.id, self.config._get_default_accessory_lines().ids)
-        machine = order.order_line.filtered(lambda l: l.product_id.is_maquina)
-        # 1000 EUR de matriz → USD de la orden (compañía en USD, 1 USD = 2 EUR)
-        self.assertAlmostEqual(machine.price_unit, 500.0)
+        prices = {l.product_id.name: l.price_unit for l in order.order_line if l.product_id}
+        # Cada producto en su moneda → USD de la orden (compañía en USD, 1 USD = 2 EUR)
+        self.assertEqual(prices, {'Pionera': 500.0, 'Monitor': 50.0, 'Kit Fino': 50.0})
         self.assertEqual(order.order_line.filtered('product_id').tax_ids, tax)
+
+    def test_quotation_pricelist_applied_when_configuring(self):
+        # Cotización creada a mano con la lista habitual del cliente (otra moneda), sin productos:
+        # al configurar pasa a la lista de cotizaciones y usa los importes de la matriz sin conversión
+        eur = self.env.ref('base.EUR')
+        eur.active = True
+        self.env['res.currency.rate'].create({'currency_id': eur.id, 'rate': 2.0, 'name': '2000-01-01'})
+        customer_pricelist = self.env['product.pricelist'].create({'name': 'Cliente EUR', 'currency_id': eur.id})
+        self.env.company.cotizador_pricelist_id = self.pricelist
+        defaults = self.config._get_default_accessory_lines().ids
+
+        order = self._order(pricelist_id=customer_pricelist.id)
+        self.service.confirm_configuration(order.id, self.config.id, defaults)
+        self.assertEqual(order.pricelist_id, self.pricelist)
+        self.assertEqual(order.currency_id, self.usd)
+        self.assertEqual({l.product_id.name: l.price_unit for l in order.order_line if l.product_id},
+                         {'Pionera': 1000.0, 'Monitor': 100.0, 'Kit Fino': 50.0})
+
+        # Con productos ya cargados no se cambia la lista: se convierte a la moneda de la orden
+        order = self._order(pricelist_id=customer_pricelist.id, order_line=[
+            Command.create({'product_id': self.env.ref('cotizador.product_plan_cheques').id})])
+        self.service.confirm_configuration(order.id, self.config.id, defaults)
+        self.assertEqual(order.pricelist_id, customer_pricelist)
+        machine = order.order_line.filtered(lambda l: l.product_id.is_maquina)
+        self.assertAlmostEqual(machine.price_unit, 2000.0)
 
     def test_subtotal_consistent_with_line_discount(self):
         order = self._order()

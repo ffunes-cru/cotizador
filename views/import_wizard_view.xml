@@ -15,6 +15,7 @@
                     <group invisible="state != 'draft'" string="Cargar Archivos CSV">
                         <group>
                             <field name="csv_file_ids" widget="many2many_binary" string="Archivos CSV"/>
+                            <field name="currency_id" options="{'no_create': True}"/>
                         </group>
                     </group>
 

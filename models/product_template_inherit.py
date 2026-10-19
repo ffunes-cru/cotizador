@@ -27,6 +27,22 @@ class ProductTemplate(models.Model):
         store=True,
         help="El producto está en la categoría Accesorio (o una subcategoría)."
     )
+    cotizador_currency_id = fields.Many2one(
+        'res.currency',
+        string="Moneda del Cotizador",
+        required=True,
+        default=lambda self: self.env.company.currency_id,
+        help="Moneda de los precios de la matriz de este producto: los de sus configuraciones (máquina) "
+             "o los de sus líneas de accesorio (accesorio). El importador la fija con la moneda elegida al importar."
+    )
+    cotizador_modelo_id = fields.Many2one(
+        'product.template',
+        string="Modelo de Máquina",
+        index=True,
+        domain=[('is_maquina', '=', True)],
+        help="Máquina a la que pertenece este accesorio. Cada accesorio es de un único modelo: "
+             "solo puede usarse en configuraciones de esa máquina."
+    )
     available_attribute_value_ids = fields.Many2many(
         'product.attribute.value',
         string="Valores de Atributos Disponibles",
@@ -52,6 +68,11 @@ class ProductTemplate(models.Model):
         for tmpl in self:
             tmpl.is_maquina = _in_category(tmpl.categ_id, cat_maquina)
             tmpl.is_accesorio = _in_category(tmpl.categ_id, cat_accesorio)
+
+    @api.constrains('cotizador_modelo_id')
+    def _check_cotizador_modelo(self):
+        lines = self.env['sembradora.config.accessory.line'].search([('product_id.product_tmpl_id', 'in', self.ids)])
+        lines._check_product_modelo()
 
     @api.depends('attribute_line_ids', 'attribute_line_ids.attribute_id', 'attribute_line_ids.value_ids')
     def _compute_available_attributes(self):
@@ -178,7 +199,7 @@ class ProductTemplate(models.Model):
 
     # -------------------------------------------------------------------------
     #  Precios: el precio de lista de máquinas y accesorios es el de la matriz (en la
-    #  moneda de la matriz de la compañía). Se engancha en _price_compute, que es la base
+    #  Moneda del Cotizador de cada producto). Se engancha en _price_compute, que es la base
     #  de TODAS las reglas de listas de precios de Odoo (tienda, portal y backend): las
     #  reglas, conversiones de moneda y descuentos son los nativos.
     #
@@ -205,7 +226,7 @@ class ProductTemplate(models.Model):
         company = company or self.env.company
         if uom:
             price = self.uom_id._compute_price(price, uom)
-        return company.cotizador_matrix_currency_id._convert(
+        return self.cotizador_currency_id._convert(
             price, currency or self.currency_id, company, date or fields.Date.context_today(self), round=False,
         )
 

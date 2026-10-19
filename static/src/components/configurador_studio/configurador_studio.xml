@@ -337,7 +337,7 @@
                                                         </span>
                                                         <t t-if="state.isEditingLeafPrice">
                                                             <div class="input-group input-group-sm mt-1">
-                                                                <span class="input-group-text">$</span>
+                                                                <span class="input-group-text" t-esc="state.modelData.modelo.currency"/>
                                                                 <input type="number" class="form-control fw-bold"
                                                                        t-att-value="state.leafEditingPrice"
                                                                        t-on-input="onLeafEditingPriceInput"/>
@@ -392,9 +392,9 @@
                                                     </p>
 
                                                     <div>
-                                                        <label class="form-label fw-bold small text-uppercase">Precio Base Inicial ($):</label>
+                                                        <label class="form-label fw-bold small text-uppercase">Precio Base Inicial:</label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text">$</span>
+                                                            <span class="input-group-text" t-esc="state.modelData.modelo.currency"/>
                                                             <input type="number" class="form-control fw-bold"
                                                                    placeholder="0.00"
                                                                    t-att-value="state.leafNewPrice || col.leafData.defaultPrice"
@@ -448,9 +448,9 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Precio Base para estas <t t-esc="state.branchMissingCount"/> configuraciones ($):</label>
+                                <label class="form-label fw-bold">Precio Base para estas <t t-esc="state.branchMissingCount"/> configuraciones:</label>
                                 <div class="input-group input-group-lg">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text" t-esc="state.modelData.modelo.currency"/>
                                     <input type="number" class="form-control fw-bold"
                                            placeholder="0.00"
                                            t-att-value="state.branchBasePrice"
@@ -502,9 +502,9 @@
                             </t>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Precio Base de Lista ($):</label>
+                                <label class="form-label fw-bold">Precio Base de Lista:</label>
                                 <div class="input-group">
-                                    <span class="input-group-text">$</span>
+                                    <span class="input-group-text" t-esc="state.modelData.modelo.currency"/>
                                     <input type="number" class="form-control fw-bold"
                                            placeholder="0.00"
                                            t-att-value="state.wizardPrice"

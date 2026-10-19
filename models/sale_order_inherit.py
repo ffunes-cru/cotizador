@@ -517,6 +517,11 @@ class SaleOrderInherit(models.Model):
         config.ensure_one()
         acc_lines = acc_lines or self.env['sembradora.config.accessory.line']
         config._check_accessory_selection(acc_lines)
+        # Orden creada a mano (lista del cliente) que recibe su primera máquina: se pasa a la
+        # lista de cotizaciones. Con productos ya cargados no se cambia (quedarían en otra moneda).
+        pricelist = self.company_id.cotizador_pricelist_id
+        if pricelist and self.pricelist_id != pricelist and not self.order_line.filtered(lambda l: not l.display_type):
+            self.pricelist_id = pricelist
 
         tax = self.company_id.cotizador_tax_id
         # Sin impuesto configurado se usan los impuestos del producto (cálculo estándar de Odoo)

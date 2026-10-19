@@ -70,7 +70,8 @@ Ubicación: `models/product_template_inherit.py`, `controllers/main.py`, `views/
   - Al solicitar la cotización: visitante anónimo → solo un lead del CRM con la configuración (`cotizador_config_id`); el vendedor lo convierte y usa *Crear Cotización*. Cliente logueado → oportunidad + `sale.order` en estado `sent`.
 
 ### E. Moneda y Precios
-- Moneda de la matriz, impuesto de maquinaria y lista de precios de cotizaciones: campos de `res.company` (`cotizador_*`), editables en *Ajustes › Ventas*. Nada de buscar monedas, impuestos ni listas por nombre o valor.
+- Moneda de los precios de la matriz: `product.template.cotizador_currency_id` de cada máquina y accesorio (la fija el importador). Impuesto de maquinaria y lista de precios de cotizaciones: campos de `res.company` (`cotizador_*`), editables en *Ajustes › Ventas*. Nada de buscar monedas, impuestos ni listas por nombre o valor.
+- Accesorios propios de un modelo: `product.template.cotizador_modelo_id`; `sembradora.config.accessory.line._check_product_modelo` impide usarlos en otra máquina. El importador los identifica con `acc_<modelo>_<nombre>`.
 - La matriz es el precio de lista de máquinas y accesorios vía `_price_compute` (contexto `cotizador_matrix_price`); las reglas de listas de precios son las nativas de Odoo.
 
 ### F. Portal del Cliente y Control de Firma (3 Modos Comerciales)
@@ -91,7 +92,7 @@ Ubicación: `models/sembradora_config.py`, `models/sembradora_config_acc_line.py
 - **Importador CSV:** `doc/IMPORTADOR.md`. Columnas de atributo con prefijo `ATR_` (cualquier otra columna desconocida es error), sufijo de regla obligatorio, todo se valida antes de escribir. Identidad por xmlids propios `cotizador_import.*`: **nunca buscar por nombre**.
 - **Lógica única de accesorios** en `sembradora.config.rel` (no duplicar en servicios/controladores):
   - `validate_rule_set()`: coherencia de reglas y estándar; la usan el importador y la restricción `_check_accessories`.
-  - `_get_accessory_offer()`: cantidad (`product.category.cotizador_qty_attribute_id` → `product.attribute.value.cotizador_qty`) y precio unitario en moneda de la matriz.
+  - `_get_accessory_offer()`: cantidad (`product.category.cotizador_qty_attribute_id` → `product.attribute.value.cotizador_qty`) y precio unitario (el de la línea, en la moneda del accesorio; 0 = sin cargo).
   - `_get_default_accessory_lines()`: el equipamiento estándar. `_check_accessory_selection()`: valida la selección (exclusión, inclusión, opción única).
   - `_get_or_create_variant()`, `_get_variant_description()`, `_sync_variant_code()`.
 - **Reglas:** `exclusion` (:e), `inclusion` (:i / :it) y `choice` (:u, opción única: exactamente uno elegido, arranca el ESTANDAR; en el configurador OWL se muestra como radio con la diferencia de precio).

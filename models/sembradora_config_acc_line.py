@@ -1,4 +1,5 @@
-from odoo import fields, models
+from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 
 class SembradoraConfigAccessoryLine(models.Model):
@@ -17,7 +18,9 @@ class SembradoraConfigAccessoryLine(models.Model):
         required=True,
         domain=[('is_accesorio', '=', True)])
 
-    price = fields.Float(string='Precio en esta Configuración')
+    currency_id = fields.Many2one(related='product_id.cotizador_currency_id', string='Moneda')
+    price = fields.Monetary(string='Precio en esta Configuración',
+                            help='En la Moneda del Cotizador del accesorio.')
 
     # Relación Many2many directa con reglas
     rule_ids = fields.Many2many(
@@ -44,3 +47,14 @@ class SembradoraConfigAccessoryLine(models.Model):
         default=0,
         help='Si se especifica (> 0), se usa esta cantidad. '
              'Si se deja en 0, se calcula dinámicamente según la configuración.')
+
+    @api.constrains('product_id', 'config_id')
+    def _check_product_modelo(self):
+        for line in self:
+            if line.product_id.cotizador_modelo_id != line.config_id.modelo_id:
+                raise ValidationError(
+                    f"El accesorio '{line.product_id.display_name}' pertenece al modelo "
+                    f"'{line.product_id.cotizador_modelo_id.name or 'ninguno'}' y no puede usarse en una "
+                    f"configuración de '{line.config_id.modelo_id.name}'. Cada accesorio es de un único modelo "
+                    f"(campo Modelo de Máquina del producto)."
+                )

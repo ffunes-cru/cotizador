@@ -19,15 +19,18 @@ MATRIX_CSV = HEADER + """\
 """
 
 
-def analyze_matrix(env, csv_text):
+def analyze_matrix(env, csv_text, currency=None):
     attachment = env['ir.attachment'].create({'name': 'matriz.csv', 'raw': csv_text.encode()})
-    wizard = env['sembradora.import.wizard'].create({'csv_file_ids': [(6, 0, attachment.ids)]})
+    wizard = env['sembradora.import.wizard'].create({
+        'csv_file_ids': [(6, 0, attachment.ids)],
+        'currency_id': (currency or env.ref('base.USD')).id,
+    })
     wizard.action_analyze()
     return wizard
 
 
-def import_matrix(env, csv_text):
-    wizard = analyze_matrix(env, csv_text)
+def import_matrix(env, csv_text, currency=None):
+    wizard = analyze_matrix(env, csv_text, currency)
     assert not wizard.has_errors, wizard.analysis_summary
     wizard.action_import()
     return wizard
@@ -39,17 +42,17 @@ class CotizadorCase(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.usd = cls.env.ref('base.USD')
-        cls.env.company.write({'cotizador_matrix_currency_id': cls.usd.id, 'cotizador_tax_id': False})
+        cls.env.company.cotizador_tax_id = False
         cls.pricelist = cls.env['product.pricelist'].create({'name': 'Cotizador USD', 'currency_id': cls.usd.id})
         cls.partner = cls.env['res.partner'].create({'name': 'Cliente Test'})
 
     @classmethod
-    def _wizard(cls, csv_text):
-        return analyze_matrix(cls.env, csv_text)
+    def _wizard(cls, csv_text, currency=None):
+        return analyze_matrix(cls.env, csv_text, currency)
 
     @classmethod
-    def _import(cls, csv_text):
-        return import_matrix(cls.env, csv_text)
+    def _import(cls, csv_text, currency=None):
+        return import_matrix(cls.env, csv_text, currency)
 
     @classmethod
     def _imported(cls, xmlid_name):

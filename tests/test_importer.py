@@ -1,18 +1,26 @@
 from markupsafe import escape
 
-from odoo.exceptions import UserError
+from odoo import Command
+from odoo.exceptions import UserError, ValidationError
 from odoo.tests import tagged
 
 from odoo.addons.cotizador.models.sembradora_import_wizard import parse_price
 
 from .common import HEADER, MATRIX_CSV, CotizadorCase
 
+# Segundo modelo con accesorios del mismo nombre que Pionera
+DRILLA_CSV = """\
+100,Drilla,BASE,500,,,,,,16 Lineas,70 cm
+100,Drilla,ESTANDAR,,Monitor,90,,,,,
+100,Drilla,OPCIONAL,,Sensor,12,ATR_Lineas,,,,
+"""
+
 
 @tagged('post_install', '-at_install')
 class TestImporter(CotizadorCase):
 
-    def assertAnalysisError(self, csv_text, message):
-        wizard = self._wizard(csv_text)
+    def assertAnalysisError(self, csv_text, message, currency=None):
+        wizard = self._wizard(csv_text, currency)
         self.assertTrue(wizard.has_errors)
         self.assertIn(escape(message), wizard.analysis_summary)
         with self.assertRaises(UserError):
@@ -46,9 +54,34 @@ class TestImporter(CotizadorCase):
         self.assertEqual(self._imported('val_lineas_16_lineas').cotizador_qty, 16.0)
         self.assertEqual(self._imported('val_lineas_18_lineas').cotizador_qty, 18.0)
 
+        # Moneda elegida en el importador → Moneda del Cotizador de modelos y accesorios
+        self.assertEqual(config.modelo_id.cotizador_currency_id, self.usd)
+        self.assertEqual(sensor.cotizador_currency_id, self.usd)
+        self.assertEqual(sensor.cotizador_modelo_id, config.modelo_id)
+
+    def test_accessories_are_unique_per_model(self):
+        self._import(MATRIX_CSV + DRILLA_CSV)
+        pionera, drilla = self._imported('modelo_pionera'), self._imported('modelo_drilla')
+        monitor_p, monitor_d = self._imported('acc_pionera_monitor'), self._imported('acc_drilla_monitor')
+        self.assertNotEqual(monitor_p, monitor_d)
+        self.assertEqual((monitor_p.cotizador_modelo_id, monitor_d.cotizador_modelo_id), (pionera, drilla))
+        self.assertEqual(self._imported('cfg_drilla_100').accessory_line_ids.product_id,
+                         monitor_d | self._imported('acc_drilla_sensor'))
+
+        # El accesorio de un modelo no se puede usar en configuraciones de otro
+        with self.assertRaisesRegex(ValidationError, 'pertenece al modelo'):
+            self._imported('cfg_drilla_100').accessory_line_ids = [Command.create({'product_id': monitor_p.id})]
+        with self.assertRaisesRegex(ValidationError, 'pertenece al modelo'):
+            monitor_p.cotizador_modelo_id = drilla
+
+    def test_price_currency_must_match(self):
+        eur = self.env.ref('base.EUR')
+        eur.active = True
+        self.assertAnalysisError(MATRIX_CSV, "está en USD, pero la moneda de los precios elegida es EUR", eur)
+
     def test_reimport_uses_xmlids_not_names(self):
         self._import(MATRIX_CSV)
-        monitor = self._imported('acc_monitor')
+        monitor = self._imported('acc_pionera_monitor')
         monitor.name = 'Monitor renombrado en Odoo'
         self._imported('modelo_pionera').name = 'Pionera II'
         counts = {model: self.env[model].search_count([]) for model in (
