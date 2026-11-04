@@ -205,7 +205,7 @@ Consecuencias:
 | Configuración que está en el CSV | Se actualizan modelo, combinación, precio y descripción, y sus líneas de accesorio se **reemplazan** por las del CSV, todo junto (también si las líneas viejas usaban accesorios compartidos de una versión anterior). |
 | Configuración que no está en el CSV | No se toca. |
 | Productos, atributos, categorías, reglas | Se crean si faltan; nunca se borran. |
-| `ID Externo` (código de ingeniería / Teamcenter) | Se fija al crear la configuración; después lo administra Studio / Teamcenter. |
+| `ID Externo` (código externo) | Se fija al crear la configuración; después se puede editar en la configuración (*Matriz Base*). |
 
 ---
 

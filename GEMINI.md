@@ -11,6 +11,9 @@ La documentación del módulo está en `README.md` y `docs/`. Leer antes de camb
 
 ## Reglas al cambiar código
 
+- **Ramas**: trabajar en `dev`; `main` es lo que corre en producción y solo recibe lo probado. El Studio y el
+  Asistente de Precios están archivados en `poc/studio-precios`: no traerlos de vuelta a `dev` ni a `main`.
+
 - **Nunca buscar ni decidir por nombres o valores escritos en el código.** Registros del módulo por xmlid
   (`env.ref('cotizador.cat_maquina')`), lo importado por xmlid `cotizador_import.*`, secciones por
   `cotizador_section`, monedas / impuestos / listas por campos de la compañía o del producto.
@@ -20,7 +23,6 @@ La documentación del módulo está en `README.md` y `docs/`. Leer antes de camb
   `sale.order._cotizador_add_configuration()`; los precios salen de `_price_compute` y la lista de
   precios, nunca del JavaScript.
 - Las reglas de accesorios están en tres lugares que deben coincidir (`docs/recetas.md#cambiar-una-regla-de-accesorios`).
-- Servicios RPC de administración: empezar con `check_configurator_manager(self.env)`.
 - Texto del usuario hacia HTML: `markupsafe.escape` / `Markup`; en JS del sitio, `escapeHtml`.
 - **Documentar todo en formato Doxygen** (`docs/recetas.md#documentar-código`): `@file`, docstring o bloque
   `/** */` en cada clase y función, `@param` por parámetro, `@return` si devuelve algo.

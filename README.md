@@ -3,8 +3,7 @@
 Módulo de Odoo 19 para cotizar maquinaria agrícola configurable de Crucianelli:
 
 - **Matriz de ingeniería**: configuraciones válidas de cada máquina con su precio, accesorios compatibles,
-  reglas entre accesorios y equipamiento estándar. Se carga por CSV y se edita con el Studio y el
-  Asistente de Precios.
+  reglas entre accesorios y equipamiento estándar. Se carga y se actualiza por CSV.
 - **Configurador del vendedor** en la cotización y **configurador paso a paso en la tienda**, con
   solicitud de cotización al CRM.
 - **Cotización** con secciones, cascada de totales (descuentos, toma de usados), planes de pago, modos de
@@ -37,6 +36,14 @@ Leer en este orden. Los diagramas son [Mermaid](https://mermaid.js.org/): GitHub
 | [Mantenibilidad](docs/mantenibilidad.md) | Complejidad ciclomática de cada función (generada), puntos críticos, mejoras priorizadas y reglas para el código nuevo. |
 | [Referencia](docs/referencia.md) | **Generada** desde Odoo: modelos, campos, permisos, parámetros y quién llama a cada método. |
 | Código (Doxygen) | Cada clase, función y parámetro documentado en el código. HTML navegable: `doxygen docs/Doxyfile` → `docs/api/html/index.html`. |
+
+## Ramas
+
+| Rama | Contenido |
+|---|---|
+| `main` | Estable: lo que corre en producción. Solo recibe cambios probados en `dev`. |
+| `dev` | Desarrollo. Lo nuevo entra acá y pasa a `main` cuando está verificado. |
+| `poc/studio-precios` | Pruebas de concepto archivadas: *Configurador Studio* (editor visual de la matriz) y *Asistente de Precios* (ajustes de precio en bloque). No se mantienen; la matriz se edita con el importador CSV. |
 
 ## Inicio rápido
 

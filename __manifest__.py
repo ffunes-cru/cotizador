@@ -34,20 +34,16 @@
         'report/report_cotizacion_planes.xml',
         'views/portal_templates.xml',
         'views/website_sale_templates.xml',
-        'views/price_wizard_views.xml',
         'views/configurador_views.xml',
         'views/bcra_wizard_view.xml',
         'views/engineering_code_wizard_view.xml',
-        'views/studio_views.xml',
         'views/equipo_usado_wizard_view.xml',
         'views/descuento_wizard_view.xml',
         'views/crm_lead_view.xml',
     ],
     'assets': {
         'web.assets_backend': [
-            'cotizador/static/src/components/price_wizard/**/*',
             'cotizador/static/src/components/configurador/**/*',
-            'cotizador/static/src/components/configurador_studio/**/*',
         ],
         'web.assets_tests': [
             'cotizador/static/tests/tours/**/*',

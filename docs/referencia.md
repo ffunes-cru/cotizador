@@ -127,14 +127,6 @@ Sin campos propios.
 | `total_simulado` | float | Total Simulado | calculado |
 | `wizard_id` | many2one | Wizard | → `cotizador.plan.pago.wizard` |
 
-### `cotizador.price.wizard.service` — Servicio RPC para Asistente de Modificación de Precios (servicio RPC)
-
-Sin campos propios.
-
-### `cotizador.studio.service` — Servicio Backend para Configurador Studio (servicio RPC)
-
-Sin campos propios.
-
 ### `engineering.code.wizard` — Asistente de Carga de Códigos de Ingeniería (Teamcenter) (asistente)
 
 | Campo | Tipo | Etiqueta | Detalle |
@@ -344,19 +336,6 @@ Métodos públicos (invocables por RPC) y quién los llama: botones de vistas, J
 | `cotizador.descuento.wizard` | `action_confirm` | Crea las líneas de descuento (y la sección si falta) y actualiza la oportunidad. | `models/sale_order_inherit.py`; botón en `cotizador.descuento.wizard.form` |
 | `cotizador.plan.pago.template.line` | `action_select_line` | Agrega esta opción a la cotización del contexto (`default_sale_order_id` o `active_id`). | `models/plan_pago.py` |
 | `cotizador.plan.pago.wizard.line` | `action_select_line` | Elige esta opción: delega en cotizador.plan.pago.template.line.action_select_line(). | `models/plan_pago.py`; botón en `cotizador.plan.pago.wizard.form` |
-| `cotizador.price.wizard.service` | `get_accessory_data` | Accesorios de las configuraciones de un modelo, separados en globales y específicos. | JS `static/src/components/price_wizard/price_wizard.js` |
-| `cotizador.price.wizard.service` | `get_base_configs_data` | Configuraciones de un modelo con sus precios, y los atributos para filtrar. | JS `static/src/components/price_wizard/price_wizard.js` |
-| `cotizador.price.wizard.service` | `get_models` | Máquinas para elegir en el asistente. | JS `static/src/components/price_wizard/price_wizard.js` |
-| `cotizador.price.wizard.service` | `save_base_prices` | Guarda precios de configuraciones. | JS `static/src/components/price_wizard/price_wizard.js` |
-| `cotizador.price.wizard.service` | `save_global_accessory_prices` | Fija el precio de accesorios globales en todas las configuraciones del modelo. | JS `static/src/components/price_wizard/price_wizard.js` |
-| `cotizador.price.wizard.service` | `save_specific_accessory_prices` | Guarda precios de líneas de accesorio puntuales. | JS `static/src/components/price_wizard/price_wizard.js` |
-| `cotizador.studio.service` | `batch_create_branch_configurations` | Habilita en bloque todas las combinaciones que faltan bajo una rama del árbol. | JS `static/src/components/configurador_studio/configurador_studio.js` |
-| `cotizador.studio.service` | `create_configuration` | Habilita una combinación: crea su configuración. | JS `static/src/components/configurador_studio/configurador_studio.js` |
-| `cotizador.studio.service` | `delete_configuration` | Deshabilita una combinación: borra su configuración (y sus líneas de accesorio). | JS `static/src/components/configurador_studio/configurador_studio.js` |
-| `cotizador.studio.service` | `get_model_studio_data` | Matriz de una máquina para el árbol del Studio. | JS `static/src/components/configurador_studio/configurador_studio.js` |
-| `cotizador.studio.service` | `get_studio_overview` | Máquinas con sus métricas para el selector del Studio. | JS `static/src/components/configurador_studio/configurador_studio.js` |
-| `cotizador.studio.service` | `quick_update_config_engineering_code` | Cambia el código de ingeniería (`ext_id`) de una configuración y lo copia a la variante. | JS `static/src/components/configurador_studio/configurador_studio.js` |
-| `cotizador.studio.service` | `quick_update_config_price` | Cambia el precio de una configuración (edición en la hoja del árbol). | JS `static/src/components/configurador_studio/configurador_studio.js` |
 | `engineering.code.wizard` | `action_analyze_file` | Paso 2: cruza las filas del archivo con las variantes y configuraciones del modelo. | botón en `engineering.code.wizard.form` |
 | `engineering.code.wizard` | `action_apply_codes` | Paso 3: escribe los códigos simulados. | botón en `engineering.code.wizard.form` |
 | `engineering.code.wizard` | `action_back_to_upload` | Vuelve al paso 1 descartando el archivo y la simulación. | botón en `engineering.code.wizard.form` |
@@ -367,7 +346,6 @@ Métodos públicos (invocables por RPC) y quién los llama: botones de vistas, J
 | `sembradora.import.wizard` | `action_import` | Paso 2: crea o actualiza todo lo analizado, en una sola transacción. | botón en `sembradora.import.wizard.form` |
 | `crm.lead` | `action_cotizador_create_quotation` | Botón *Crear Cotización*: cotización de la configuración pedida en la web. | botón en `crm.lead.form.inherit.cotizador` |
 | `product.template` | `action_open_engineering_wizard` | Botón *Códigos Teamcenter* de la ficha de la máquina. | botón en `product.template.form.inherit.cotizador.description` |
-| `product.template` | `action_open_in_studio` | Botón *Configurador Studio* de la ficha de la máquina. | botón en `product.template.form.inherit.cotizador.description` |
 | `product.template` | `get_config_description` | Descripción HTML de una combinación según las reglas de *Descripción Paramétrica*. | QWeb `report/report_cotizacion_planes.xml`; `models/product_template_inherit.py`; `models/sembradora_config.py` |
 | `product.template` | `get_sequential_configurator_json` | Datos del configurador paso a paso de la ficha de producto en la tienda. | QWeb `views/website_sale_templates.xml` |
 | `res.config.settings` | `get_values` | Lee además las condiciones generales (texto por defecto si no se configuraron). | `models/res_config_settings.py` |

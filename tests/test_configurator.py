@@ -147,14 +147,9 @@ class TestConfigurator(CotizadorCase):
             self.config.with_user(salesman).price = 1
         with self.assertRaises(AccessError):
             self.env['cotizador.plan.pago.template'].with_user(salesman).create({'name': 'X', 'tipo': 'cheques'})
-        for model, method, args in (
-            ('cotizador.studio.service', 'get_studio_overview', ()),
-            ('cotizador.price.wizard.service', 'get_models', ()),
-            ('cotizador.price.wizard.service', 'get_base_configs_data', (self.config.modelo_id.id,)),
-        ):
-            with self.assertRaises(AccessError):
-                getattr(self.env[model].with_user(salesman), method)(*args)
-            getattr(self.env[model].with_user(manager), method)(*args)
+        with self.assertRaises(AccessError):
+            self.env['sembradora.import.wizard'].with_user(salesman).create({})
+        self.config.with_user(manager).price = 1
 
     def test_lead_create_quotation(self):
         lead = self.env['crm.lead'].create({'name': 'Web', 'cotizador_config_id': self.config.id})

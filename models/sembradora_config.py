@@ -7,22 +7,7 @@ compatibles. Solo las combinaciones que existen en la matriz se pueden cotizar o
 tienda (product.template._is_combination_possible()).
 """
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError, ValidationError
-
-## Grupo que administra la matriz (Studio, precios, importador, Teamcenter).
-MANAGER_GROUP = 'cotizador.group_cotizador_manager'
-
-
-def check_configurator_manager(env):
-    """Exige el grupo Administrador del Configurador. La llaman todos los métodos RPC de
-    Studio y del Asistente de Precios (los servicios abstractos no tienen permisos de acceso).
-
-    @param env Entorno del usuario que hace la llamada.
-    @throws AccessError Si el usuario no está en MANAGER_GROUP.
-    """
-    if not env.user.has_group(MANAGER_GROUP):
-        raise AccessError(env._("Solo el grupo Administrador del Configurador puede usar esta herramienta."))
-
+from odoo.exceptions import UserError, ValidationError
 
 def validate_rule_set(lines):
     """Valida la coherencia de reglas y equipamiento estándar de UNA configuración.

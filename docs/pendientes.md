@@ -12,25 +12,22 @@ plausible o regla del proyecto incumplida; **baja** = detalle o mejora.
 |---|---|---|---|---|
 | 1 | media | Nombres y valores escritos en el código | **Teamcenter**: al cruzar por valores de atributo traduce con una tabla fija (`alias_map`: `0.52` → `52.5`, `PRECISION` → `NEUMATICO`…) y busca la columna del código por palabras sueltas (`CODIGO`, `COD`). La tabla solo conoce los valores del archivo para el que se escribió: un valor nuevo o escrito distinto no cruza, y un alias equivocado cruza con la variante que no es. **Se mantiene** hasta que vuelva la plantilla ya enviada a Ingeniería. **Tienda**: el configurador agrega "cm" o "Líneas" según el nombre del atributo y muestra "PP" como "Precision Planting (PP)" (no depende de la plantilla). | Teamcenter, cuando vuelva la plantilla: cruzar solo por `ID_Odoo` confirmado y la columna exacta, sin tabla de alias. Tienda: mostrar el nombre del valor tal cual (corregir los nombres en Odoo si hace falta). |
 | 2 | baja | Cantidad del valor de atributo | El importador toma la cantidad del número del valor. Si se renombra el valor en Odoo (`16 Líneas` → `18 Líneas`) hay que corregir a mano *Cantidad (Cotizador)* o volver a importar. | Avisar en el formulario del valor. |
-| 3 | baja | Precio por defecto en el Studio | Al habilitar una combinación, el precio propuesto es el precio de venta del producto (moneda de la compañía), no un precio de matriz. | Proponer el precio de la configuración más parecida, o vacío. |
-| 4 | baja | Asistente de Precios: accesorios globales | Muestra el precio de la primera línea del accesorio; si las configuraciones tenían precios distintos, guardar los iguala todos. | Mostrar "varios precios" y pedir confirmación. |
-| 5 | baja | Productos no publicados | Un POST armado a mano puede pedir cotización de un producto no publicado en la tienda. | Exigir `is_published` (y ajustar los tests). |
-| 6 | baja | `scripts/split_csv.py` | Agrupa por `ID_Configuracion` solamente; como los ids se repiten entre modelos, junta configuraciones de máquinas distintas en el mismo grupo (las filas no se separan, así que el resultado sigue siendo importable). | Agrupar por `Modelo` + `ID_Configuracion`. |
-| 7 | baja | Textos sin traducción | Algunos avisos del Asistente de Precios usan `_t()` con texto armado (`${...}`), que no se puede traducir. | Usar `_t("... %s ...", valor)`. |
+| 3 | baja | Productos no publicados | Un POST armado a mano puede pedir cotización de un producto no publicado en la tienda. | Exigir `is_published` (y ajustar los tests). |
+| 4 | baja | `scripts/split_csv.py` | Agrupa por `ID_Configuracion` solamente; como los ids se repiten entre modelos, junta configuraciones de máquinas distintas en el mismo grupo (las filas no se separan, así que el resultado sigue siendo importable). | Agrupar por `Modelo` + `ID_Configuracion`. |
 
 ## Rendimiento
 
 | # | Gravedad | Tema | Detalle | Propuesta |
 |---|---|---|---|---|
-| 8 | media | Importaciones grandes | `_check_unique_combination` busca todas las configuraciones del modelo por cada configuración creada: crece con el cuadrado (miles de configuraciones por modelo se notan). | Comparar contra el índice `_cotizador_config_index` o una sola consulta por lote. |
-| 9 | baja | "Habilitar rama" del Studio | Arma el producto cartesiano completo de los atributos restantes sin límite. | Avisar y pedir confirmación por encima de un umbral. |
-| 10 | baja | Alerta BCRA al elegir cliente | Hace dos consultas HTTP en el formulario (hasta 8 s cada una) mientras el vendedor espera. | Consultar en segundo plano o solo con el botón. |
+| 5 | media | Importaciones grandes | `_check_unique_combination` busca todas las configuraciones del modelo por cada configuración creada: crece con el cuadrado (miles de configuraciones por modelo se notan). | Comparar contra el índice `_cotizador_config_index` o una sola consulta por lote. |
+| 6 | baja | Alerta BCRA al elegir cliente | Hace dos consultas HTTP en el formulario (hasta 8 s cada una) mientras el vendedor espera. | Consultar en segundo plano o solo con el botón. |
 
 ## Funcionalidad que falta
 
 | # | Tema | Detalle |
 |---|---|---|
-| 11 | Accesorios en la tienda | La solicitud web incluye la máquina y su equipamiento estándar; los opcionales se agregan al armar la cotización desde el CRM. |
+| 7 | Accesorios en la tienda | La solicitud web incluye la máquina y su equipamiento estándar; los opcionales se agregan al armar la cotización desde el CRM. |
+| 8 | Quitar combinaciones por CSV | El importador crea y actualiza, pero no borra las configuraciones que ya no están en el CSV: hoy se borran a mano en *Matriz Base*. Propuesta: por cada máquina del archivo, borrar las que faltan, mostrándolas antes en el análisis. |
 
 ## Resueltos en la revisión de octubre de 2026
 

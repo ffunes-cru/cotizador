@@ -10,7 +10,6 @@ módulo gira alrededor de ella:
 ```mermaid
 flowchart LR
     CSV[Planilla de Ingeniería<br/>CSV] -- importador --> M[(Matriz<br/>configuraciones + accesorios + reglas)]
-    ST[Studio / Asistente de Precios] -- edita --> M
     M --> C[Configurador del vendedor<br/>en la cotización]
     M --> W[Configurador de la tienda<br/>solicitud de cotización]
     W -- lead --> CRM[Oportunidad del CRM]
@@ -26,7 +25,7 @@ flowchart LR
 | Visitante de la tienda | Sitio web, sin sesión | Configura una máquina paso a paso y pide cotización. Se crea **solo un lead** del CRM. |
 | Cliente con usuario portal | Sitio web y portal `/my` | Igual, pero recibe la cotización a su nombre en el portal; puede aceptarla si el vendedor lo habilita. |
 | Vendedor (usuario interno) | Backend: Ventas y CRM | Lee la matriz. Cotiza con el configurador, agrega descuentos, usados y plan de pago, imprime y consulta el BCRA. |
-| Administrador del Configurador | Backend: *Ventas › Configuración › Configurador Sembradoras* | Todo lo del vendedor, más la matriz: importador, Studio, Asistente de Precios, Teamcenter, reglas y planes de pago. |
+| Administrador del Configurador | Backend: *Ventas › Configuración › Configurador Sembradoras* | Todo lo del vendedor, más la matriz: importador, Teamcenter, reglas y planes de pago. |
 
 ## Glosario
 
@@ -46,7 +45,7 @@ flowchart LR
 | **Moneda del Cotizador** | Moneda en la que están los precios de la matriz de un producto (máquina o accesorio). Puede no ser la de la compañía (p. ej. compañía en ARS, matriz en USD). | `cotizador_currency_id` del producto. |
 | **Lista de Precios de Cotizaciones** | Lista de precios (y por lo tanto moneda) de las cotizaciones de máquinas. | Ajuste de la compañía `cotizador_pricelist_id`. |
 | **Descripción paramétrica** | Texto técnico que se arma según los valores elegidos (la regla más específica gana). | `product.template.description.line`. |
-| **Código externo** | Identificador de la configuración fuera de Odoo: el `ID_Configuracion` del CSV o el que se carga en el Studio (este también se copia a la referencia interna de la variante). | `ext_id` de la configuración. |
+| **Código externo** | Identificador de la configuración fuera de Odoo: el `ID_Configuracion` del CSV. | `ext_id` de la configuración. |
 | **Código de ingeniería (Teamcenter)** | Código de la variante en el sistema de ingeniería. | Referencia interna (`default_code`) de la variante. |
 | **Cascada de totales** | SUB TOTAL → descuentos → plan de pago → SUB TOTAL NETO → IVA → TOTAL → usados → SALDO A CANCELAR. | Campos `amount_*` de `sale.order`. |
 | **Descuento comercial** | Bonificación sobre el **neto** (sin IVA), en porcentaje (en cascada) o monto fijo; el IVA se calcula después. | Línea `is_descuento`, sección *Descuentos*. |

@@ -10,9 +10,9 @@ Con el usuario *Administrador del Configurador*:
 
 | Quiero… | Dónde |
 |---|---|
-| Cargar o actualizar la matriz completa | *Importar Configuraciones* ([formato](importador.md)). |
-| Habilitar o deshabilitar combinaciones, cambiar un precio o un código | *Configurador Studio*. |
-| Subir o bajar precios en bloque (%, monto, precio fijo) | *Asistente de Precios*. |
+| Cargar o actualizar la matriz: combinaciones nuevas, precios (también en bloque), accesorios y reglas | Editar el CSV y *Importar Configuraciones* ([formato](importador.md)): lo que ya existe se actualiza. |
+| Quitar una combinación | *Matriz Base*: borrar la configuración (el importador no borra lo que falta en el CSV). |
+| Corregir un precio puntual | *Matriz Base* o *Accesorios por Configuración*. Conviene corregirlo también en el CSV: la próxima importación pisa el valor. |
 | Cargar códigos de Teamcenter | *Códigos de Ingeniería (Teamcenter)*. |
 | Cambiar la moneda de una máquina o accesorio | Ficha del producto, *Moneda del Cotizador* (los precios de matriz se interpretan en la moneda nueva: revisarlos). |
 | Texto técnico según los atributos | Ficha de la máquina, pestaña *Descripción Paramétrica*. |
@@ -24,7 +24,7 @@ Con el usuario *Administrador del Configurador*:
 
 1. Crear el producto en una categoría *Accesorio* (o una subcategoría de cantidad) con su *Modelo de
    Máquina* y su *Moneda del Cotizador*.
-2. En cada configuración donde va (*Matriz Base* o la configuración desde el Studio), agregar la línea con
+2. En cada configuración donde va (*Matriz Base*), agregar la línea con
    su precio, reglas y la marca *Estándar* si corresponde.
 3. Si después se importa un CSV con el mismo nombre para esa máquina, el importador crea **otro** producto
    (reconoce solo lo que creó él). Conviene cargarlo por CSV desde el principio.

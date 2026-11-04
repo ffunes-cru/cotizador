@@ -7,7 +7,7 @@
     </record>
 
     <!-- Administra la matriz de ingeniería: configuraciones, precios, accesorios, reglas,
-         importador CSV, Studio, Asistente de Precios y códigos Teamcenter.
+         importador CSV y códigos Teamcenter.
          Los vendedores (base.group_user) solo leen la matriz para cotizar. -->
     <record id="group_cotizador_manager" model="res.groups">
         <field name="name">Administrador del Configurador</field>

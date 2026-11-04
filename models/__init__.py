@@ -14,10 +14,8 @@ from . import plan_pago
 from . import product_attribute_inherit
 from . import sembradora_import_wizard
 from . import res_config_settings
-from . import price_wizard_service
 from . import configurator_service
 from . import engineering_code_wizard
-from . import studio_service
 from . import equipo_usado_wizard
 from . import descuento_wizard
 from . import res_users_inherit

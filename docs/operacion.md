@@ -52,7 +52,7 @@ También visibles en *Ajustes › Técnico › Parámetros del sistema*.
 
 ## Menús del administrador
 
-*Ventas › Configuración › Configurador Sembradoras*: Configurador Studio, Asistente de Precios, Importar
+*Ventas › Configuración › Configurador Sembradoras*: Importar
 Configuraciones, Códigos de Ingeniería (Teamcenter), Reglas de Accesorios, Matriz Base (Datos Raw),
 Accesorios por Configuración y Plantillas Planes de Pago.
 
@@ -97,7 +97,7 @@ uv run --no-project --with lizard==1.25.0 python tools/complejidad.py
 | La cotización sale en la moneda de la compañía y no en la de la matriz | La cotización ya tenía productos al configurar, o no hay *Lista de Precios de Cotizaciones*. | Elegir la lista en los ajustes; en una cotización ya cargada, cambiar la lista y actualizar precios. |
 | No aparece una moneda para elegir | La moneda está inactiva. | Activarla y cargar su tasa. |
 | El análisis del importador dice "está en USD, pero la moneda de los precios elegida es …" | Moneda equivocada en el importador. | Elegir la moneda del archivo. |
-| Una combinación no se puede elegir en la tienda | No está en la matriz. | Habilitarla en el Studio o en el CSV. |
+| Una combinación no se puede elegir en la tienda | No está en la matriz. | Agregarla al CSV y volver a importar. |
 | "pertenece al modelo … y no puede usarse en una configuración de …" | Se quiso usar el accesorio de otra máquina. | Cada máquina tiene sus accesorios: crear (o importar) el de esta máquina. |
 | El límite de solicitudes bloquea a todos | Odoo detrás de un proxy sin `--proxy-mode`. | Arrancar con `--proxy-mode`. |
 | La consulta BCRA da error | La API no responde (o bloquea la IP del servidor). | Reintentar más tarde; el error nunca se muestra como "sin deudas". |

@@ -29,10 +29,9 @@ Oficial: [Inheritance and extension](https://www.odoo.com/documentation/19.0/dev
 
 ## Modelos abstractos como servicio RPC
 
-`cotizador.configurator.service`, `cotizador.studio.service` y `cotizador.price.wizard.service` son
-`AbstractModel`: no tienen tabla, solo métodos que el JavaScript llama con `orm.call(modelo, método, args)`.
-Como no tienen permisos de acceso propios, **cada método valida quién lo llama**
-(`check_configurator_manager`) o se apoya en los permisos de los modelos que toca.
+`cotizador.configurator.service` es un `AbstractModel`: no tiene tabla, solo métodos que el JavaScript
+llama con `orm.call(modelo, método, args)`. Como no tiene permisos de acceso propios, se apoya en los
+permisos de los modelos que toca: corre como el vendedor, que lee la matriz y escribe en su cotización.
 
 Oficial: [AbstractModel](https://www.odoo.com/documentation/19.0/developer/reference/backend/orm.html#odoo.models.AbstractModel) ·
 [servicio ORM](https://www.odoo.com/documentation/19.0/developer/reference/frontend/services.html#orm-service)
@@ -150,7 +149,7 @@ Oficial: [res.config.settings](https://www.odoo.com/documentation/19.0/developer
 ## Acciones cliente y componentes OWL
 
 Una **acción cliente** (`ir.actions.client`, con un `tag`) abre un componente JavaScript en lugar de una
-vista. El configurador, el Studio y el Asistente de Precios son componentes **OWL** registrados en
+vista. El configurador del vendedor es un componente **OWL** registrado en
 `registry.category("actions")` con su plantilla XML.
 
 Oficial: [Client actions](https://www.odoo.com/documentation/19.0/developer/reference/backend/actions.html#client-actions-ir-actions-client) ·

@@ -56,8 +56,8 @@ Es la escala de McCabe que usan radon y SonarQube. Además se mide:
 
 ## Estado general
 
-**Saludable, con la deuda concentrada.** De 512 funciones, el 93 % está en A o B y la mediana es 2. Hay
-11 funciones en D o F, en 8 archivos, y 26 en C. Todas las demás se entienden de una lectura.
+**Saludable, con la deuda concentrada.** De 388 funciones, el 93 % está en A o B y la mediana es 2. Hay
+10 funciones en D o F, en 7 archivos, y 17 en C. Todas las demás se entienden de una lectura.
 
 Lo más importante: **el núcleo de precios y totales está en A–B**. Es el código cuyo error cuesta plata y
 el que más se toca. Además, los tests lo recorren casi entero:
@@ -74,7 +74,7 @@ el que más se toca. Además, los tests lo recorren casi entero:
 | `product.template._filter_combinations_impossible_by_config` | Una variante por configuración | 8 | 100 % |
 
 *Cobertura*: porcentaje de las líneas de la función que ejecutan los tests del módulo (`coverage.py`,
-noviembre de 2026). En total, los tests recorren el 81 % de las líneas de Python del servidor. El
+noviembre de 2026). En total, los tests recorren el 86 % de las líneas de Python del servidor. El
 JavaScript no se mide; lo prueban los dos tours.
 
 La complejidad alta está en los **bordes**: leer archivos (importador, Teamcenter), dibujar pantallas
@@ -89,18 +89,17 @@ o peor del servidor):
 
 | Función | CCN | Cobertura | Qué hace |
 |---|--:|--:|---|
-| `cotizador.price.wizard.service.get_accessory_data` | 16 | 3 % | Asistente de Precios: accesorios |
-| `cotizador.studio.service.batch_create_branch_configurations` | 13 | 4 % | Studio: habilitar una rama |
-| `cotizador.studio.service.get_model_studio_data` | 11 | 4 % | Studio: árbol de la matriz |
-| `cotizador.studio.service.create_configuration` | 11 | 6 % | Studio: habilitar una combinación |
 | `sale.order.action_ver_bcra_wizard` | 11 | 6 % | Informe BCRA |
 | `cotizador.plan.pago.template.line._compute_name` | 18 | 9 % | Nombre de una opción de plan |
 | `cotizador.plan.pago.template.line.action_select_line` | 26 | 65 % | Agregar un plan a la cotización |
 
-El hueco más importante son el **Studio** (27 % del archivo) y el **Asistente de Precios** (39 %):
-escriben la matriz, incluidos los precios, y casi no tienen tests. Si se quedan, escribir esos tests vale
-más que cualquier refactorización de la lista de abajo; si se reemplazan por el importador, el hueco
-desaparece con ellos.
+Las tres son de bajo riesgo: el informe BCRA solo muestra datos y las dos del plan de pago se reordenan
+con la mejora 1 de la lista de abajo.
+
+El hueco más grande eran el **Studio** (27 % de cobertura) y el **Asistente de Precios** (39 %), que
+escribían la matriz y los precios casi sin tests. Eran pruebas de concepto: se sacaron de `dev` y `main`
+(la matriz se edita con el importador CSV) y quedan archivados en la rama `poc/studio-precios`. Con ellos
+se fueron unas 3.900 líneas.
 
 Teamcenter estaba en esta tabla (plantilla 2 %, lectura del archivo 53 %) hasta que se escribió
 `tests/test_teamcenter.py`: plantilla en Excel y CSV, ida y vuelta con Ingeniería, archivos parciales e
@@ -109,7 +108,7 @@ ids cruzados. El archivo pasó de 58 % a 87 %, y los tests encontraron un error:
 
 ## Puntos críticos
 
-Las 11 funciones en rango D o F, de mayor a menor. Para cada una: por qué es compleja, qué riesgo tiene y
+Las 10 funciones en rango D o F, de mayor a menor. Para cada una: por qué es compleja, qué riesgo tiene y
 cómo bajarla. La cobertura es la de los tests del módulo (`tests/`) medida con `coverage.py`.
 
 ### F · `engineering.code.wizard.action_analyze_file` — CCN 57, 192 líneas
@@ -220,19 +219,6 @@ en el servidor. Lo cubre el tour `cotizador_configurator_tour`.
 **Propuesta.** `_groupAccessoriesByRule()` y un manejador por tipo de regla
 (`_lockExcluded(state)`, `_lockUntriggered(state)`).
 
-### D · `applyBulkAdjustment` (Asistente de Precios) — CCN 22, 56 líneas
-
-[static/src/components/price_wizard/price_wizard.js](../static/src/components/price_wizard/price_wizard.js#L332)
-
-**Por qué.** La misma fórmula (porcentaje, sumar o fijar) está **copiada tres veces**, una por pantalla
-(precios base, accesorios globales, accesorios por configuración).
-
-**Riesgo.** Medio: un cambio en la fórmula (p. ej. el redondeo) hay que hacerlo tres veces. Es el caso
-más claro de complejidad de la forma y no del problema.
-
-**Propuesta.** `_adjustedPrice(actual, tipo, valor)` y una tabla `paso → (filas, cambios, clave)`. Baja
-a ~5. **Es la mejora más barata de la lista.**
-
 ### D · `CotizadorWebsiteController.solicitar_cotizacion` — CCN 21, 39 líneas
 
 [controllers/main.py](../controllers/main.py#L175) · Formulario público.
@@ -241,8 +227,7 @@ a ~5. **Es la mejora más barata de la lista.**
 límite de solicitudes), cada una con su salida. 6 de los 21 son el `or ''` de limpiar cada campo.
 
 **Riesgo.** Bajo: se lee de arriba abajo y `tests/test_public_quote.py` prueba los rechazos (cobertura
-84 %). El orden de las
-guardas importa (ver [Seguridad](seguridad.md)).
+84 %). El orden de las guardas importa (ver [Seguridad](seguridad.md)).
 
 **Propuesta.** Extraer `_clean_contact(post)`, que devuelva los campos ya recortados. Prioridad baja:
 la cadena de guardas es el estilo correcto para este caso.
@@ -262,11 +247,10 @@ atrás, ver [Arquitectura](arquitectura.md#decisiones-de-diseño-que-conviene-co
 
 ### Rango C
 
-Las 26 funciones C (lista completa más abajo) no necesitan cambios urgentes. Se repiten dos patrones:
+Las 17 funciones C (lista completa más abajo) no necesitan cambios urgentes. Se repiten dos patrones:
 
-- **Servicios RPC que arman el JSON de una pantalla** (`get_model_matrix`, `get_config_accessories`,
-  `get_accessory_data`, `get_model_studio_data`…): recorren registros y deciden qué incluir. Se pueden
-  dividir si crecen.
+- **Servicios RPC que arman el JSON de una pantalla** (`get_model_matrix`, `get_config_accessories`):
+  recorren registros y deciden qué incluir. Se pueden dividir si crecen.
 - **Inflación por `or`**: `_compute_name`, `_create_lead` (además tiene 11 parámetros: conviene pasarle un
   dict) y `_sync_with_crm`.
 
@@ -276,21 +260,19 @@ más: lo nuevo, en funciones aparte.
 
 ## Mejoras priorizadas
 
-Ordenadas por beneficio sobre esfuerzo. Primero los tests, porque son la red para todo lo demás.
+Ordenadas por beneficio sobre esfuerzo. Todas tienen tests que las cubren: se pueden hacer sin miedo.
 
 | # | Función | Cambio | Esfuerzo | CCN hoy → esperado |
 |---|---|---|---|---|
-| 0 | Studio y Asistente de Precios | **Tests** (habilitar combinación y rama, guardar precios), o reemplazarlos por el importador | Medio | — (cobertura 27–39 % → >80 %) |
-| 1 | `applyBulkAdjustment` | Una función para la fórmula, una tabla por pantalla | Bajo | 22 → ~5 |
-| 2 | `action_select_line` + `_compute_name` | Una tabla de campos por tipo de plan | Bajo | 26 + 18 → ~5 + ~5 |
-| 3 | `action_generate_template` | Borrar los orígenes del diseño anterior, separar Excel y CSV | Bajo | 21 → ~6 |
-| 4 | `action_analyze_file` | Dividir en mapas, columnas y cruce; informe en QWeb | Medio | 57 → ninguna parte > 10 |
-| 5 | `render` (tienda) | Una función por zona de la pantalla; `?.`; plantillas | Medio | 43 → ninguna parte > 8 |
-| 6 | `_parse_input_file` | Excel y CSV aparte; una sola lectura de CSV con el importador | Bajo | 22 → ~8 |
-| 7 | `_evaluateAccessoryRules` | Agrupar y un manejador por tipo de regla | Bajo | 22 → ~8 |
-| 8 | `_parse` / `_validate_parsed` | Una función por tipo de fila y por grupo de validaciones | Medio | 42 / 26 → B–C cada parte |
+| 1 | `action_select_line` + `_compute_name` | Una tabla de campos por tipo de plan | Bajo | 26 + 18 → ~5 + ~5 |
+| 2 | `action_generate_template` | Borrar los orígenes del diseño anterior, separar Excel y CSV | Bajo | 21 → ~6 |
+| 3 | `action_analyze_file` | Dividir en mapas, columnas y cruce; informe en QWeb | Medio | 57 → ninguna parte > 10 |
+| 4 | `render` (tienda) | Una función por zona de la pantalla; `?.`; plantillas | Medio | 43 → ninguna parte > 8 |
+| 5 | `_parse_input_file` | Excel y CSV aparte; una sola lectura de CSV con el importador | Bajo | 22 → ~8 |
+| 6 | `_evaluateAccessoryRules` | Agrupar y un manejador por tipo de regla | Bajo | 22 → ~8 |
+| 7 | `_parse` / `_validate_parsed` | Una función por tipo de fila y por grupo de validaciones | Medio | 42 / 26 → B–C cada parte |
 
-Los puntos 4 y 6 conviene hacerlos junto con Pendientes #1 (la tabla de alias), cuando vuelva la
+Los puntos 3 y 5 conviene hacerlos junto con Pendientes #1 (la tabla de alias), cuando vuelva la
 plantilla de Ingeniería.
 
 ## Reglas para el código nuevo
@@ -331,11 +313,11 @@ python -m coverage report --show-missing
 
 | Área | Funciones | Líneas de código | CCN promedio | CCN máxima | CCN > 10 | A | B | C | D | E | F |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| Servidor | 214 | 3041 | 5.5 | 57 | 26 | 152 | 36 | 18 | 6 | 0 | 2 |
-| Navegador | 216 | 2169 | 3.0 | 43 | 9 | 189 | 18 | 6 | 2 | 0 | 1 |
-| Tests | 90 | 730 | 1.5 | 5 | 0 | 90 | 0 | 0 | 0 | 0 | 0 |
+| Servidor | 199 | 2673 | 5.5 | 57 | 21 | 142 | 36 | 13 | 6 | 0 | 2 |
+| Navegador | 86 | 945 | 3.3 | 43 | 4 | 76 | 6 | 2 | 1 | 0 | 1 |
+| Tests | 90 | 725 | 1.5 | 5 | 0 | 90 | 0 | 0 | 0 | 0 | 0 |
 | Herramientas de escritorio | 13 | 218 | 3.4 | 12 | 2 | 11 | 0 | 2 | 0 | 0 | 0 |
-| **Total** | 533 | 6158 | 3.7 | 57 | 37 | 442 | 54 | 26 | 8 | 0 | 3 |
+| **Total** | 388 | 4561 | 4.0 | 57 | 27 | 319 | 42 | 17 | 7 | 0 | 3 |
 
 ## Funciones que requieren atención (CCN > 10)
 
@@ -351,35 +333,25 @@ Ordenadas de mayor a menor complejidad.
 | 25 | D | `faltantes_js` | [tools/documentacion.py:150](../tools/documentacion.py#L150) | 31 | 0 |
 | 22 | D | `_parse_input_file` | [models/engineering_code_wizard.py:219](../models/engineering_code_wizard.py#L219) | 37 | 1 |
 | 22 | D | `_evaluateAccessoryRules` | [static/src/components/configurador/configurador.js:607](../static/src/components/configurador/configurador.js#L607) | 61 | 0 |
-| 22 | D | `applyBulkAdjustment` | [static/src/components/price_wizard/price_wizard.js:332](../static/src/components/price_wizard/price_wizard.js#L332) | 56 | 0 |
 | 21 | D | `solicitar_cotizacion` | [controllers/main.py:175](../controllers/main.py#L175) | 39 | 2 |
 | 21 | D | `action_generate_template` | [models/engineering_code_wizard.py:76](../models/engineering_code_wizard.py#L76) | 85 | 1 |
-| 20 | C | `validate_rule_set` | [models/sembradora_config.py:27](../models/sembradora_config.py#L27) | 33 | 1 |
+| 20 | C | `validate_rule_set` | [models/sembradora_config.py:12](../models/sembradora_config.py#L12) | 33 | 1 |
 | 18 | C | `_compute_name` | [models/plan_pago.py:87](../models/plan_pago.py#L87) | 12 | 1 |
 | 18 | C | `_cotizador_add_configuration` | [models/sale_order_inherit.py:663](../models/sale_order_inherit.py#L663) | 47 | 3 |
-| 16 | C | `get_accessory_data` | [models/price_wizard_service.py:133](../models/price_wizard_service.py#L133) | 64 | 2 |
 | 16 | C | `_build_analysis_html` | [models/sembradora_import_wizard.py:490](../models/sembradora_import_wizard.py#L490) | 36 | 3 |
 | 15 | C | `action_confirm` | [models/descuento_wizard.py:102](../models/descuento_wizard.py#L102) | 47 | 1 |
 | 15 | C | `setup` | [static/src/js/cotizador_sequential_configurator.js:45](../static/src/js/cotizador_sequential_configurator.js#L45) | 51 | 0 |
 | 14 | C | `get_model_matrix` | [models/configurator_service.py:81](../models/configurator_service.py#L81) | 62 | 3 |
 | 13 | C | `get_config_accessories` | [models/configurator_service.py:163](../models/configurator_service.py#L163) | 47 | 3 |
 | 13 | C | `_sync_with_crm` | [models/sale_order_inherit.py:419](../models/sale_order_inherit.py#L419) | 31 | 1 |
-| 13 | C | `batch_create_branch_configurations` | [models/studio_service.py:258](../models/studio_service.py#L258) | 34 | 4 |
-| 13 | C | `get treeColumns` | [static/src/components/configurador_studio/configurador_studio.js:261](../static/src/components/configurador_studio/configurador_studio.js#L261) | 43 | 0 |
-| 13 | C | `handleKeyDown` | [static/src/components/price_wizard/price_wizard.js:83](../static/src/components/price_wizard/price_wizard.js#L83) | 18 | 1 |
 | 13 | C | `_detalle` | [tools/documentacion.py:299](../tools/documentacion.py#L299) | 18 | 1 |
 | 12 | C | `_sync_expected_revenue_from_orders` | [models/crm_lead_inherit.py:56](../models/crm_lead_inherit.py#L56) | 21 | 1 |
-| 12 | C | `get_base_configs_data` | [models/price_wizard_service.py:48](../models/price_wizard_service.py#L48) | 45 | 2 |
 | 12 | C | `run` | [scripts/split_csv_gui.py:48](../scripts/split_csv_gui.py#L48) | 43 | 1 |
 | 12 | C | `formatOptionName` | [static/src/js/cotizador_sequential_configurator.js:125](../static/src/js/cotizador_sequential_configurator.js#L125) | 18 | 2 |
 | 11 | C | `_create_lead` | [controllers/main.py:232](../controllers/main.py#L232) | 29 | 11 |
 | 11 | C | `_parse_deudas` | [models/bcra_service.py:96](../models/bcra_service.py#L96) | 26 | 1 |
 | 11 | C | `action_ver_bcra_wizard` | [models/sale_order_inherit.py:359](../models/sale_order_inherit.py#L359) | 47 | 1 |
-| 11 | C | `get_model_studio_data` | [models/studio_service.py:62](../models/studio_service.py#L62) | 67 | 2 |
-| 11 | C | `create_configuration` | [models/studio_service.py:206](../models/studio_service.py#L206) | 32 | 5 |
 | 11 | C | `split_sembradora_csv` | [scripts/split_csv.py:18](../scripts/split_csv.py#L18) | 37 | 3 |
-| 11 | C | `submitNewConfigWizard` | [static/src/components/configurador_studio/configurador_studio.js:654](../static/src/components/configurador_studio/configurador_studio.js#L654) | 32 | 0 |
-| 11 | C | `parsePrice` | [static/src/components/price_wizard/price_wizard.js:129](../static/src/components/price_wizard/price_wizard.js#L129) | 18 | 1 |
 
 ## Por archivo
 
@@ -394,27 +366,23 @@ Ordenadas de mayor a menor complejidad.
 | [models/engineering_code_wizard.py](../models/engineering_code_wizard.py) | 6 | 367 | 18.7 | 57 | F | 3 |
 | [models/equipo_usado_wizard.py](../models/equipo_usado_wizard.py) | 1 | 34 | 7.0 | 7 | B | 0 |
 | [models/plan_pago.py](../models/plan_pago.py) | 4 | 77 | 12.0 | 26 | D | 2 |
-| [models/price_wizard_service.py](../models/price_wizard_service.py) | 6 | 172 | 6.8 | 16 | C | 2 |
 | [models/product_category_inherit.py](../models/product_category_inherit.py) | 1 | 11 | 3.0 | 3 | A | 0 |
-| [models/product_template_inherit.py](../models/product_template_inherit.py) | 23 | 180 | 3.7 | 10 | B | 0 |
+| [models/product_template_inherit.py](../models/product_template_inherit.py) | 22 | 172 | 3.8 | 10 | B | 0 |
 | [models/res_config_settings.py](../models/res_config_settings.py) | 3 | 19 | 2.0 | 3 | A | 0 |
 | [models/sale_order_inherit.py](../models/sale_order_inherit.py) | 45 | 466 | 3.9 | 18 | C | 3 |
 | [models/sembradora_accessory_rule.py](../models/sembradora_accessory_rule.py) | 1 | 4 | 2.0 | 2 | A | 0 |
-| [models/sembradora_config.py](../models/sembradora_config.py) | 19 | 222 | 4.4 | 20 | C | 1 |
+| [models/sembradora_config.py](../models/sembradora_config.py) | 18 | 219 | 4.6 | 20 | C | 1 |
 | [models/sembradora_config_acc_line.py](../models/sembradora_config_acc_line.py) | 1 | 9 | 4.0 | 4 | A | 0 |
 | [models/sembradora_import_wizard.py](../models/sembradora_import_wizard.py) | 26 | 429 | 6.7 | 42 | F | 3 |
-| [models/studio_service.py](../models/studio_service.py) | 7 | 185 | 6.4 | 13 | C | 3 |
 | [scripts/split_csv.py](../scripts/split_csv.py) | 2 | 48 | 7.0 | 11 | C | 1 |
 | [scripts/split_csv_gui.py](../scripts/split_csv_gui.py) | 11 | 170 | 2.7 | 12 | C | 1 |
 | [static/src/components/configurador/configurador.js](../static/src/components/configurador/configurador.js) | 60 | 561 | 3.0 | 22 | D | 1 |
-| [static/src/components/configurador_studio/configurador_studio.js](../static/src/components/configurador_studio/configurador_studio.js) | 54 | 465 | 2.6 | 13 | C | 2 |
-| [static/src/components/price_wizard/price_wizard.js](../static/src/components/price_wizard/price_wizard.js) | 76 | 759 | 2.9 | 22 | D | 3 |
 | [static/src/js/cotizador_quote_form.js](../static/src/js/cotizador_quote_form.js) | 2 | 6 | 1.0 | 1 | A | 0 |
 | [static/src/js/cotizador_sequential_configurator.js](../static/src/js/cotizador_sequential_configurator.js) | 24 | 378 | 4.3 | 43 | F | 3 |
 | [static/tests/tours/cotizador_tours.js](../static/tests/tours/cotizador_tours.js) | 2 | 24 | 1.0 | 1 | A | 0 |
 | [tests/common.py](../tests/common.py) | 8 | 29 | 1.2 | 2 | A | 0 |
 | [tests/test_cascade_variants.py](../tests/test_cascade_variants.py) | 11 | 95 | 1.3 | 2 | A | 0 |
-| [tests/test_configurator.py](../tests/test_configurator.py) | 12 | 143 | 2.2 | 5 | A | 0 |
+| [tests/test_configurator.py](../tests/test_configurator.py) | 12 | 138 | 2.2 | 5 | A | 0 |
 | [tests/test_documentacion.py](../tests/test_documentacion.py) | 2 | 7 | 1.0 | 1 | A | 0 |
 | [tests/test_importer.py](../tests/test_importer.py) | 11 | 120 | 1.5 | 3 | A | 0 |
 | [tests/test_public_quote.py](../tests/test_public_quote.py) | 11 | 80 | 1.4 | 2 | A | 0 |
@@ -540,19 +508,6 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 </details>
 
-<details><summary><code>models/price_wizard_service.py</code> — 6 funciones, CCN máxima 16</summary>
-
-| Línea | Función | CCN | Rango | Líneas de código | Parámetros |
-|--:|---|--:|:-:|--:|--:|
-| [24](../models/price_wizard_service.py#L24) | `get_models` | 4 | A | 15 | 1 |
-| [48](../models/price_wizard_service.py#L48) | `get_base_configs_data` | 12 | C | 45 | 2 |
-| [110](../models/price_wizard_service.py#L110) | `save_base_prices` | 3 | A | 14 | 2 |
-| [133](../models/price_wizard_service.py#L133) | `get_accessory_data` | 16 | C | 64 | 2 |
-| [224](../models/price_wizard_service.py#L224) | `save_global_accessory_prices` | 3 | A | 20 | 3 |
-| [255](../models/price_wizard_service.py#L255) | `save_specific_accessory_prices` | 3 | A | 14 | 2 |
-
-</details>
-
 <details><summary><code>models/product_category_inherit.py</code> — 1 funciones, CCN máxima 3</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
@@ -561,7 +516,7 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 </details>
 
-<details><summary><code>models/product_template_inherit.py</code> — 23 funciones, CCN máxima 10</summary>
+<details><summary><code>models/product_template_inherit.py</code> — 22 funciones, CCN máxima 10</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
@@ -570,24 +525,23 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | [94](../models/product_template_inherit.py#L94) | `_check_cotizador_modelo` | 1 | A | 3 | 1 |
 | [103](../models/product_template_inherit.py#L103) | `_compute_available_attributes` | 2 | A | 3 | 1 |
 | [108](../models/product_template_inherit.py#L108) | `get_config_description` | 10 | B | 13 | 2 |
-| [133](../models/product_template_inherit.py#L133) | `action_open_in_studio` | 1 | A | 8 | 1 |
-| [146](../models/product_template_inherit.py#L146) | `action_open_engineering_wizard` | 1 | A | 9 | 1 |
-| [160](../models/product_template_inherit.py#L160) | `get_sequential_configurator_json` | 7 | B | 36 | 1 |
-| [209](../models/product_template_inherit.py#L209) | `_cotizador_config_index` | 2 | A | 3 | 2 |
-| [222](../models/product_template_inherit.py#L222) | `_cotizador_find_config` | 3 | A | 7 | 2 |
-| [235](../models/product_template_inherit.py#L235) | `_is_combination_possible` | 4 | A | 9 | 4 |
-| [258](../models/product_template_inherit.py#L258) | `_create_variant_ids` | 2 | A | 4 | 1 |
-| [270](../models/product_template_inherit.py#L270) | `_cotizador_sync_variants` | 3 | A | 4 | 1 |
-| [280](../models/product_template_inherit.py#L280) | `_filter_combinations_impossible_by_config` | 8 | B | 11 | 3 |
-| [308](../models/product_template_inherit.py#L308) | `_with_matrix_price` | 1 | A | 3 | 2 |
-| [317](../models/product_template_inherit.py#L317) | `_get_product_price_context` | 3 | A | 7 | 2 |
-| [331](../models/product_template_inherit.py#L331) | `_cotizador_convert_matrix_price` | 5 | A | 8 | 6 |
-| [349](../models/product_template_inherit.py#L349) | `_cotizador_matrix_list_price` | 7 | B | 9 | 1 |
-| [364](../models/product_template_inherit.py#L364) | `_price_compute` | 4 | A | 8 | 6 |
-| [387](../models/product_template_inherit.py#L387) | `_with_matrix_price` | 1 | A | 3 | 2 |
-| [396](../models/product_template_inherit.py#L396) | `_cotizador_matrix_list_price` | 5 | A | 11 | 1 |
-| [413](../models/product_template_inherit.py#L413) | `_price_compute` | 4 | A | 10 | 6 |
-| [476](../models/product_template_inherit.py#L476) | `_onchange_value_ids_name` | 3 | A | 3 | 1 |
+| [133](../models/product_template_inherit.py#L133) | `action_open_engineering_wizard` | 1 | A | 9 | 1 |
+| [147](../models/product_template_inherit.py#L147) | `get_sequential_configurator_json` | 7 | B | 36 | 1 |
+| [196](../models/product_template_inherit.py#L196) | `_cotizador_config_index` | 2 | A | 3 | 2 |
+| [209](../models/product_template_inherit.py#L209) | `_cotizador_find_config` | 3 | A | 7 | 2 |
+| [222](../models/product_template_inherit.py#L222) | `_is_combination_possible` | 4 | A | 9 | 4 |
+| [245](../models/product_template_inherit.py#L245) | `_create_variant_ids` | 2 | A | 4 | 1 |
+| [257](../models/product_template_inherit.py#L257) | `_cotizador_sync_variants` | 3 | A | 4 | 1 |
+| [267](../models/product_template_inherit.py#L267) | `_filter_combinations_impossible_by_config` | 8 | B | 11 | 3 |
+| [295](../models/product_template_inherit.py#L295) | `_with_matrix_price` | 1 | A | 3 | 2 |
+| [304](../models/product_template_inherit.py#L304) | `_get_product_price_context` | 3 | A | 7 | 2 |
+| [318](../models/product_template_inherit.py#L318) | `_cotizador_convert_matrix_price` | 5 | A | 8 | 6 |
+| [336](../models/product_template_inherit.py#L336) | `_cotizador_matrix_list_price` | 7 | B | 9 | 1 |
+| [351](../models/product_template_inherit.py#L351) | `_price_compute` | 4 | A | 8 | 6 |
+| [374](../models/product_template_inherit.py#L374) | `_with_matrix_price` | 1 | A | 3 | 2 |
+| [383](../models/product_template_inherit.py#L383) | `_cotizador_matrix_list_price` | 5 | A | 11 | 1 |
+| [400](../models/product_template_inherit.py#L400) | `_price_compute` | 4 | A | 10 | 6 |
+| [463](../models/product_template_inherit.py#L463) | `_onchange_value_ids_name` | 3 | A | 3 | 1 |
 
 </details>
 
@@ -661,29 +615,28 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 </details>
 
-<details><summary><code>models/sembradora_config.py</code> — 19 funciones, CCN máxima 20</summary>
+<details><summary><code>models/sembradora_config.py</code> — 18 funciones, CCN máxima 20</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
-| [16](../models/sembradora_config.py#L16) | `check_configurator_manager` | 2 | A | 3 | 1 |
-| [27](../models/sembradora_config.py#L27) | `validate_rule_set` | 20 | C | 33 | 1 |
-| [124](../models/sembradora_config.py#L124) | `_compute_description` | 6 | B | 10 | 1 |
-| [140](../models/sembradora_config.py#L140) | `_compute_name` | 2 | A | 4 | 1 |
-| [147](../models/sembradora_config.py#L147) | `create` | 1 | A | 5 | 2 |
-| [158](../models/sembradora_config.py#L158) | `write` | 3 | A | 8 | 2 |
-| [173](../models/sembradora_config.py#L173) | `unlink` | 1 | A | 6 | 1 |
-| [186](../models/sembradora_config.py#L186) | `_check_complete_combination` | 5 | A | 11 | 1 |
-| [206](../models/sembradora_config.py#L206) | `_check_unique_combination` | 4 | A | 10 | 1 |
-| [222](../models/sembradora_config.py#L222) | `_check_accessories_modelo` | 1 | A | 2 | 1 |
-| [230](../models/sembradora_config.py#L230) | `_check_accessories` | 7 | B | 13 | 1 |
-| [249](../models/sembradora_config.py#L249) | `_rule_set_lines` | 3 | A | 8 | 1 |
-| [266](../models/sembradora_config.py#L266) | `_get_accessory_offer` | 8 | B | 36 | 1 |
-| [323](../models/sembradora_config.py#L323) | `_get_default_accessory_lines` | 1 | A | 3 | 1 |
-| [333](../models/sembradora_config.py#L333) | `_check_accessory_selection` | 9 | B | 28 | 2 |
-| [372](../models/sembradora_config.py#L372) | `_get_variant` | 3 | A | 15 | 1 |
-| [385](../models/sembradora_config.py#L385) | `_get_variant.find` | 1 | A | 6 | 0 |
-| [405](../models/sembradora_config.py#L405) | `_sync_variant_code` | 3 | A | 9 | 1 |
-| [416](../models/sembradora_config.py#L416) | `_get_variant_description` | 4 | A | 12 | 1 |
+| [12](../models/sembradora_config.py#L12) | `validate_rule_set` | 20 | C | 33 | 1 |
+| [109](../models/sembradora_config.py#L109) | `_compute_description` | 6 | B | 10 | 1 |
+| [125](../models/sembradora_config.py#L125) | `_compute_name` | 2 | A | 4 | 1 |
+| [132](../models/sembradora_config.py#L132) | `create` | 1 | A | 5 | 2 |
+| [143](../models/sembradora_config.py#L143) | `write` | 3 | A | 8 | 2 |
+| [158](../models/sembradora_config.py#L158) | `unlink` | 1 | A | 6 | 1 |
+| [171](../models/sembradora_config.py#L171) | `_check_complete_combination` | 5 | A | 11 | 1 |
+| [191](../models/sembradora_config.py#L191) | `_check_unique_combination` | 4 | A | 10 | 1 |
+| [207](../models/sembradora_config.py#L207) | `_check_accessories_modelo` | 1 | A | 2 | 1 |
+| [215](../models/sembradora_config.py#L215) | `_check_accessories` | 7 | B | 13 | 1 |
+| [234](../models/sembradora_config.py#L234) | `_rule_set_lines` | 3 | A | 8 | 1 |
+| [251](../models/sembradora_config.py#L251) | `_get_accessory_offer` | 8 | B | 36 | 1 |
+| [308](../models/sembradora_config.py#L308) | `_get_default_accessory_lines` | 1 | A | 3 | 1 |
+| [318](../models/sembradora_config.py#L318) | `_check_accessory_selection` | 9 | B | 28 | 2 |
+| [357](../models/sembradora_config.py#L357) | `_get_variant` | 3 | A | 15 | 1 |
+| [370](../models/sembradora_config.py#L370) | `_get_variant.find` | 1 | A | 6 | 0 |
+| [390](../models/sembradora_config.py#L390) | `_sync_variant_code` | 3 | A | 9 | 1 |
+| [401](../models/sembradora_config.py#L401) | `_get_variant_description` | 4 | A | 12 | 1 |
 
 </details>
 
@@ -725,20 +678,6 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | [681](../models/sembradora_import_wizard.py#L681) | `_import_accessories` | 5 | A | 17 | 5 |
 | [710](../models/sembradora_import_wizard.py#L710) | `_import_rules` | 4 | A | 12 | 3 |
 | [731](../models/sembradora_import_wizard.py#L731) | `_import_configs` | 10 | B | 27 | 7 |
-
-</details>
-
-<details><summary><code>models/studio_service.py</code> — 7 funciones, CCN máxima 13</summary>
-
-| Línea | Función | CCN | Rango | Líneas de código | Parámetros |
-|--:|---|--:|:-:|--:|--:|
-| [22](../models/studio_service.py#L22) | `get_studio_overview` | 3 | A | 29 | 1 |
-| [62](../models/studio_service.py#L62) | `get_model_studio_data` | 11 | C | 67 | 2 |
-| [152](../models/studio_service.py#L152) | `quick_update_config_price` | 2 | A | 7 | 3 |
-| [169](../models/studio_service.py#L169) | `quick_update_config_engineering_code` | 3 | A | 9 | 3 |
-| [190](../models/studio_service.py#L190) | `delete_configuration` | 2 | A | 7 | 2 |
-| [206](../models/studio_service.py#L206) | `create_configuration` | 11 | C | 32 | 5 |
-| [258](../models/studio_service.py#L258) | `batch_create_branch_configurations` | 13 | C | 34 | 4 |
 
 </details>
 
@@ -833,150 +772,6 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | [743](../static/src/components/configurador/configurador.js#L743) | `confirmConfiguration` | 5 | A | 38 | 0 |
 | [762](../static/src/components/configurador/configurador.js#L762) | `(anónima)` | 1 | A | 1 | 1 |
 | [789](../static/src/components/configurador/configurador.js#L789) | `closeAndReturn` | 2 | A | 13 | 0 |
-
-</details>
-
-<details><summary><code>static/src/components/configurador_studio/configurador_studio.js</code> — 54 funciones, CCN máxima 13</summary>
-
-| Línea | Función | CCN | Rango | Líneas de código | Parámetros |
-|--:|---|--:|:-:|--:|--:|
-| [34](../static/src/components/configurador_studio/configurador_studio.js#L34) | `setup` | 7 | B | 37 | 0 |
-| [89](../static/src/components/configurador_studio/configurador_studio.js#L89) | `(anónima)` | 2 | A | 6 | 0 |
-| [105](../static/src/components/configurador_studio/configurador_studio.js#L105) | `loadOverview` | 5 | A | 18 | 0 |
-| [129](../static/src/components/configurador_studio/configurador_studio.js#L129) | `selectModel` | 2 | A | 19 | 1 |
-| [154](../static/src/components/configurador_studio/configurador_studio.js#L154) | `onSelectModelChange` | 1 | A | 3 | 1 |
-| [159](../static/src/components/configurador_studio/configurador_studio.js#L159) | `toggleKpis` | 1 | A | 3 | 0 |
-| [167](../static/src/components/configurador_studio/configurador_studio.js#L167) | `get codedPercentage` | 3 | A | 4 | 0 |
-| [182](../static/src/components/configurador_studio/configurador_studio.js#L182) | `selectTreeNode` | 1 | A | 8 | 2 |
-| [190](../static/src/components/configurador_studio/configurador_studio.js#L190) | `(anónima)` | 3 | A | 8 | 0 |
-| [204](../static/src/components/configurador_studio/configurador_studio.js#L204) | `jumpToTreeLevel` | 1 | A | 5 | 1 |
-| [211](../static/src/components/configurador_studio/configurador_studio.js#L211) | `resetTreePath` | 1 | A | 6 | 0 |
-| [215](../static/src/components/configurador_studio/configurador_studio.js#L215) | `(anónima)` | 3 | A | 5 | 0 |
-| [223](../static/src/components/configurador_studio/configurador_studio.js#L223) | `toggleHideZeroPercent` | 1 | A | 3 | 0 |
-| [232](../static/src/components/configurador_studio/configurador_studio.js#L232) | `getNodeStats` | 7 | B | 18 | 1 |
-| [241](../static/src/components/configurador_studio/configurador_studio.js#L241) | `(anónima)` | 1 | A | 1 | 1 |
-| [241](../static/src/components/configurador_studio/configurador_studio.js#L241) | `(anónima)` | 1 | A | 1 | 1 |
-| [261](../static/src/components/configurador_studio/configurador_studio.js#L261) | `get treeColumns` | 13 | C | 43 | 0 |
-| [276](../static/src/components/configurador_studio/configurador_studio.js#L276) | `(anónima)` | 1 | A | 14 | 1 |
-| [294](../static/src/components/configurador_studio/configurador_studio.js#L294) | `(anónima)` | 1 | A | 1 | 1 |
-| [310](../static/src/components/configurador_studio/configurador_studio.js#L310) | `(anónima)` | 2 | A | 2 | 1 |
-| [311](../static/src/components/configurador_studio/configurador_studio.js#L311) | `(anónima)` | 1 | A | 1 | 1 |
-| [337](../static/src/components/configurador_studio/configurador_studio.js#L337) | `get treeBreadcrumbs` | 6 | B | 20 | 0 |
-| [346](../static/src/components/configurador_studio/configurador_studio.js#L346) | `(anónima)` | 1 | A | 1 | 1 |
-| [364](../static/src/components/configurador_studio/configurador_studio.js#L364) | `getComboLabel` | 6 | B | 14 | 1 |
-| [369](../static/src/components/configurador_studio/configurador_studio.js#L369) | `(anónima)` | 1 | A | 1 | 1 |
-| [387](../static/src/components/configurador_studio/configurador_studio.js#L387) | `startEditLeafPrice` | 1 | A | 4 | 1 |
-| [393](../static/src/components/configurador_studio/configurador_studio.js#L393) | `cancelLeafPrice` | 1 | A | 3 | 0 |
-| [401](../static/src/components/configurador_studio/configurador_studio.js#L401) | `onLeafEditingPriceInput` | 1 | A | 3 | 1 |
-| [410](../static/src/components/configurador_studio/configurador_studio.js#L410) | `saveLeafPrice` | 4 | A | 18 | 1 |
-| [418](../static/src/components/configurador_studio/configurador_studio.js#L418) | `(anónima)` | 1 | A | 1 | 1 |
-| [433](../static/src/components/configurador_studio/configurador_studio.js#L433) | `startEditLeafExtId` | 2 | A | 4 | 1 |
-| [439](../static/src/components/configurador_studio/configurador_studio.js#L439) | `cancelLeafExtId` | 1 | A | 3 | 0 |
-| [447](../static/src/components/configurador_studio/configurador_studio.js#L447) | `onLeafEditingExtIdInput` | 1 | A | 3 | 1 |
-| [456](../static/src/components/configurador_studio/configurador_studio.js#L456) | `saveLeafExtId` | 4 | A | 18 | 1 |
-| [464](../static/src/components/configurador_studio/configurador_studio.js#L464) | `(anónima)` | 1 | A | 1 | 1 |
-| [479](../static/src/components/configurador_studio/configurador_studio.js#L479) | `onLeafNewPriceInput` | 1 | A | 3 | 1 |
-| [487](../static/src/components/configurador_studio/configurador_studio.js#L487) | `onLeafNewExtIdInput` | 1 | A | 3 | 1 |
-| [496](../static/src/components/configurador_studio/configurador_studio.js#L496) | `submitQuickCreateLeaf` | 10 | B | 28 | 1 |
-| [531](../static/src/components/configurador_studio/configurador_studio.js#L531) | `deleteSingleConfig` | 3 | A | 16 | 1 |
-| [541](../static/src/components/configurador_studio/configurador_studio.js#L541) | `(anónima)` | 1 | A | 1 | 1 |
-| [558](../static/src/components/configurador_studio/configurador_studio.js#L558) | `openBranchCreateModal` | 3 | A | 7 | 3 |
-| [567](../static/src/components/configurador_studio/configurador_studio.js#L567) | `closeBranchCreateModal` | 1 | A | 3 | 0 |
-| [575](../static/src/components/configurador_studio/configurador_studio.js#L575) | `onBranchBasePriceInput` | 1 | A | 3 | 1 |
-| [583](../static/src/components/configurador_studio/configurador_studio.js#L583) | `submitBranchCreate` | 5 | A | 24 | 0 |
-| [613](../static/src/components/configurador_studio/configurador_studio.js#L613) | `openNewConfigWizard` | 4 | A | 6 | 0 |
-| [621](../static/src/components/configurador_studio/configurador_studio.js#L621) | `closeNewConfigWizard` | 1 | A | 3 | 0 |
-| [630](../static/src/components/configurador_studio/configurador_studio.js#L630) | `onWizardValueChange` | 2 | A | 3 | 2 |
-| [638](../static/src/components/configurador_studio/configurador_studio.js#L638) | `onWizardPriceInput` | 1 | A | 3 | 1 |
-| [646](../static/src/components/configurador_studio/configurador_studio.js#L646) | `onWizardExtIdInput` | 1 | A | 3 | 1 |
-| [654](../static/src/components/configurador_studio/configurador_studio.js#L654) | `submitNewConfigWizard` | 11 | C | 32 | 0 |
-| [693](../static/src/components/configurador_studio/configurador_studio.js#L693) | `openEngineeringWizard` | 1 | A | 7 | 0 |
-| [702](../static/src/components/configurador_studio/configurador_studio.js#L702) | `openImportWizard` | 1 | A | 3 | 0 |
-| [707](../static/src/components/configurador_studio/configurador_studio.js#L707) | `openLegacyRawView` | 1 | A | 10 | 0 |
-| [723](../static/src/components/configurador_studio/configurador_studio.js#L723) | `formatCurrency` | 2 | A | 7 | 1 |
-
-</details>
-
-<details><summary><code>static/src/components/price_wizard/price_wizard.js</code> — 76 funciones, CCN máxima 22</summary>
-
-| Línea | Función | CCN | Rango | Líneas de código | Parámetros |
-|--:|---|--:|:-:|--:|--:|
-| [35](../static/src/components/price_wizard/price_wizard.js#L35) | `setup` | 1 | A | 37 | 0 |
-| [79](../static/src/components/price_wizard/price_wizard.js#L79) | `(anónima)` | 1 | A | 3 | 0 |
-| [83](../static/src/components/price_wizard/price_wizard.js#L83) | `handleKeyDown` | 13 | C | 18 | 1 |
-| [103](../static/src/components/price_wizard/price_wizard.js#L103) | `(anónima)` | 1 | A | 3 | 0 |
-| [115](../static/src/components/price_wizard/price_wizard.js#L115) | `formatPrice` | 4 | A | 7 | 1 |
-| [129](../static/src/components/price_wizard/price_wizard.js#L129) | `parsePrice` | 11 | C | 18 | 1 |
-| [154](../static/src/components/price_wizard/price_wizard.js#L154) | `loadModels` | 2 | A | 16 | 0 |
-| [175](../static/src/components/price_wizard/price_wizard.js#L175) | `selectModel` | 1 | A | 4 | 1 |
-| [181](../static/src/components/price_wizard/price_wizard.js#L181) | `goToModelSelection` | 1 | A | 16 | 0 |
-| [199](../static/src/components/price_wizard/price_wizard.js#L199) | `goToTypeSelection` | 2 | A | 17 | 0 |
-| [218](../static/src/components/price_wizard/price_wizard.js#L218) | `goBack` | 5 | A | 11 | 0 |
-| [234](../static/src/components/price_wizard/price_wizard.js#L234) | `goToEditBase` | 4 | A | 24 | 0 |
-| [264](../static/src/components/price_wizard/price_wizard.js#L264) | `goToEditAccessories` | 7 | B | 34 | 0 |
-| [283](../static/src/components/price_wizard/price_wizard.js#L283) | `(anónima)` | 1 | A | 1 | 1 |
-| [304](../static/src/components/price_wizard/price_wizard.js#L304) | `setAccTab` | 1 | A | 9 | 1 |
-| [317](../static/src/components/price_wizard/price_wizard.js#L317) | `openBulkModal` | 1 | A | 5 | 0 |
-| [324](../static/src/components/price_wizard/price_wizard.js#L324) | `closeBulkModal` | 1 | A | 3 | 0 |
-| [332](../static/src/components/price_wizard/price_wizard.js#L332) | `applyBulkAdjustment` | 22 | D | 56 | 0 |
-| [399](../static/src/components/price_wizard/price_wizard.js#L399) | `onBaseAttrFilterChange` | 2 | A | 9 | 2 |
-| [413](../static/src/components/price_wizard/price_wizard.js#L413) | `onBaseSearchInput` | 1 | A | 4 | 1 |
-| [419](../static/src/components/price_wizard/price_wizard.js#L419) | `resetBaseFilters` | 1 | A | 5 | 0 |
-| [426](../static/src/components/price_wizard/price_wizard.js#L426) | `get hasActiveBaseFilters` | 2 | A | 6 | 0 |
-| [438](../static/src/components/price_wizard/price_wizard.js#L438) | `onBasePriceChange` | 1 | A | 5 | 2 |
-| [449](../static/src/components/price_wizard/price_wizard.js#L449) | `getBasePriceFormatted` | 2 | A | 4 | 1 |
-| [458](../static/src/components/price_wizard/price_wizard.js#L458) | `isBasePriceChanged` | 2 | A | 3 | 1 |
-| [466](../static/src/components/price_wizard/price_wizard.js#L466) | `get filteredBaseConfigs` | 1 | A | 3 | 0 |
-| [467](../static/src/components/price_wizard/price_wizard.js#L467) | `(anónima)` | 9 | B | 18 | 1 |
-| [491](../static/src/components/price_wizard/price_wizard.js#L491) | `get baseTotalPages` | 2 | A | 3 | 0 |
-| [496](../static/src/components/price_wizard/price_wizard.js#L496) | `get paginatedBaseConfigs` | 1 | A | 4 | 0 |
-| [502](../static/src/components/price_wizard/price_wizard.js#L502) | `get basePagerInfo` | 2 | A | 7 | 0 |
-| [511](../static/src/components/price_wizard/price_wizard.js#L511) | `prevBasePage` | 2 | A | 5 | 0 |
-| [518](../static/src/components/price_wizard/price_wizard.js#L518) | `nextBasePage` | 2 | A | 5 | 0 |
-| [525](../static/src/components/price_wizard/price_wizard.js#L525) | `get baseChangesCount` | 3 | A | 9 | 0 |
-| [539](../static/src/components/price_wizard/price_wizard.js#L539) | `saveBasePrices` | 8 | B | 42 | 0 |
-| [570](../static/src/components/price_wizard/price_wizard.js#L570) | `(anónima)` | 1 | A | 1 | 1 |
-| [590](../static/src/components/price_wizard/price_wizard.js#L590) | `onAccGlobalSearchInput` | 1 | A | 4 | 1 |
-| [600](../static/src/components/price_wizard/price_wizard.js#L600) | `onAccGlobalPriceChange` | 1 | A | 5 | 2 |
-| [611](../static/src/components/price_wizard/price_wizard.js#L611) | `getAccGlobalPriceFormatted` | 2 | A | 7 | 1 |
-| [623](../static/src/components/price_wizard/price_wizard.js#L623) | `isAccGlobalPriceChanged` | 2 | A | 6 | 1 |
-| [634](../static/src/components/price_wizard/price_wizard.js#L634) | `get filteredAccGlobal` | 2 | A | 7 | 0 |
-| [639](../static/src/components/price_wizard/price_wizard.js#L639) | `(anónima)` | 3 | A | 7 | 1 |
-| [650](../static/src/components/price_wizard/price_wizard.js#L650) | `get accGlobalTotalPages` | 2 | A | 3 | 0 |
-| [655](../static/src/components/price_wizard/price_wizard.js#L655) | `get paginatedAccGlobal` | 1 | A | 4 | 0 |
-| [661](../static/src/components/price_wizard/price_wizard.js#L661) | `get accGlobalPagerInfo` | 2 | A | 7 | 0 |
-| [670](../static/src/components/price_wizard/price_wizard.js#L670) | `prevAccGlobalPage` | 2 | A | 5 | 0 |
-| [677](../static/src/components/price_wizard/price_wizard.js#L677) | `nextAccGlobalPage` | 2 | A | 5 | 0 |
-| [684](../static/src/components/price_wizard/price_wizard.js#L684) | `get accGlobalChangesCount` | 3 | A | 9 | 0 |
-| [699](../static/src/components/price_wizard/price_wizard.js#L699) | `saveAccGlobalPrices` | 8 | B | 44 | 0 |
-| [732](../static/src/components/price_wizard/price_wizard.js#L732) | `(anónima)` | 1 | A | 1 | 1 |
-| [753](../static/src/components/price_wizard/price_wizard.js#L753) | `onAccAttrFilterChange` | 2 | A | 9 | 2 |
-| [767](../static/src/components/price_wizard/price_wizard.js#L767) | `onAccSearchInput` | 1 | A | 4 | 1 |
-| [773](../static/src/components/price_wizard/price_wizard.js#L773) | `resetAccFilters` | 1 | A | 5 | 0 |
-| [780](../static/src/components/price_wizard/price_wizard.js#L780) | `get hasActiveAccFilters` | 2 | A | 6 | 0 |
-| [792](../static/src/components/price_wizard/price_wizard.js#L792) | `toggleGroupByAttr` | 2 | A | 9 | 1 |
-| [806](../static/src/components/price_wizard/price_wizard.js#L806) | `isAttrInGroupBy` | 1 | A | 3 | 1 |
-| [811](../static/src/components/price_wizard/price_wizard.js#L811) | `toggleEnableGrouping` | 1 | A | 4 | 0 |
-| [821](../static/src/components/price_wizard/price_wizard.js#L821) | `openGroupModal` | 1 | A | 3 | 1 |
-| [826](../static/src/components/price_wizard/price_wizard.js#L826) | `closeGroupModal` | 1 | A | 3 | 0 |
-| [834](../static/src/components/price_wizard/price_wizard.js#L834) | `get filteredAccSpecific` | 1 | A | 3 | 0 |
-| [835](../static/src/components/price_wizard/price_wizard.js#L835) | `(anónima)` | 8 | B | 16 | 1 |
-| [862](../static/src/components/price_wizard/price_wizard.js#L862) | `get groupedAccSpecific` | 8 | B | 40 | 0 |
-| [912](../static/src/components/price_wizard/price_wizard.js#L912) | `get accSpecificTotalPages` | 3 | A | 6 | 0 |
-| [920](../static/src/components/price_wizard/price_wizard.js#L920) | `get paginatedGroupedAccSpecific` | 1 | A | 4 | 0 |
-| [926](../static/src/components/price_wizard/price_wizard.js#L926) | `get paginatedAccSpecific` | 1 | A | 4 | 0 |
-| [932](../static/src/components/price_wizard/price_wizard.js#L932) | `get accSpecificPagerInfo` | 3 | A | 9 | 0 |
-| [943](../static/src/components/price_wizard/price_wizard.js#L943) | `prevAccSpecificPage` | 2 | A | 5 | 0 |
-| [950](../static/src/components/price_wizard/price_wizard.js#L950) | `nextAccSpecificPage` | 2 | A | 5 | 0 |
-| [962](../static/src/components/price_wizard/price_wizard.js#L962) | `onAccGroupPriceChange` | 2 | A | 7 | 2 |
-| [975](../static/src/components/price_wizard/price_wizard.js#L975) | `getAccGroupPriceFormatted` | 2 | A | 8 | 1 |
-| [988](../static/src/components/price_wizard/price_wizard.js#L988) | `isAccGroupPriceChanged` | 2 | A | 7 | 1 |
-| [1002](../static/src/components/price_wizard/price_wizard.js#L1002) | `onAccSpecificPriceChange` | 1 | A | 5 | 2 |
-| [1013](../static/src/components/price_wizard/price_wizard.js#L1013) | `getAccSpecificPriceFormatted` | 2 | A | 7 | 1 |
-| [1025](../static/src/components/price_wizard/price_wizard.js#L1025) | `isAccSpecificPriceChanged` | 2 | A | 6 | 1 |
-| [1033](../static/src/components/price_wizard/price_wizard.js#L1033) | `get accSpecificChangesCount` | 3 | A | 9 | 0 |
-| [1047](../static/src/components/price_wizard/price_wizard.js#L1047) | `saveAccSpecificPrices` | 8 | B | 42 | 0 |
-| [1078](../static/src/components/price_wizard/price_wizard.js#L1078) | `(anónima)` | 1 | A | 1 | 1 |
 
 </details>
 
@@ -1075,9 +870,9 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | [98](../tests/test_configurator.py#L98) | `test_quotation_pricelist_applied_when_configuring` | 3 | A | 19 | 1 |
 | [123](../tests/test_configurator.py#L123) | `test_subtotal_consistent_with_line_discount` | 1 | A | 5 | 1 |
 | [129](../tests/test_configurator.py#L129) | `test_rule_constraint_on_manual_edit` | 1 | A | 8 | 1 |
-| [139](../tests/test_configurator.py#L139) | `test_permissions` | 2 | A | 19 | 1 |
-| [159](../tests/test_configurator.py#L159) | `test_lead_create_quotation` | 1 | A | 9 | 1 |
-| [169](../tests/test_configurator.py#L169) | `test_payment_plan_does_not_touch_product_price` | 1 | A | 11 | 1 |
+| [139](../tests/test_configurator.py#L139) | `test_permissions` | 1 | A | 14 | 1 |
+| [154](../tests/test_configurator.py#L154) | `test_lead_create_quotation` | 1 | A | 9 | 1 |
+| [164](../tests/test_configurator.py#L164) | `test_payment_plan_does_not_touch_product_price` | 1 | A | 11 | 1 |
 
 </details>
 

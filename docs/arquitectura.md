@@ -7,12 +7,11 @@ flowchart TB
     subgraph Navegador
         T["Tienda: ficha de máquina<br/>configurador paso a paso + formulario<br/>(static/src/js)"]
         C["Configurador del vendedor<br/>(OWL, components/configurador)"]
-        S["Studio y Asistente de Precios<br/>(OWL, components/configurador_studio, price_wizard)"]
         B["Backend: cotización, CRM, matriz,<br/>asistentes (views/*.xml)"]
     end
     subgraph Servidor
         CT["controllers/main.py<br/>solicitud web y bloqueo del pago"]
-        SV["Servicios RPC<br/>configurator / studio / price_wizard_service.py"]
+        SV["Servicio RPC del configurador<br/>configurator_service.py"]
         M["Modelos<br/>matriz, productos, cotización, CRM"]
         I["Importador CSV y Teamcenter<br/>(asistentes)"]
     end
@@ -22,7 +21,6 @@ flowchart TB
     T -- "POST /cotizador/solicitar_cotizacion" --> CT
     T -- "JSON incrustado en la página" --- M
     C -- orm.call --> SV
-    S -- orm.call --> SV
     B -- botones --> M
     B --> I
     CT --> M
@@ -52,8 +50,6 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `sale_order_inherit.py` | **Cotización**: alta de una configuración, cascada de totales, sincronización con el CRM, modos de aceptación en el portal, BCRA, impresión. Líneas: `cotizador_section` y marcas de descuento, usado y plan de pago. |
 | `crm_lead_inherit.py` | Oportunidad: configuración pedida en la web, IP, *Crear Cotización*, ingreso esperado en moneda de la compañía. |
 | `configurator_service.py` | RPC del configurador del vendedor. |
-| `studio_service.py` | RPC del Studio (solo administrador). |
-| `price_wizard_service.py` | RPC del Asistente de Precios (solo administrador). |
 | `sembradora_import_wizard.py` | Importador CSV (ver [importador](importador.md)). |
 | `engineering_code_wizard.py` | Códigos Teamcenter: plantilla, simulación y aplicación por SQL. |
 | `plan_pago.py` | Plantillas de planes de pago y su asistente de selección. |
@@ -69,8 +65,6 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `static/src/js/cotizador_sequential_configurator.js` | Configurador paso a paso de la ficha de la máquina en la tienda. |
 | `static/src/js/cotizador_quote_form.js` | Completa el token firmado del formulario *Solicitar Cotización*. |
 | `static/src/components/configurador/` | Configurador del vendedor (OWL + plantilla + estilos). |
-| `static/src/components/configurador_studio/` | Studio: árbol de la matriz. |
-| `static/src/components/price_wizard/` | Asistente de Precios. |
 | `static/tests/tours/` | Tours de navegador de los tests. |
 | `views/website_sale_templates.xml` | Ficha de producto de la tienda: configurador, modal *Solicitar Cotización*, errores, página de confirmación. |
 | `views/portal_templates.xml` | Cotización en el portal con la cascada de totales y los modos de aceptación. |
