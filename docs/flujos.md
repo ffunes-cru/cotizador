@@ -116,6 +116,10 @@ stateDiagram-v2
     Importado --> [*]
 ```
 
+Cada máquina del archivo queda **igual al CSV**: lo que no está se borra (configuraciones, valores de
+atributo, reglas sin uso) o se archiva (accesorios). El análisis muestra el detalle antes de escribir y,
+al importar, ese detalle queda en el chatter de cada máquina. Ver [Importador §7.1](importador.md#71-re-importar-la-máquina-queda-igual-al-csv).
+
 ## Códigos de ingeniería (Teamcenter)
 
 ```mermaid

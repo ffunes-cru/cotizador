@@ -343,7 +343,7 @@ Métodos públicos (invocables por RPC) y quién los llama: botones de vistas, J
 | `equipo.usado.wizard` | `action_confirm` | Crea la línea del usado (y la sección si falta) y actualiza la oportunidad. | `models/sale_order_inherit.py`; botón en `equipo.usado.wizard.form` |
 | `sembradora.import.wizard` | `action_analyze` | Paso 1: valida los archivos y resume lo que se creará o actualizará. No escribe datos. | botón en `sembradora.import.wizard.form` |
 | `sembradora.import.wizard` | `action_back_to_upload` | Vuelve a la carga de archivos descartando el análisis. | botón en `sembradora.import.wizard.form` |
-| `sembradora.import.wizard` | `action_import` | Paso 2: crea o actualiza todo lo analizado, en una sola transacción. | botón en `sembradora.import.wizard.form` |
+| `sembradora.import.wizard` | `action_import` | Paso 2: deja cada máquina del CSV igual al archivo, en una sola transacción. | botón en `sembradora.import.wizard.form` |
 | `crm.lead` | `action_cotizador_create_quotation` | Botón *Crear Cotización*: cotización de la configuración pedida en la web. | botón en `crm.lead.form.inherit.cotizador` |
 | `product.template` | `action_open_engineering_wizard` | Botón *Códigos Teamcenter* de la ficha de la máquina. | botón en `product.template.form.inherit.cotizador.description` |
 | `product.template` | `get_config_description` | Descripción HTML de una combinación según las reglas de *Descripción Paramétrica*. | QWeb `report/report_cotizacion_planes.xml`; `models/product_template_inherit.py`; `models/sembradora_config.py` |

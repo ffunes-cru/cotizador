@@ -27,7 +27,13 @@ plausible o regla del proyecto incumplida; **baja** = detalle o mejora.
 | # | Tema | Detalle |
 |---|---|---|
 | 7 | Accesorios en la tienda | La solicitud web incluye la máquina y su equipamiento estándar; los opcionales se agregan al armar la cotización desde el CRM. |
-| 8 | Quitar combinaciones por CSV | El importador crea y actualiza, pero no borra las configuraciones que ya no están en el CSV: hoy se borran a mano en *Matriz Base*. Propuesta: por cada máquina del archivo, borrar las que faltan, mostrándolas antes en el análisis. |
+
+## Resueltos en noviembre de 2026
+
+- Quitar combinaciones por CSV: el importador deja cada máquina del archivo igual al CSV (borra las
+  configuraciones que faltan, archiva los accesorios, ajusta los valores de atributo y borra las reglas
+  sin uso), muestra el detalle antes de importar y lo deja en el chatter de cada máquina
+  (`tests/test_import_mirror.py`).
 
 ## Resueltos en la revisión de octubre de 2026
 

@@ -11,8 +11,9 @@ Con el usuario *Administrador del Configurador*:
 | Quiero… | Dónde |
 |---|---|
 | Cargar o actualizar la matriz: combinaciones nuevas, precios (también en bloque), accesorios y reglas | Editar el CSV y *Importar Configuraciones* ([formato](importador.md)): lo que ya existe se actualiza. |
-| Quitar una combinación | *Matriz Base*: borrar la configuración (el importador no borra lo que falta en el CSV). |
-| Corregir un precio puntual | *Matriz Base* o *Accesorios por Configuración*. Conviene corregirlo también en el CSV: la próxima importación pisa el valor. |
+| Quitar una combinación o un accesorio | Sacarlo del CSV e importar: la máquina queda igual al archivo (las configuraciones se borran, los accesorios se archivan). |
+| Ver qué cambió en una importación | Chatter de la máquina: cada importación deja el detalle de lo que cambió. |
+| Corregir un precio puntual | En el CSV. Editarlo en *Matriz Base* sirve como arreglo rápido, pero la próxima importación lo pisa. |
 | Cargar códigos de Teamcenter | *Códigos de Ingeniería (Teamcenter)*. |
 | Cambiar la moneda de una máquina o accesorio | Ficha del producto, *Moneda del Cotizador* (los precios de matriz se interpretan en la moneda nueva: revisarlos). |
 | Texto técnico según los atributos | Ficha de la máquina, pestaña *Descripción Paramétrica*. |

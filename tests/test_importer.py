@@ -36,7 +36,7 @@ class TestImporter(CotizadorCase):
 
     def test_import_end_to_end(self):
         wizard = self._import(MATRIX_CSV)
-        self.assertIn('Configuraciones creadas / actualizadas: <b>2</b> / <b>0</b>', wizard.analysis_summary)
+        self.assertIn('Configuraciones nuevas: <b>2</b>', wizard.analysis_summary)
         config = self._imported('cfg_pionera_001')
         self.assertEqual(config.price, 1000.0)
         self.assertTrue(config.modelo_id.is_maquina)
@@ -87,9 +87,12 @@ class TestImporter(CotizadorCase):
         counts = {model: self.env[model].search_count([]) for model in (
             'product.template', 'product.category', 'product.attribute.value', 'sembradora.accessory.rule')}
 
-        # Se quita Cuchilla B de la 001 y se re-importa
+        # Se quita Cuchilla B de la 001 (la única configuración que la usa) y se re-importa
+        cuchilla_b = self._imported('acc_pionera_cuchilla_b')
         wizard = self._import(MATRIX_CSV.replace("001,Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,\n", ""))
-        self.assertIn('Configuraciones creadas / actualizadas: <b>0</b> / <b>2</b>', wizard.analysis_summary)
+        self.assertIn('Configuraciones modificadas: <b>1</b>', wizard.analysis_summary)
+        self.assertFalse(cuchilla_b.active)  # ya no está en el CSV: se archiva
+        counts['product.template'] -= 1
         for model, count in counts.items():
             self.assertEqual(self.env[model].search_count([]), count, model)
         config = self._imported('cfg_pionera_001')

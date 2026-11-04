@@ -16,12 +16,18 @@ compatibles con su precio, reglas entre accesorios y equipamiento estándar.
 2. **📊 Analizar CSV**: valida **todo** el archivo y muestra:
    - la lista completa de **errores**, con archivo y línea. Si hay alguno, el botón *Importar* no
      aparece: corrija el CSV y use *Cargar otros archivos*;
-   - cuántas configuraciones, modelos, atributos, accesorios y reglas ya existen y cuántas se crearán;
-   - líneas de accesorio, estándar, grupos de opción única y atributos de cantidad.
+   - si no hay errores, **lo que va a cambiar** (§7.1): una tabla por máquina y, desplegable, el
+     detalle de cada configuración nueva, modificada o que se borra, de cada accesorio nuevo,
+     archivado o reactivado, y de los valores de atributo que se agregan o quitan. Si se va a borrar
+     alguna configuración, lo avisa en rojo.
 3. **📥 Importar**: vuelve a validar y escribe todo en una sola transacción (si algo falla no queda
-   nada a medio importar).
+   nada a medio importar). Al terminar muestra el mismo detalle como **cambios aplicados** y lo deja
+   en el **chatter de cada máquina** que cambió: es el historial de importaciones.
 
 El análisis no escribe nada. La importación usa exactamente los archivos analizados.
+
+**Cada máquina del archivo queda igual al CSV** (§7.1). Las máquinas que no están en el archivo no se
+tocan: se puede importar el CSV de una sola máquina sin afectar a las demás.
 
 ---
 
@@ -200,12 +206,36 @@ Consecuencias:
   vuelve a crear. Puede quedar el identificador sin registro (al borrar un atributo, la base borra sus
   valores sin borrar sus identificadores); el importador lo reutiliza para el registro nuevo.
 
+### 7.1 Re-importar: la máquina queda igual al CSV
+
+Para cada máquina que está en el archivo:
+
 | Al re-importar… | Resultado |
 |---|---|
 | Configuración que está en el CSV | Se actualizan modelo, combinación, precio y descripción, y sus líneas de accesorio se **reemplazan** por las del CSV, todo junto (también si las líneas viejas usaban accesorios compartidos de una versión anterior). |
-| Configuración que no está en el CSV | No se toca. |
-| Productos, atributos, categorías, reglas | Se crean si faltan; nunca se borran. |
+| Configuración que **no** está en el CSV | **Se borra**, también si se creó a mano. Su variante se quita (o se archiva si ya se usó en ventas) y una oportunidad que la pedía queda sin configuración. Se borran antes de crear las nuevas: una combinación que cambia de `ID_Configuracion` no choca. |
+| Accesorio de la máquina que ya no está en el CSV | **Se archiva** (no se borra: puede estar en cotizaciones). Si vuelve al CSV, se reactiva el mismo producto. |
+| Valores de atributo de la máquina | Quedan **exactamente** los del CSV; un atributo "Siempre" que la máquina ya no usa se le quita. |
+| Regla del importador que ya no está en el CSV | Se borra si ninguna máquina la usa. Las reglas creadas a mano no se tocan. |
+| Atributos, valores y categorías de cantidad | Se crean si faltan; no se borran (pueden ser de otras máquinas). |
 | `ID Externo` (código externo) | Se fija al crear la configuración; después se puede editar en la configuración (*Matriz Base*). |
+
+Las máquinas que no están en el archivo no se tocan. Para dar de baja una máquina entera, archivarla
+en Odoo.
+
+Ejemplo del detalle que muestra el análisis (y que queda en el chatter de la máquina):
+
+```text
+Pionera
+  Configuraciones nuevas: 1          003 · 20 Lineas, 52 cm · 3.000,00
+  Configuraciones modificadas: 1     001: Precio: 1.000,00 → 1.100,00; Kit Fino: precio 50,00 → 60,00; − Cuchilla B
+  Configuraciones que se borran: 1   002 · Pionera: 18 Lineas, 52 cm
+  Accesorios que se archivan: 1      Cuchilla B
+  Valores de atributo: 2             Lineas: + 20 Lineas · Lineas: − 18 Lineas
+```
+
+En una configuración modificada, `+ accesorio` es una línea nueva, `− accesorio` una que se quita, y
+`accesorio: …` un cambio de precio, de estándar, de habilitante o de reglas.
 
 ---
 

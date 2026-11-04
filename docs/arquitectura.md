@@ -153,9 +153,11 @@ Un cliente con sesión iniciada recibe además la cotización (estado *Enviada*)
 
 ### Importación de la matriz
 
-Ver el detalle en el [importador](importador.md). En corto: el análisis valida todo y no escribe; la
-importación revalida lo analizado y escribe en orden atributos → categorías de cantidad → modelos →
-accesorios → reglas → configuraciones, todo en una transacción.
+Ver el detalle en el [importador](importador.md). En corto: el análisis valida todo, calcula el plan de
+cambios contra la base (`_plan_changes`) y no escribe; la importación revalida lo analizado y escribe en
+orden atributos → categorías de cantidad → modelos (valores exactos) → borrado de configuraciones que ya
+no están → accesorios → reglas → configuraciones → archivado de accesorios y borrado de reglas sin uso,
+todo en una transacción. Cada máquina del archivo queda igual al CSV; el plan queda en su chatter.
 
 ## Decisiones de diseño que conviene conocer
 
