@@ -28,7 +28,10 @@ class CotizadorConfiguratorService(models.AbstractModel):
         @param order_id Id de la cotización (sale.order).
         @return dict `{order: {id, name, partner_id, partner_name, state, currency_symbol,
                 tax_label}, models: [{id, name, default_code, config_count, description,
-                has_image, image_url}], modo_silencioso}`.
+                has_image, image_url}], modo_silencioso}`. `modo_silencioso` es el ajuste *Modo
+                Silencioso* (parámetro `cotizador.modo_silencioso`, ver docs/operacion.md): si está
+                activo, el configurador no muestra el precio por unidad ("$ 10 c/u") de los
+                accesorios que van por cantidad, solo su subtotal.
         @throws UserError Si la cotización no existe.
         """
         order = self.env['sale.order'].browse(order_id)

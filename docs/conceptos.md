@@ -54,6 +54,7 @@ flowchart LR
 | **Plan de pago** | Forma de pago (canje de cereal, cheques, documentos, crédito bancario) con su recargo o descuento sobre el neto con descuentos. | Plantillas `cotizador.plan.pago.template`; línea `is_plan_pago`. |
 | **BCRA** | Central de Deudores del Banco Central: deudas y cheques rechazados del CUIT del cliente. | `models/bcra_service.py`. |
 | **Modo "Solo cotización"** | La tienda no vende: solo recibe solicitudes de cotización. | Ajuste `cotizador.ecommerce_mode`. |
+| **Modo silencioso** | El configurador del vendedor muestra solo el subtotal de los accesorios por cantidad, sin el precio por unidad. | Ajuste `cotizador.modo_silencioso` ([Operación](operacion.md#parámetros-del-sistema)). |
 
 ## Un ejemplo completo
 

@@ -2,7 +2,7 @@
 
 Estado del código medido con **complejidad ciclomática** función por función, con los puntos críticos
 analizados y una lista priorizada de mejoras. La primera parte se escribe a mano; desde
-[Resumen por área](#resumen-por-área) el documento lo genera `tools/complejidad.py`.
+*Resumen por área* el documento lo genera `tools/complejidad.py`.
 
 ## Qué se mide
 
@@ -74,7 +74,7 @@ el que más se toca. Además, los tests lo recorren casi entero:
 | `product.template._filter_combinations_impossible_by_config` | Una variante por configuración | 8 | 100 % |
 
 *Cobertura*: porcentaje de las líneas de la función que ejecutan los tests del módulo (`coverage.py`,
-noviembre de 2026). En total, los tests recorren el 77 % de las líneas de Python del servidor. El
+noviembre de 2026). En total, los tests recorren el 81 % de las líneas de Python del servidor. El
 JavaScript no se mide; lo prueban los dos tours.
 
 La complejidad alta está en los **bordes**: leer archivos (importador, Teamcenter), dibujar pantallas
@@ -89,19 +89,23 @@ o peor del servidor):
 
 | Función | CCN | Cobertura | Qué hace |
 |---|--:|--:|---|
-| `engineering.code.wizard.action_generate_template` | 21 | 2 % | Plantilla de Teamcenter |
 | `cotizador.price.wizard.service.get_accessory_data` | 16 | 3 % | Asistente de Precios: accesorios |
 | `cotizador.studio.service.batch_create_branch_configurations` | 13 | 4 % | Studio: habilitar una rama |
 | `cotizador.studio.service.get_model_studio_data` | 11 | 4 % | Studio: árbol de la matriz |
 | `cotizador.studio.service.create_configuration` | 11 | 6 % | Studio: habilitar una combinación |
 | `sale.order.action_ver_bcra_wizard` | 11 | 6 % | Informe BCRA |
 | `cotizador.plan.pago.template.line._compute_name` | 18 | 9 % | Nombre de una opción de plan |
-| `engineering.code.wizard._parse_input_file` | 22 | 53 % | Lectura del archivo de Teamcenter |
 | `cotizador.plan.pago.template.line.action_select_line` | 26 | 65 % | Agregar un plan a la cotización |
 
 El hueco más importante son el **Studio** (27 % del archivo) y el **Asistente de Precios** (39 %):
-escriben la matriz, incluidos los precios, y casi no tienen tests. Escribir esos tests vale más que
-cualquier refactorización de la lista de abajo, y conviene hacerlo **antes** de refactorizar.
+escriben la matriz, incluidos los precios, y casi no tienen tests. Si se quedan, escribir esos tests vale
+más que cualquier refactorización de la lista de abajo; si se reemplazan por el importador, el hueco
+desaparece con ellos.
+
+Teamcenter estaba en esta tabla (plantilla 2 %, lectura del archivo 53 %) hasta que se escribió
+`tests/test_teamcenter.py`: plantilla en Excel y CSV, ida y vuelta con Ingeniería, archivos parciales e
+ids cruzados. El archivo pasó de 58 % a 87 %, y los tests encontraron un error: los mensajes de
+`action_generate_template` fallaban con `UnboundLocalError` porque un bucle usaba `_` como variable.
 
 ## Puntos críticos
 
@@ -120,7 +124,7 @@ informe suma ~10 caminos.
 **Riesgo.** Medio. El cruce es la parte delicada: un cruce equivocado escribe el código de Teamcenter en
 la variante que no es. El HTML interpola valores del archivo sin escapar; hoy los limpia el sanitizador
 del campo `preview_html`, pero depende de él. La tabla de alias está en [Pendientes](pendientes.md) #1.
-Cobertura: 76 %.
+Cobertura: 90 %.
 
 **Propuesta.** Dividir en `_lookup_maps()`, `_detect_columns(first_row)` y `_match_row(row, maps)`.
 Pasar el informe a una plantilla QWeb (`ir.qweb._render`), que escapa sola. Cuando vuelva la plantilla
@@ -199,7 +203,7 @@ definición. Es una herramienta de desarrollo: si falla, falla un test, no produ
 [models/engineering_code_wizard.py](../models/engineering_code_wizard.py#L219) · Teamcenter.
 
 **Por qué.** Dos formatos (Excel y CSV) en una función, con prueba de codificaciones y detección del
-separador. Cobertura: 53 % (los tests usan solo CSV).
+separador. Cobertura: 78 % (Excel y CSV).
 
 **Propuesta.** `_rows_from_xlsx(bytes)` y `_rows_from_csv(bytes)`. El importador decodifica sus CSV por
 su cuenta (`_read_files`): las dos lecturas se pueden unificar en una función del módulo.
@@ -248,7 +252,8 @@ la cadena de guardas es el estilo correcto para este caso.
 [models/engineering_code_wizard.py](../models/engineering_code_wizard.py#L76) · Teamcenter, paso 1.
 
 **Por qué.** Tres orígenes de filas (variantes, configuraciones, producto cartesiano de valores) y dos
-formatos de salida (Excel y CSV). Cobertura: 2 %, ningún test genera la plantilla.
+formatos de salida (Excel y CSV). Cobertura: 84 % (`tests/test_teamcenter.py`); lo único que los tests
+no recorren son los dos orígenes del diseño anterior.
 
 **Propuesta.** Los orígenes "configuraciones" y "producto cartesiano" son del diseño anterior: hoy cada
 configuración tiene su variante, así que alcanza con las variantes. Borrarlos (sin compatibilidad hacia
@@ -275,7 +280,7 @@ Ordenadas por beneficio sobre esfuerzo. Primero los tests, porque son la red par
 
 | # | Función | Cambio | Esfuerzo | CCN hoy → esperado |
 |---|---|---|---|---|
-| 0 | Studio, Asistente de Precios, plantilla de Teamcenter | **Tests**: habilitar combinación y rama, guardar precios base y de accesorios, generar la plantilla | Medio | — (cobertura 4–27 % → >80 %) |
+| 0 | Studio y Asistente de Precios | **Tests** (habilitar combinación y rama, guardar precios), o reemplazarlos por el importador | Medio | — (cobertura 27–39 % → >80 %) |
 | 1 | `applyBulkAdjustment` | Una función para la fórmula, una tabla por pantalla | Bajo | 22 → ~5 |
 | 2 | `action_select_line` + `_compute_name` | Una tabla de campos por tipo de plan | Bajo | 26 + 18 → ~5 + ~5 |
 | 3 | `action_generate_template` | Borrar los orígenes del diseño anterior, separar Excel y CSV | Bajo | 21 → ~6 |
@@ -309,8 +314,8 @@ uv run --no-project --with lizard==1.25.0 python tools/complejidad.py
 ```
 
 Reescribe solo lo que está entre los marcadores `complejidad:inicio` y `complejidad:fin`; el análisis de
-arriba se actualiza a mano. Si una función de la sección [Puntos críticos](#puntos-críticos) cambia de
-rango, corregir su texto. Las cifras de [Estado general](#estado-general) son de noviembre de 2026.
+arriba se actualiza a mano. Si una función de la sección *Puntos críticos* cambia de
+rango, corregir su texto. Las cifras de *Estado general* son de noviembre de 2026.
 
 La cobertura de tests se mide aparte, en una base de prueba:
 
@@ -326,11 +331,11 @@ python -m coverage report --show-missing
 
 | Área | Funciones | Líneas de código | CCN promedio | CCN máxima | CCN > 10 | A | B | C | D | E | F |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| Servidor | 212 | 3032 | 5.5 | 57 | 26 | 150 | 36 | 18 | 6 | 0 | 2 |
+| Servidor | 214 | 3041 | 5.5 | 57 | 26 | 152 | 36 | 18 | 6 | 0 | 2 |
 | Navegador | 216 | 2169 | 3.0 | 43 | 9 | 189 | 18 | 6 | 2 | 0 | 1 |
-| Tests | 71 | 588 | 1.4 | 5 | 0 | 71 | 0 | 0 | 0 | 0 | 0 |
+| Tests | 90 | 730 | 1.5 | 5 | 0 | 90 | 0 | 0 | 0 | 0 | 0 |
 | Herramientas de escritorio | 13 | 218 | 3.4 | 12 | 2 | 11 | 0 | 2 | 0 | 0 | 0 |
-| **Total** | 512 | 6007 | 3.8 | 57 | 37 | 421 | 54 | 26 | 8 | 0 | 3 |
+| **Total** | 533 | 6158 | 3.7 | 57 | 37 | 442 | 54 | 26 | 8 | 0 | 3 |
 
 ## Funciones que requieren atención (CCN > 10)
 
@@ -356,8 +361,8 @@ Ordenadas de mayor a menor complejidad.
 | 16 | C | `_build_analysis_html` | [models/sembradora_import_wizard.py:490](../models/sembradora_import_wizard.py#L490) | 36 | 3 |
 | 15 | C | `action_confirm` | [models/descuento_wizard.py:102](../models/descuento_wizard.py#L102) | 47 | 1 |
 | 15 | C | `setup` | [static/src/js/cotizador_sequential_configurator.js:45](../static/src/js/cotizador_sequential_configurator.js#L45) | 51 | 0 |
-| 14 | C | `get_model_matrix` | [models/configurator_service.py:78](../models/configurator_service.py#L78) | 62 | 3 |
-| 13 | C | `get_config_accessories` | [models/configurator_service.py:160](../models/configurator_service.py#L160) | 47 | 3 |
+| 14 | C | `get_model_matrix` | [models/configurator_service.py:81](../models/configurator_service.py#L81) | 62 | 3 |
+| 13 | C | `get_config_accessories` | [models/configurator_service.py:163](../models/configurator_service.py#L163) | 47 | 3 |
 | 13 | C | `_sync_with_crm` | [models/sale_order_inherit.py:419](../models/sale_order_inherit.py#L419) | 31 | 1 |
 | 13 | C | `batch_create_branch_configurations` | [models/studio_service.py:258](../models/studio_service.py#L258) | 34 | 4 |
 | 13 | C | `get treeColumns` | [static/src/components/configurador_studio/configurador_studio.js:261](../static/src/components/configurador_studio/configurador_studio.js#L261) | 43 | 0 |
@@ -414,9 +419,11 @@ Ordenadas de mayor a menor complejidad.
 | [tests/test_importer.py](../tests/test_importer.py) | 11 | 120 | 1.5 | 3 | A | 0 |
 | [tests/test_public_quote.py](../tests/test_public_quote.py) | 11 | 80 | 1.4 | 2 | A | 0 |
 | [tests/test_review_fixes.py](../tests/test_review_fixes.py) | 11 | 75 | 1.1 | 2 | A | 0 |
+| [tests/test_teamcenter.py](../tests/test_teamcenter.py) | 19 | 142 | 1.7 | 5 | A | 0 |
 | [tests/test_tours.py](../tests/test_tours.py) | 3 | 15 | 1.0 | 1 | A | 0 |
 | [tools/complejidad.py](../tools/complejidad.py) | 11 | 100 | 4.0 | 8 | B | 0 |
 | [tools/documentacion.py](../tools/documentacion.py) | 21 | 224 | 6.6 | 25 | D | 2 |
+| [tools/mkdocs_hooks.py](../tools/mkdocs_hooks.py) | 2 | 9 | 2.5 | 3 | A | 0 |
 
 ## Todas las funciones
 
@@ -471,9 +478,9 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
 | [25](../models/configurator_service.py#L25) | `get_initial_data` | 10 | B | 37 | 2 |
-| [78](../models/configurator_service.py#L78) | `get_model_matrix` | 14 | C | 62 | 3 |
-| [160](../models/configurator_service.py#L160) | `get_config_accessories` | 13 | C | 47 | 3 |
-| [223](../models/configurator_service.py#L223) | `confirm_configuration` | 4 | A | 14 | 4 |
+| [81](../models/configurator_service.py#L81) | `get_model_matrix` | 14 | C | 62 | 3 |
+| [163](../models/configurator_service.py#L163) | `get_config_accessories` | 13 | C | 47 | 3 |
+| [226](../models/configurator_service.py#L226) | `confirm_configuration` | 4 | A | 14 | 4 |
 
 </details>
 
@@ -1137,6 +1144,32 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 </details>
 
+<details><summary><code>tests/test_teamcenter.py</code> — 19 funciones, CCN máxima 5</summary>
+
+| Línea | Función | CCN | Rango | Líneas de código | Parámetros |
+|--:|---|--:|:-:|--:|--:|
+| [25](../tests/test_teamcenter.py#L25) | `setUpClass` | 1 | A | 6 | 1 |
+| [33](../tests/test_teamcenter.py#L33) | `_wizard` | 1 | A | 2 | 2 |
+| [38](../tests/test_teamcenter.py#L38) | `_template_rows` | 5 | A | 6 | 2 |
+| [50](../tests/test_teamcenter.py#L50) | `_fill_codes` | 2 | A | 8 | 3 |
+| [65](../tests/test_teamcenter.py#L65) | `_upload` | 3 | A | 13 | 4 |
+| [85](../tests/test_teamcenter.py#L85) | `_expected_rows` | 3 | A | 5 | 1 |
+| [92](../tests/test_teamcenter.py#L92) | `test_excel_template_has_one_row_per_variant` | 1 | A | 8 | 1 |
+| [102](../tests/test_teamcenter.py#L102) | `test_csv_template_without_openpyxl` | 1 | A | 9 | 1 |
+| [113](../tests/test_teamcenter.py#L113) | `test_template_shows_current_code` | 2 | A | 7 | 1 |
+| [122](../tests/test_teamcenter.py#L122) | `test_template_columns_follow_attribute_order` | 1 | A | 6 | 1 |
+| [130](../tests/test_teamcenter.py#L130) | `test_model_without_attributes_is_an_error` | 1 | A | 7 | 1 |
+| [139](../tests/test_teamcenter.py#L139) | `_round_trip` | 2 | A | 18 | 2 |
+| [162](../tests/test_teamcenter.py#L162) | `test_round_trip_excel` | 1 | A | 2 | 1 |
+| [166](../tests/test_teamcenter.py#L166) | `test_round_trip_csv` | 1 | A | 2 | 1 |
+| [170](../tests/test_teamcenter.py#L170) | `test_regenerated_template_shows_applied_codes` | 2 | A | 6 | 1 |
+| [178](../tests/test_teamcenter.py#L178) | `test_partial_file_and_unknown_rows` | 1 | A | 13 | 1 |
+| [193](../tests/test_teamcenter.py#L193) | `test_id_of_another_variant_is_not_trusted` | 1 | A | 9 | 1 |
+| [204](../tests/test_teamcenter.py#L204) | `test_back_to_upload_discards_simulation` | 2 | A | 10 | 1 |
+| [216](../tests/test_teamcenter.py#L216) | `test_file_without_code_column_is_an_error` | 1 | A | 5 | 1 |
+
+</details>
+
 <details><summary><code>tests/test_tours.py</code> — 3 funciones, CCN máxima 1</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
@@ -1190,6 +1223,15 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | [389](../tools/documentacion.py#L389) | `_puntos_de_entrada` | 4 | A | 8 | 2 |
 | [405](../tools/documentacion.py#L405) | `_matriz_acceso` | 6 | B | 9 | 1 |
 | [421](../tools/documentacion.py#L421) | `_parametros` | 4 | A | 9 | 1 |
+
+</details>
+
+<details><summary><code>tools/mkdocs_hooks.py</code> — 2 funciones, CCN máxima 3</summary>
+
+| Línea | Función | CCN | Rango | Líneas de código | Parámetros |
+|--:|---|--:|:-:|--:|--:|
+| [13](../tools/mkdocs_hooks.py#L13) | `_rama` | 3 | A | 6 | 0 |
+| [25](../tools/mkdocs_hooks.py#L25) | `on_page_markdown` | 2 | A | 3 | 4 |
 
 </details>
 

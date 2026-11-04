@@ -13,7 +13,7 @@ CREATE_SUBDIRS         = NO
 INPUT                  = README.md docs __init__.py models controllers tools static/src static/tests tests
 FILE_PATTERNS          = *.py *.js *.md
 RECURSIVE              = YES
-EXCLUDE                = docs/api
+EXCLUDE                = docs/api docs/index.md
 EXCLUDE_PATTERNS       = */__pycache__/* */lib/*
 USE_MDFILE_AS_MAINPAGE = README.md
 EXTENSION_MAPPING      = js=javascript

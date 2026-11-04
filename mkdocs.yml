@@ -1,0 +1,86 @@
+# Sitio de la documentación (MkDocs Material): búsqueda en todo el texto de docs/*.md, navegación y
+# diagramas Mermaid. La documentación del código sigue siendo la de Doxygen (docs/Doxyfile), enlazada
+# desde el menú. Generar, desde la carpeta del módulo (no necesita Odoo):
+#
+#   doxygen docs/Doxyfile
+#   uvx --with mkdocs-material==9.6.14 --with mkdocs-include-markdown-plugin==7.1.5 mkdocs build
+#
+# Abrir site/index.html, o servir con recarga automática: lo mismo con `mkdocs serve` en vez de `build`.
+# site/ no se versiona (.gitignore).
+
+site_name: Cotizador de Sembradoras
+site_description: Módulo de Odoo 19 — matriz de ingeniería, configurador y cotizaciones
+repo_url: https://github.com/ffunes-cru/cotizador
+docs_dir: docs
+site_dir: site
+use_directory_urls: false
+exclude_docs: |
+  Doxyfile
+
+nav:
+  - Inicio: index.md
+  - Conceptos: conceptos.md
+  - Conceptos de Odoo: odoo.md
+  - Arquitectura: arquitectura.md
+  - Flujos: flujos.md
+  - Importador: importador.md
+  - Seguridad: seguridad.md
+  - Operación: operacion.md
+  - Recetas: recetas.md
+  - Pendientes: pendientes.md
+  - Mantenibilidad: mantenibilidad.md
+  - Referencia: referencia.md
+  - Código (Doxygen): api/html/index.html
+
+theme:
+  name: material
+  language: es
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Modo oscuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Modo claro
+
+plugins:
+  # Los nombres técnicos se parten en palabras: "modo_silencioso" encuentra "cotizador.modo_silencioso".
+  - search:
+      lang: es
+      separator: '[\s\-_.,:/()`]+'
+  # La portada es el README del módulo (sus enlaces docs/*.md se reescriben solos).
+  - include-markdown
+
+hooks:
+  - tools/mkdocs_hooks.py
+
+markdown_extensions:
+  - tables
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+validation:
+  links:
+    absolute_links: info
+    unrecognized_links: info

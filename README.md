@@ -19,6 +19,10 @@ Módulo de Odoo 19 para cotizar maquinaria agrícola configurable de Crucianelli
 Leer en este orden. Los diagramas son [Mermaid](https://mermaid.js.org/): GitHub, GitLab, VS Code (con
 *Markdown Preview Mermaid Support*) y el HTML de Doxygen los dibujan solos.
 
+**Sitio con buscador**: los mismos documentos como sitio web, con búsqueda en todo el texto (p. ej.
+`modo_silencioso` encuentra el parámetro y el campo) y el código de Doxygen enlazado en el menú. Ver
+[Operación › Comandos frecuentes](docs/operacion.md#comandos-frecuentes).
+
 | Documento | Para qué |
 |---|---|
 | [Conceptos](docs/conceptos.md) | El negocio en palabras simples, el glosario y un ejemplo completo. Empezar acá. |

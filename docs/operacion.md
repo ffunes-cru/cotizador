@@ -34,7 +34,7 @@ También visibles en *Ajustes › Técnico › Parámetros del sistema*.
 | `cotizador.ecommerce_mode` | `quote_only` | `quote_only`: la tienda solo recibe solicitudes de cotización (sin checkout ni pago). `ecommerce`: carrito estándar para los productos que no son máquinas. |
 | `cotizador.portal_confirmation_mode` | `salesman_enables` | Modo de aceptación de cotizaciones en el portal (ver [Flujos](flujos.md#aceptación-en-el-portal)). |
 | `cotizador.plan_pago_required` | desactivado | Exige plan de pago para confirmar. |
-| `cotizador.modo_silencioso` | desactivado | El configurador oculta el precio unitario de los accesorios. |
+| `cotizador.modo_silencioso` | desactivado | *Modo Silencioso*: el configurador del vendedor no muestra el precio por unidad ("$ 10 c/u") de los accesorios que van por cantidad (p. ej. 16 sensores), solo su subtotal. |
 | `cotizador.quote_rate_limit_ip` | 5 | Solicitudes anónimas por IP y por hora (0 = sin límite). |
 | `cotizador.quote_rate_limit_contact` | 3 | Solicitudes anónimas por email o teléfono y por hora. |
 | `cotizador.quote_min_seconds` | 3 | Segundos mínimos entre abrir la página y enviar el formulario. |
@@ -75,6 +75,11 @@ Desde la carpeta de Odoo (`odoo_sv/odoo`), con el entorno virtual:
 
 # Documentación del código (HTML en docs/api/html/index.html), desde la carpeta del módulo
 doxygen docs/Doxyfile
+
+# Sitio de la documentación con buscador (site/index.html), desde la carpeta del módulo; no necesita Odoo.
+# Primero Doxygen, así el sitio incluye el código. Con `mkdocs serve` en vez de `build` se recarga solo.
+doxygen docs/Doxyfile
+uvx --with mkdocs-material==9.6.14 --with mkdocs-include-markdown-plugin==7.1.5 mkdocs build
 
 # Complejidad ciclomática (regenera docs/mantenibilidad.md), desde la carpeta del módulo; no necesita Odoo
 uv run --no-project --with lizard==1.25.0 python tools/complejidad.py
