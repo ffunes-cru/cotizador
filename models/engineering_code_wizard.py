@@ -142,7 +142,7 @@ class EngineeringCodeWizard(models.TransientModel):
             # Estilo básico en cabecera
             header_fill = openpyxl.styles.PatternFill(start_color="C8102E", end_color="C8102E", fill_type="solid")
             header_font = openpyxl.styles.Font(color="FFFFFF", bold=True)
-            for col_num, _ in enumerate(headers, 1):
+            for col_num in range(1, len(headers) + 1):
                 cell = ws.cell(row=1, column=col_num)
                 cell.fill = header_fill
                 cell.font = header_font

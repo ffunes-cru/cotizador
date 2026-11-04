@@ -5,3 +5,4 @@ from . import test_tours
 from . import test_review_fixes
 from . import test_cascade_variants
 from . import test_documentacion
+from . import test_teamcenter
