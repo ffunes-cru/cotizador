@@ -30,6 +30,7 @@ Leer en este orden. Los diagramas son [Mermaid](https://mermaid.js.org/): GitHub
 | [Operación](docs/operacion.md) | Puesta en marcha, ajustes, comandos y problemas comunes. |
 | [Recetas](docs/recetas.md) | Paso a paso para los cambios más habituales y cómo documentar el código. |
 | [Pendientes](docs/pendientes.md) | Problemas conocidos y decisiones abiertas, con su gravedad. |
+| [Mantenibilidad](docs/mantenibilidad.md) | Complejidad ciclomática de cada función (generada), puntos críticos, mejoras priorizadas y reglas para el código nuevo. |
 | [Referencia](docs/referencia.md) | **Generada** desde Odoo: modelos, campos, permisos, parámetros y quién llama a cada método. |
 | Código (Doxygen) | Cada clase, función y parámetro documentado en el código. HTML navegable: `doxygen docs/Doxyfile` → `docs/api/html/index.html`. |
 

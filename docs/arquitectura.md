@@ -82,6 +82,7 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `security/` | Grupo *Administrador del Configurador* y permisos por modelo. |
 | `tests/` | Tests (Python, HTTP y tours). `common.py` tiene el CSV de ejemplo. |
 | `tools/documentacion.py` | Verificador de documentación y generador de [la referencia](referencia.md). |
+| `tools/complejidad.py` | Mide la complejidad ciclomática de cada función y genera la parte automática de [Mantenibilidad](mantenibilidad.md). No lo carga Odoo. |
 | `scripts/` | Herramientas de escritorio para dividir CSV grandes (no las carga Odoo). |
 | `docs/Doxyfile` | Configuración de Doxygen para la documentación del código. |
 

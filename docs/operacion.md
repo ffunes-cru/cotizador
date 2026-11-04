@@ -75,6 +75,9 @@ Desde la carpeta de Odoo (`odoo_sv/odoo`), con el entorno virtual:
 
 # Documentación del código (HTML en docs/api/html/index.html), desde la carpeta del módulo
 doxygen docs/Doxyfile
+
+# Complejidad ciclomática (regenera docs/mantenibilidad.md), desde la carpeta del módulo; no necesita Odoo
+uv run --no-project --with lizard==1.25.0 python tools/complejidad.py
 ```
 
 - Los tours de navegador necesitan Chrome y el paquete `websocket-client` en el entorno virtual

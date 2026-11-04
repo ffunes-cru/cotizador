@@ -7,6 +7,7 @@ La documentación del módulo está en `README.md` y `docs/`. Leer antes de camb
 3. `docs/flujos.md` y `docs/seguridad.md` — estados, reglas de accesorios, permisos y protecciones.
 4. `docs/referencia.md` — generado: modelos, campos, permisos y quién llama a cada método.
 5. `docs/pendientes.md` — lo que se sabe que está mal o falta decidir.
+6. `docs/mantenibilidad.md` — complejidad de cada función y reglas para el código nuevo.
 
 ## Reglas al cambiar código
 
@@ -23,7 +24,9 @@ La documentación del módulo está en `README.md` y `docs/`. Leer antes de camb
 - Texto del usuario hacia HTML: `markupsafe.escape` / `Markup`; en JS del sitio, `escapeHtml`.
 - **Documentar todo en formato Doxygen** (`docs/recetas.md#documentar-código`): `@file`, docstring o bloque
   `/** */` en cada clase y función, `@param` por parámetro, `@return` si devuelve algo.
-- Al terminar: tests (`docs/operacion.md#comandos-frecuentes`), regenerar `docs/referencia.md` y actualizar
+- **Complejidad ciclomática ≤ 10** en funciones nuevas y no hacer crecer las que ya pasan de 10
+  (`docs/mantenibilidad.md#reglas-para-el-código-nuevo`).
+- Al terminar: tests (`docs/operacion.md#comandos-frecuentes`), regenerar `docs/referencia.md` y `docs/mantenibilidad.md`, y actualizar
   el documento de `docs/` que corresponda en el mismo commit. `tests/test_documentacion.py` falla si falta
   documentación o la referencia quedó vieja.
 - Odoo no recarga el código Python solo: detener el servidor, `-u cotizador`, volver a arrancar.
