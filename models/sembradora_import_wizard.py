@@ -1101,12 +1101,13 @@ class SembradoraImportWizard(models.TransientModel):
         return rules
 
     def _import_configs(self, data, values, templates, accessories, rules, counters):
-        """Crea o actualiza configuraciones y reemplaza sus líneas de accesorio.
+        """Crea las configuraciones nuevas y actualiza solo las que cambiaron.
 
-        Datos y líneas se escriben en una sola operación, así las restricciones (reglas,
-        accesorios del mismo modelo) se validan sobre el estado final: re-importar sobre líneas
-        con accesorios de otro criterio (p. ej. compartidos entre modelos) las reemplaza sin
-        fallar. El `ext_id` se fija solo al crear.
+        Una configuración igual al CSV no se escribe (re-importar el mismo archivo no toca la base)
+        y sus líneas de accesorio se reemplazan solo si alguna cambió. Cuando se reemplazan, datos y
+        líneas van en una sola escritura: las restricciones (reglas, accesorios del mismo modelo) se
+        validan sobre el estado final, así re-importar sobre líneas con accesorios de otro criterio
+        (p. ej. compartidos entre modelos) las reemplaza sin fallar. El `ext_id` se fija solo al crear.
 
         @param data Estructura de _parse().
         @param values Salida de _import_attributes().
@@ -1120,15 +1121,12 @@ class SembradoraImportWizard(models.TransientModel):
             xmlid_name = self._xmlid_name('cfg', modelo, conf_id)
             vals = {
                 'modelo_id': templates[modelo].id,
-                'value_ids': [Command.set([values[col, v].id for col, v in config_data['values'].items()])],
+                'value_ids': [values[col, v].id for col, v in config_data['values'].items()],
                 'price': config_data['price'],
             }
             if config_data['description']:
                 vals['description'] = config_data['description']
-            # Datos de la configuración y líneas en una sola operación: las restricciones (reglas,
-            # accesorios del mismo modelo) se validan sobre el estado final, no con las líneas
-            # viejas todavía puestas.
-            vals['accessory_line_ids'] = [Command.create({
+            lines = [Command.create({
                 'product_id': accessories[modelo, line['name']].id,
                 'price': line['price'],
                 'is_standard': line['is_standard'],
@@ -1136,11 +1134,32 @@ class SembradoraImportWizard(models.TransientModel):
                 'rule_ids': [Command.set([rules[r].id for r in line['rules']])],
             }) for line in config_data['lines']]
             config = self._find(Config._name, xmlid_name)
-            if config:
-                vals['accessory_line_ids'] = [Command.delete(line.id) for line in config.accessory_line_ids] + vals['accessory_line_ids']
-                config.write(vals)
+            if not config:
+                vals['value_ids'] = [Command.set(vals['value_ids'])]
+                self._find_or_create(Config._name, xmlid_name, {**vals, 'accessory_line_ids': lines, 'ext_id': conf_id},
+                                     counters, 'configs_created')
+                continue
+            changed = self._changed_config_vals(config, vals)
+            if self._line_changes(config.accessory_line_ids, config_data['lines'], modelo):
+                changed['accessory_line_ids'] = [Command.delete(line.id) for line in config.accessory_line_ids] + lines
+            if changed:
+                config.write(changed)
                 counters['configs_updated'] += 1
-            else:
-                self._find_or_create(Config._name, xmlid_name, {**vals, 'ext_id': conf_id}, counters, 'configs_created')
-            counters['lines'] += len(config_data['lines'])
-            counters['standard_lines'] += sum(1 for line in config_data['lines'] if line['is_standard'])
+
+    def _changed_config_vals(self, config, vals):
+        """Solo los datos de la configuración que difieren del CSV, listos para escribir.
+
+        @param config Configuración existente.
+        @param vals `{modelo_id, value_ids: [ids], price, description?}` según el CSV.
+        @return dict para write() (vacío si no cambió nada).
+        """
+        changed = {}
+        if config.modelo_id.id != vals['modelo_id']:
+            changed['modelo_id'] = vals['modelo_id']
+        if set(config.value_ids.ids) != set(vals['value_ids']):
+            changed['value_ids'] = [Command.set(vals['value_ids'])]
+        if float_compare(config.price, vals['price'], precision_digits=2):
+            changed['price'] = vals['price']
+        if 'description' in vals and html2plaintext(config.description or '').strip() != vals['description']:
+            changed['description'] = vals['description']
+        return changed

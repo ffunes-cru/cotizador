@@ -313,11 +313,11 @@ python -m coverage report --show-missing
 
 | Área | Funciones | Líneas de código | CCN promedio | CCN máxima | CCN > 10 | A | B | C | D | E | F |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| Servidor | 221 | 2859 | 5.4 | 57 | 20 | 155 | 46 | 12 | 6 | 0 | 2 |
+| Servidor | 222 | 2891 | 5.4 | 57 | 20 | 155 | 47 | 12 | 6 | 0 | 2 |
 | Navegador | 86 | 945 | 3.3 | 43 | 4 | 76 | 6 | 2 | 1 | 0 | 1 |
-| Tests | 101 | 827 | 1.4 | 5 | 0 | 101 | 0 | 0 | 0 | 0 | 0 |
+| Tests | 103 | 841 | 1.4 | 5 | 0 | 103 | 0 | 0 | 0 | 0 | 0 |
 | Herramientas de escritorio | 13 | 218 | 3.4 | 12 | 2 | 11 | 0 | 2 | 0 | 0 | 0 |
-| **Total** | 421 | 4849 | 4.0 | 57 | 26 | 343 | 52 | 16 | 7 | 0 | 3 |
+| **Total** | 424 | 4895 | 3.9 | 57 | 26 | 345 | 53 | 16 | 7 | 0 | 3 |
 
 ## Funciones que requieren atención (CCN > 10)
 
@@ -335,7 +335,7 @@ Ordenadas de mayor a menor complejidad.
 | 22 | D | `_evaluateAccessoryRules` | [static/src/components/configurador/configurador.js:607](../static/src/components/configurador/configurador.js#L607) | 61 | 0 |
 | 21 | D | `solicitar_cotizacion` | [controllers/main.py:175](../controllers/main.py#L175) | 39 | 2 |
 | 21 | D | `action_generate_template` | [models/engineering_code_wizard.py:76](../models/engineering_code_wizard.py#L76) | 85 | 1 |
-| 20 | C | `validate_rule_set` | [models/sembradora_config.py:12](../models/sembradora_config.py#L12) | 33 | 1 |
+| 20 | C | `validate_rule_set` | [models/sembradora_config.py:14](../models/sembradora_config.py#L14) | 33 | 1 |
 | 18 | C | `_compute_name` | [models/plan_pago.py:87](../models/plan_pago.py#L87) | 12 | 1 |
 | 18 | C | `_cotizador_add_configuration` | [models/sale_order_inherit.py:663](../models/sale_order_inherit.py#L663) | 47 | 3 |
 | 15 | C | `action_confirm` | [models/descuento_wizard.py:102](../models/descuento_wizard.py#L102) | 47 | 1 |
@@ -370,9 +370,9 @@ Ordenadas de mayor a menor complejidad.
 | [models/res_config_settings.py](../models/res_config_settings.py) | 3 | 19 | 2.0 | 3 | A | 0 |
 | [models/sale_order_inherit.py](../models/sale_order_inherit.py) | 45 | 466 | 3.9 | 18 | C | 3 |
 | [models/sembradora_accessory_rule.py](../models/sembradora_accessory_rule.py) | 1 | 4 | 2.0 | 2 | A | 0 |
-| [models/sembradora_config.py](../models/sembradora_config.py) | 18 | 219 | 4.6 | 20 | C | 1 |
+| [models/sembradora_config.py](../models/sembradora_config.py) | 18 | 237 | 4.5 | 20 | C | 1 |
 | [models/sembradora_config_acc_line.py](../models/sembradora_config_acc_line.py) | 1 | 9 | 4.0 | 4 | A | 0 |
-| [models/sembradora_import_wizard.py](../models/sembradora_import_wizard.py) | 48 | 615 | 5.8 | 42 | F | 2 |
+| [models/sembradora_import_wizard.py](../models/sembradora_import_wizard.py) | 49 | 629 | 5.8 | 42 | F | 2 |
 | [scripts/split_csv.py](../scripts/split_csv.py) | 2 | 48 | 7.0 | 11 | C | 1 |
 | [scripts/split_csv_gui.py](../scripts/split_csv_gui.py) | 11 | 170 | 2.7 | 12 | C | 1 |
 | [static/src/components/configurador/configurador.js](../static/src/components/configurador/configurador.js) | 60 | 561 | 3.0 | 22 | D | 1 |
@@ -383,7 +383,7 @@ Ordenadas de mayor a menor complejidad.
 | [tests/test_cascade_variants.py](../tests/test_cascade_variants.py) | 11 | 95 | 1.3 | 2 | A | 0 |
 | [tests/test_configurator.py](../tests/test_configurator.py) | 12 | 138 | 2.2 | 5 | A | 0 |
 | [tests/test_documentacion.py](../tests/test_documentacion.py) | 2 | 7 | 1.0 | 1 | A | 0 |
-| [tests/test_import_mirror.py](../tests/test_import_mirror.py) | 11 | 99 | 1.2 | 2 | A | 0 |
+| [tests/test_import_mirror.py](../tests/test_import_mirror.py) | 13 | 113 | 1.2 | 2 | A | 0 |
 | [tests/test_importer.py](../tests/test_importer.py) | 11 | 123 | 1.5 | 3 | A | 0 |
 | [tests/test_public_quote.py](../tests/test_public_quote.py) | 11 | 80 | 1.4 | 2 | A | 0 |
 | [tests/test_review_fixes.py](../tests/test_review_fixes.py) | 11 | 75 | 1.1 | 2 | A | 0 |
@@ -619,24 +619,24 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
-| [12](../models/sembradora_config.py#L12) | `validate_rule_set` | 20 | C | 33 | 1 |
-| [109](../models/sembradora_config.py#L109) | `_compute_description` | 6 | B | 10 | 1 |
-| [125](../models/sembradora_config.py#L125) | `_compute_name` | 2 | A | 4 | 1 |
-| [132](../models/sembradora_config.py#L132) | `create` | 1 | A | 5 | 2 |
-| [143](../models/sembradora_config.py#L143) | `write` | 3 | A | 8 | 2 |
-| [158](../models/sembradora_config.py#L158) | `unlink` | 1 | A | 6 | 1 |
-| [171](../models/sembradora_config.py#L171) | `_check_complete_combination` | 5 | A | 11 | 1 |
-| [191](../models/sembradora_config.py#L191) | `_check_unique_combination` | 4 | A | 10 | 1 |
-| [207](../models/sembradora_config.py#L207) | `_check_accessories_modelo` | 1 | A | 2 | 1 |
-| [215](../models/sembradora_config.py#L215) | `_check_accessories` | 7 | B | 13 | 1 |
-| [234](../models/sembradora_config.py#L234) | `_rule_set_lines` | 3 | A | 8 | 1 |
-| [251](../models/sembradora_config.py#L251) | `_get_accessory_offer` | 8 | B | 36 | 1 |
-| [308](../models/sembradora_config.py#L308) | `_get_default_accessory_lines` | 1 | A | 3 | 1 |
-| [318](../models/sembradora_config.py#L318) | `_check_accessory_selection` | 9 | B | 28 | 2 |
-| [357](../models/sembradora_config.py#L357) | `_get_variant` | 3 | A | 15 | 1 |
-| [370](../models/sembradora_config.py#L370) | `_get_variant.find` | 1 | A | 6 | 0 |
-| [390](../models/sembradora_config.py#L390) | `_sync_variant_code` | 3 | A | 9 | 1 |
-| [401](../models/sembradora_config.py#L401) | `_get_variant_description` | 4 | A | 12 | 1 |
+| [14](../models/sembradora_config.py#L14) | `validate_rule_set` | 20 | C | 33 | 1 |
+| [111](../models/sembradora_config.py#L111) | `_compute_description` | 6 | B | 10 | 1 |
+| [127](../models/sembradora_config.py#L127) | `_compute_name` | 2 | A | 4 | 1 |
+| [134](../models/sembradora_config.py#L134) | `create` | 1 | A | 5 | 2 |
+| [145](../models/sembradora_config.py#L145) | `write` | 3 | A | 8 | 2 |
+| [160](../models/sembradora_config.py#L160) | `unlink` | 1 | A | 6 | 1 |
+| [173](../models/sembradora_config.py#L173) | `_check_complete_combination` | 5 | A | 11 | 1 |
+| [193](../models/sembradora_config.py#L193) | `_check_unique_combination` | 3 | A | 28 | 1 |
+| [230](../models/sembradora_config.py#L230) | `_check_accessories_modelo` | 1 | A | 2 | 1 |
+| [238](../models/sembradora_config.py#L238) | `_check_accessories` | 7 | B | 13 | 1 |
+| [257](../models/sembradora_config.py#L257) | `_rule_set_lines` | 3 | A | 8 | 1 |
+| [274](../models/sembradora_config.py#L274) | `_get_accessory_offer` | 8 | B | 36 | 1 |
+| [331](../models/sembradora_config.py#L331) | `_get_default_accessory_lines` | 1 | A | 3 | 1 |
+| [341](../models/sembradora_config.py#L341) | `_check_accessory_selection` | 9 | B | 28 | 2 |
+| [380](../models/sembradora_config.py#L380) | `_get_variant` | 3 | A | 15 | 1 |
+| [393](../models/sembradora_config.py#L393) | `_get_variant.find` | 1 | A | 6 | 0 |
+| [413](../models/sembradora_config.py#L413) | `_sync_variant_code` | 3 | A | 9 | 1 |
+| [424](../models/sembradora_config.py#L424) | `_get_variant_description` | 4 | A | 12 | 1 |
 
 </details>
 
@@ -648,7 +648,7 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 </details>
 
-<details><summary><code>models/sembradora_import_wizard.py</code> — 48 funciones, CCN máxima 42</summary>
+<details><summary><code>models/sembradora_import_wizard.py</code> — 49 funciones, CCN máxima 42</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
@@ -699,7 +699,8 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | [1012](../models/sembradora_import_wizard.py#L1012) | `_import_models` | 10 | B | 26 | 4 |
 | [1049](../models/sembradora_import_wizard.py#L1049) | `_import_accessories` | 6 | B | 20 | 5 |
 | [1082](../models/sembradora_import_wizard.py#L1082) | `_import_rules` | 4 | A | 12 | 3 |
-| [1103](../models/sembradora_import_wizard.py#L1103) | `_import_configs` | 10 | B | 27 | 7 |
+| [1103](../models/sembradora_import_wizard.py#L1103) | `_import_configs` | 10 | B | 30 | 7 |
+| [1149](../models/sembradora_import_wizard.py#L1149) | `_changed_config_vals` | 7 | B | 11 | 3 |
 
 </details>
 
@@ -907,21 +908,23 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 </details>
 
-<details><summary><code>tests/test_import_mirror.py</code> — 11 funciones, CCN máxima 2</summary>
+<details><summary><code>tests/test_import_mirror.py</code> — 13 funciones, CCN máxima 2</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
-| [37](../tests/test_import_mirror.py#L37) | `setUpClass` | 1 | A | 4 | 1 |
-| [43](../tests/test_import_mirror.py#L43) | `_exists` | 1 | A | 2 | 2 |
-| [48](../tests/test_import_mirror.py#L48) | `assertSummary` | 2 | A | 3 | 3 |
-| [57](../tests/test_import_mirror.py#L57) | `test_analysis_details_every_change_without_writing` | 1 | A | 21 | 1 |
-| [81](../tests/test_import_mirror.py#L81) | `test_import_leaves_the_machine_equal_to_the_csv` | 2 | A | 21 | 1 |
-| [108](../tests/test_import_mirror.py#L108) | `test_unchanged_csv_changes_nothing` | 1 | A | 6 | 1 |
-| [116](../tests/test_import_mirror.py#L116) | `test_archived_accessory_is_restored` | 1 | A | 8 | 1 |
-| [126](../tests/test_import_mirror.py#L126) | `test_machines_not_in_the_file_are_untouched` | 1 | A | 7 | 1 |
-| [135](../tests/test_import_mirror.py#L135) | `test_manual_configuration_is_replaced` | 1 | A | 8 | 1 |
-| [146](../tests/test_import_mirror.py#L146) | `test_unused_rules_are_deleted_and_shared_ones_kept` | 1 | A | 10 | 1 |
-| [158](../tests/test_import_mirror.py#L158) | `test_attribute_no_longer_used_is_removed_from_the_machine` | 1 | A | 9 | 1 |
+| [38](../tests/test_import_mirror.py#L38) | `setUpClass` | 1 | A | 4 | 1 |
+| [44](../tests/test_import_mirror.py#L44) | `_exists` | 1 | A | 2 | 2 |
+| [49](../tests/test_import_mirror.py#L49) | `assertSummary` | 2 | A | 3 | 3 |
+| [58](../tests/test_import_mirror.py#L58) | `test_analysis_details_every_change_without_writing` | 1 | A | 21 | 1 |
+| [82](../tests/test_import_mirror.py#L82) | `test_import_leaves_the_machine_equal_to_the_csv` | 2 | A | 21 | 1 |
+| [109](../tests/test_import_mirror.py#L109) | `test_unchanged_csv_changes_nothing` | 1 | A | 8 | 1 |
+| [119](../tests/test_import_mirror.py#L119) | `test_price_change_keeps_accessory_lines` | 1 | A | 6 | 1 |
+| [127](../tests/test_import_mirror.py#L127) | `test_duplicate_combination_is_rejected` | 1 | A | 6 | 1 |
+| [135](../tests/test_import_mirror.py#L135) | `test_archived_accessory_is_restored` | 1 | A | 8 | 1 |
+| [145](../tests/test_import_mirror.py#L145) | `test_machines_not_in_the_file_are_untouched` | 1 | A | 7 | 1 |
+| [154](../tests/test_import_mirror.py#L154) | `test_manual_configuration_is_replaced` | 1 | A | 8 | 1 |
+| [165](../tests/test_import_mirror.py#L165) | `test_unused_rules_are_deleted_and_shared_ones_kept` | 1 | A | 10 | 1 |
+| [177](../tests/test_import_mirror.py#L177) | `test_attribute_no_longer_used_is_removed_from_the_machine` | 1 | A | 9 | 1 |
 
 </details>
 

@@ -269,11 +269,25 @@ Es el CSV que usan los tests (`tests/common.py`).
 
 ## 9. Archivos grandes
 
+**No hace falta partir el archivo.** Odoo acepta archivos de hasta 128 MB (parámetro
+`web.max_file_upload_size`); una máquina con miles de configuraciones ocupa unos pocos MB. Si la
+subida falla con *413 Request Entity Too Large*, el límite es del proxy delante de Odoo (en nginx,
+`client_max_body_size`, que por defecto es 1 MB), no del módulo.
+
+Lo que sí cuenta es el **tiempo**: con workers, Odoo corta una petición a los `limit_time_real`
+segundos (120 por defecto). Una configuración que no cambió no se reescribe, así que re-importar con
+pocos cambios es rápido; la primera importación de una máquina grande es la más lenta. Si se corta,
+subir `limit_time_real` en la configuración del servidor.
+
+**Si se parte, las partes de una misma máquina van juntas en la misma importación.** El importador
+deja cada máquina igual al archivo (§7.1): importar las partes por separado borraría, en cada
+importación, las configuraciones de las partes anteriores.
+
 ```bash
 python3 scripts/split_csv.py matriz_completa.csv 150   # 150 configuraciones por archivo
 ```
 
-(o `scripts/split_csv_gui.py`). Las partes se pueden cargar juntas en un mismo análisis.
+(o `scripts/split_csv_gui.py`), y cargar todas las partes juntas en un mismo análisis.
 
 ---
 

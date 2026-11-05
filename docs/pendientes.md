@@ -19,17 +19,21 @@ plausible o regla del proyecto incumplida; **baja** = detalle o mejora.
 
 | # | Gravedad | Tema | Detalle | Propuesta |
 |---|---|---|---|---|
-| 5 | media | Importaciones grandes | `_check_unique_combination` busca todas las configuraciones del modelo por cada configuración creada: crece con el cuadrado (miles de configuraciones por modelo se notan). | Comparar contra el índice `_cotizador_config_index` o una sola consulta por lote. |
-| 6 | baja | Alerta BCRA al elegir cliente | Hace dos consultas HTTP en el formulario (hasta 8 s cada una) mientras el vendedor espera. | Consultar en segundo plano o solo con el botón. |
+| 5 | baja | Alerta BCRA al elegir cliente | Hace dos consultas HTTP en el formulario (hasta 8 s cada una) mientras el vendedor espera. | Consultar en segundo plano o solo con el botón. |
 
 ## Funcionalidad que falta
 
 | # | Tema | Detalle |
 |---|---|---|
-| 7 | Accesorios en la tienda | La solicitud web incluye la máquina y su equipamiento estándar; los opcionales se agregan al armar la cotización desde el CRM. |
+| 6 | Accesorios en la tienda | La solicitud web incluye la máquina y su equipamiento estándar; los opcionales se agregan al armar la cotización desde el CRM. |
 
 ## Resueltos en noviembre de 2026
 
+- Importaciones grandes: la restricción de combinación única era cuadrática (una búsqueda por
+  configuración contra todas las de su modelo) y re-importar reescribía todas las configuraciones y sus
+  líneas aunque no cambiaran. Ahora es una sola consulta SQL y solo se escribe lo que cambió. Con una
+  máquina de 800 configuraciones (CSV de 1,7 MB): primera importación 48 s → 21 s, re-importar sin
+  cambios 106 s → 26 s, con todos los precios cambiados 108 s → 35 s.
 - Quitar combinaciones por CSV: el importador deja cada máquina del archivo igual al CSV (borra las
   configuraciones que faltan, archiva los accesorios, ajusta los valores de atributo y borra las reglas
   sin uso), muestra el detalle antes de importar y lo deja en el chatter de cada máquina

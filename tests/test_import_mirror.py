@@ -5,6 +5,7 @@ tocan, y el detalle de cambios se muestra antes de importar y queda en el chatte
 from markupsafe import escape
 
 from odoo import Command
+from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 
 from .common import HEADER, MATRIX_CSV, CotizadorCase
@@ -106,12 +107,30 @@ class TestImportMirror(CotizadorCase):
         self.assertIn('Configuraciones que se borran', log.body)
 
     def test_unchanged_csv_changes_nothing(self):
-        """Re-importar el mismo CSV no cambia nada ni deja mensaje en el chatter."""
+        """Re-importar el mismo CSV no escribe nada ni deja mensaje en el chatter."""
         messages = len(self.pionera.message_ids)
+        lines = self.env['sembradora.config.accessory.line'].search([])
         wizard = self._import(MATRIX_CSV)
         self.assertNotIn('Configuraciones modificadas', wizard.analysis_summary)
         self.assertNotIn('se borran', wizard.analysis_summary)
         self.assertEqual(len(self.pionera.message_ids), messages)
+        self.assertEqual(self.env['sembradora.config.accessory.line'].search([]), lines)  # no se recrearon
+
+    def test_price_change_keeps_accessory_lines(self):
+        """Si solo cambia el precio de la máquina, las líneas de accesorio no se reescriben."""
+        config = self._imported('cfg_pionera_001')
+        lines = config.accessory_line_ids
+        self._import(MATRIX_CSV.replace('"USD $1.000,00"', '"USD $1.100,00"'))
+        self.assertEqual(config.price, 1100.0)
+        self.assertEqual(config.accessory_line_ids, lines)
+
+    def test_duplicate_combination_is_rejected(self):
+        """La restricción de combinación única (una consulta SQL) rechaza una combinación repetida."""
+        config = self._imported('cfg_pionera_001')
+        with self.assertRaisesRegex(ValidationError, 'misma combinación'):
+            self.env['sembradora.config.rel'].create({
+                'modelo_id': self.pionera.id, 'price': 1, 'value_ids': [Command.set(config.value_ids.ids)],
+            })
 
     def test_archived_accessory_is_restored(self):
         """Un accesorio que vuelve al CSV se reactiva: es el mismo producto."""

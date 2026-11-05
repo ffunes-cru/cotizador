@@ -8,6 +8,8 @@ tienda (product.template._is_combination_possible()).
 """
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools import SQL
+
 
 def validate_rule_set(lines):
     """Valida la coherencia de reglas y equipamiento estándar de UNA configuración.
@@ -191,17 +193,38 @@ class SembradoraConfigRel(models.Model):
     def _check_unique_combination(self):
         """Una combinación de valores aparece una sola vez por modelo.
 
+        Una sola consulta compara las combinaciones en la base (antes era una búsqueda por
+        configuración contra todas las de su modelo: cuadrático al importar miles).
+
         @throws ValidationError Si otra configuración del modelo tiene los mismos valores.
         """
-        for config in self:
-            duplicate = self.search([
-                ('modelo_id', '=', config.modelo_id.id), ('id', '!=', config.id),
-            ]).filtered(lambda c: c.value_ids == config.value_ids)
-            if duplicate:
-                raise ValidationError(self.env._(
-                    "Ya existe una configuración de %(modelo)s con la misma combinación (%(other)s).",
-                    modelo=config.modelo_id.name, other=duplicate[0].ext_id or duplicate[0].name,
-                ))
+        self.flush_model(['modelo_id', 'value_ids'])
+        field = self._fields['value_ids']
+        self.env.cr.execute(SQL(
+            """
+            WITH combos AS (
+                SELECT c.id, c.modelo_id, array_agg(r.%(value)s ORDER BY r.%(value)s) AS vals
+                  FROM sembradora_config_rel c
+                  JOIN %(rel)s r ON r.%(config)s = c.id
+                 WHERE c.modelo_id = ANY(%(models)s)
+                 GROUP BY c.id, c.modelo_id
+            )
+            SELECT a.id, b.id
+              FROM combos a
+              JOIN combos b ON b.modelo_id = a.modelo_id AND b.vals = a.vals AND b.id <> a.id
+             WHERE a.id = ANY(%(ids)s)
+             LIMIT 1
+            """,
+            rel=SQL.identifier(field.relation), config=SQL.identifier(field.column1),
+            value=SQL.identifier(field.column2), models=self.modelo_id.ids, ids=self.ids,
+        ))
+        row = self.env.cr.fetchone()
+        if row:
+            config, duplicate = self.browse(row[0]), self.browse(row[1])
+            raise ValidationError(self.env._(
+                "Ya existe una configuración de %(modelo)s con la misma combinación (%(other)s).",
+                modelo=config.modelo_id.name, other=duplicate.ext_id or duplicate.name,
+            ))
 
     @api.constrains('modelo_id')
     def _check_accessories_modelo(self):
