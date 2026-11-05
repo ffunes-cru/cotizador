@@ -335,14 +335,22 @@
                                         <small class="text-muted">Elija una opción</small>
                                     </div>
                                     <t t-foreach="group.options" t-as="acc" t-key="acc.line_id">
-                                        <label class="d-flex align-items-center gap-2 py-2 border-top cursor-pointer o_cotizador_choice_option"
+                                        <label class="d-flex align-items-center gap-2 py-2 border-top o_cotizador_choice_option"
+                                               t-att-class="acc.is_locked ? 'opacity-50 o_cotizador_choice_locked' : 'cursor-pointer'"
+                                               t-att-title="acc.lock_reason or ''"
                                                t-att-for="'choice_' + acc.line_id">
                                             <input class="form-check-input m-0 flex-shrink-0" type="radio"
                                                    t-att-id="'choice_' + acc.line_id"
                                                    t-att-name="'choice_group_' + group.id"
                                                    t-att-checked="state.selectedAccessories[acc.line_id]"
+                                                   t-att-disabled="acc.is_locked"
                                                    t-on-change="() => this.selectChoice(acc)"/>
-                                            <span class="flex-grow-1 text-body"><t t-esc="acc.product_name"/></span>
+                                            <span class="flex-grow-1 text-body">
+                                                <t t-esc="acc.product_name"/>
+                                                <small t-if="acc.is_locked" class="d-block text-muted">
+                                                    <i class="fa fa-lock me-1"/><t t-esc="acc.lock_reason"/>
+                                                </small>
+                                            </span>
                                             <span t-if="acc.is_standard" class="badge text-bg-success rounded-pill fs-8">
                                                 <i class="fa fa-check-circle me-1" title="Estándar"/>Estándar
                                             </span>

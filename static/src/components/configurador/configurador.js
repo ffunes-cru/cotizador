@@ -534,10 +534,13 @@ export class CotizadorConfigurator extends Component {
     }
 
     /**
-     * Opción única: elige `acc` y deselecciona las demás opciones de su grupo.
+     * Opción única: elige `acc` y deselecciona las demás opciones de su grupo. Una opción
+     * bloqueada por una exclusión (otro accesorio elegido del mismo grupo de exclusión) no se
+     * puede elegir; la elegida nunca se bloquea, así que el grupo siempre tiene una.
      * @param acc Accesorio miembro de un grupo (`choice_group_id`).
      */
     selectChoice(acc) {
+        if (acc.is_locked) return;
         for (const other of this.state.accessories) {
             if (other.choice_group_id === acc.choice_group_id) {
                 this.state.selectedAccessories[other.line_id] = other.line_id === acc.line_id;
@@ -598,7 +601,9 @@ export class CotizadorConfigurator extends Component {
     /**
      * Aplica las reglas de exclusión e inclusión a la selección actual.
      *
-     * - Exclusión: con un miembro elegido, los demás del grupo quedan bloqueados.
+     * - Exclusión: con un miembro elegido, los demás del grupo quedan bloqueados. Vale también
+     *   para las opciones de un grupo de opción única que están en una exclusión: la alternativa
+     *   bloqueada no se puede elegir (selectChoice).
      * - Inclusión: sin habilitante elegido, los demás miembros quedan bloqueados y se deseleccionan.
      * - Opción única: se maneja en selectChoice (siempre hay una elegida).
      *

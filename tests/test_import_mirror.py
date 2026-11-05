@@ -167,7 +167,7 @@ class TestImportMirror(CotizadorCase):
         self._import(MATRIX_CSV + DRILLA_CSV)
         cuchillas = self._imported('rule_exclusion_cuchillas')
         without_knives = MATRIX_CSV.replace('001,Pionera,OPCIONAL,,Cuchilla A,20,,Cuchillas:e,,,\n', '').replace(
-            '001,Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,\n', '')
+            '001,Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,\n', '').replace('Kit Siembra:u|Cuchillas:e', 'Kit Siembra:u')
         self._import(without_knives)  # la Drilla todavía la usa
         self.assertTrue(cuchillas.exists())
         wizard = self._import(HEADER + DRILLA_CSV.replace(',Cuchillas:e,', ',,'))

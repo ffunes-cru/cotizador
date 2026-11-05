@@ -3,7 +3,8 @@
  * Tours de navegador del módulo (los corre tests/test_tours.py).
  *
  * - `cotizador_configurator_tour`: en una cotización abre el configurador, elige la máquina y
- *   sus atributos, cambia la opción de un grupo de opción única y confirma.
+ *   sus atributos, cambia la opción de un grupo de opción única, comprueba que una opción que
+ *   está en una exclusión se bloquea con la cuchilla (y al revés) y confirma.
  * - `cotizador_website_quote_tour`: en la ficha de la máquina completa los pasos del configurador
  *   de la tienda y envía *Solicitar Cotización* como visitante.
  */
@@ -23,6 +24,15 @@ registry.category("web_tour.tours").add("cotizador_configurator_tour", {
         { trigger: ".o_cotizador_choice_option:contains('Kit Grueso') input", run: "click" },
         { trigger: ".o_cotizador_choice_option:contains('Kit Fino') input:not(:checked)" },
         { trigger: ".o_cotizador_choice_option:contains('Kit Grueso') input:checked" },
+        // Kit Mixto (opción única) también está en la exclusión "Cuchillas": se bloquean entre sí
+        { trigger: ".accessory-card:contains('Cuchilla A') input[type='checkbox']", run: "click" },
+        { trigger: ".o_cotizador_choice_option:contains('Kit Mixto') input:disabled" },
+        { trigger: ".o_cotizador_choice_option:contains('Kit Mixto'):contains('Cuchillas')" },
+        { trigger: ".accessory-card:contains('Cuchilla A') input[type='checkbox']", run: "click" },
+        { trigger: ".o_cotizador_choice_option:contains('Kit Mixto') input:enabled", run: "click" },
+        { trigger: ".accessory-card:contains('Cuchilla A') input[type='checkbox']:disabled" },
+        { trigger: ".o_cotizador_choice_option:contains('Kit Grueso') input", run: "click" },
+        { trigger: ".accessory-card:contains('Cuchilla A') input[type='checkbox']:enabled" },
         { trigger: ".cotizador-summary-panel button:contains('Añadir a la Cotización'):enabled", run: "click" },
         { trigger: ".o_section_and_note_list_view tr.o_is_line_section:nth-child(1)" },
         { trigger: ".o_field_product_label_section_and_note_cell:contains('Kit Grueso')" },

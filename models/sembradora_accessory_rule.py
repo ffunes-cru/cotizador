@@ -13,7 +13,7 @@ class SembradoraAccessoryRule(models.Model):
     |---|---|---|
     | `exclusion` | `:e` / `:et` | Como máximo un accesorio elegido del grupo. |
     | `inclusion` | `:i` / `:it` | Los miembros se habilitan solo si está elegido el habilitante (`is_trigger`, sufijo `:it`). |
-    | `choice` | `:u` | Exactamente uno elegido; arranca el ESTANDAR. |
+    | `choice` | `:u` | Exactamente uno elegido; arranca el ESTANDAR. Sus miembros pueden estar además en exclusiones. |
 
     La coherencia de un conjunto de reglas la valida sembradora_config.validate_rule_set().
     """
@@ -31,7 +31,8 @@ class SembradoraAccessoryRule(models.Model):
              'Inclusión (:i / :it): los accesorios del grupo se habilitan solo cuando '
              'su accesorio habilitante (trigger) está seleccionado. '
              'Opción única (:u): siempre hay exactamente uno seleccionado; arranca el ESTANDAR '
-             'y elegir una alternativa lo reemplaza.')
+             'y elegir una alternativa lo reemplaza. Un miembro puede estar además en grupos de '
+             'exclusión, no en uno de inclusión.')
 
     description = fields.Text(
         string='Descripción',

@@ -36,19 +36,25 @@ siempre una selección válida).
 |---|---|---|---|
 | Exclusión (`:e`) | Con uno elegido, los demás del grupo se bloquean. | Error si hay dos elegidos. | Como máximo un ESTANDAR en el grupo. |
 | Inclusión (`:i` + habilitante `:it`) | Sin habilitante elegido, los miembros se bloquean y se quitan. | Error si hay un miembro sin su habilitante. | Un miembro ESTANDAR exige su habilitante ESTANDAR. |
-| Opción única (`:u`) | Botones de radio; siempre uno elegido; muestra la diferencia de precio con el estándar. | Error si no hay exactamente uno del grupo. | Exactamente un ESTANDAR; el miembro no puede tener otras reglas. |
+| Opción única (`:u`) | Botones de radio; siempre uno elegido; muestra la diferencia de precio con el estándar. Una opción bloqueada por una exclusión no se puede elegir (muestra el motivo). | Error si no hay exactamente uno del grupo. | Exactamente un ESTANDAR; el miembro puede estar además en exclusiones, no en una inclusión ni en otra opción única. |
 
 ```mermaid
 flowchart TD
-    A[Vendedor elige un accesorio] --> B{¿Es de un grupo<br/>de opción única?}
-    B -- sí --> C[Reemplaza a la opción elegida del grupo]
-    B -- no --> D{¿Está bloqueado?}
+    A[Vendedor elige un accesorio] --> D{¿Está bloqueado?}
     D -- sí --> E[No cambia: se muestra el motivo]
-    D -- no --> F[Se agrega o se quita]
+    D -- no --> B{¿Es de un grupo<br/>de opción única?}
+    B -- sí --> C[Reemplaza a la opción elegida del grupo]
+    B -- no --> F[Se agrega o se quita]
     C --> G[Reevaluar exclusiones e inclusiones]
     F --> G
     G --> H[Recalcular total]
 ```
+
+**Opción única con exclusión.** Una alternativa de un grupo `:u` puede estar además en un grupo de
+exclusión (`Kit Siembra:u|Cuchillas:e`). Si está elegida otra cuchilla, esa alternativa se bloquea; si la
+elegida es la alternativa, se bloquean las cuchillas. La opción elegida nunca se bloquea, así que el grupo
+siempre tiene una. Con una inclusión no se permite: la inclusión deselecciona sin habilitante y dejaría el
+grupo vacío.
 
 ## Cantidad de un accesorio
 

@@ -118,9 +118,9 @@ class TestImporter(CotizadorCase):
                                  "'Kit Siembra' debe tener exactamente un accesorio ESTANDAR (tiene 0)")
         self.assertAnalysisError(MATRIX_CSV.replace(',OPCIONAL,,Kit Mixto', ',ESTANDAR,,Kit Mixto'),
                                  '(tiene 2)')
-        # Un miembro de opción única no puede tener otras reglas
-        self.assertAnalysisError(MATRIX_CSV.replace('Kit Mixto,30,,Kit Siembra:u', 'Kit Mixto,30,,Kit Siembra:u|Cuchillas:e'),
-                                 'no puede tener otras reglas')
+        # Un miembro de opción única puede estar en una exclusión (MATRIX_CSV), pero no en una inclusión
+        self.assertAnalysisError(MATRIX_CSV.replace('Kit Siembra:u|Cuchillas:e', 'Kit Siembra:u|Monitor:i'),
+                                 'solo puede estar en grupos de exclusión')
         # Dos estándar en un grupo de exclusión
         self.assertAnalysisError(MATRIX_CSV.replace(',OPCIONAL,,Cuchilla A', ',ESTANDAR,,Cuchilla A')
                                            .replace(',OPCIONAL,,Cuchilla B', ',ESTANDAR,,Cuchilla B'),

@@ -169,7 +169,7 @@ Sin campos propios.
 |---|---|---|---|
 | `description` | text | Descripción | Descripción opcional del comportamiento de esta regla. |
 | `name` | char | Nombre | obligatorio |
-| `rule_type` | selection | Tipo | valores: `exclusion`, `inclusion`, `choice`; obligatorio; Exclusión (:e): como máximo un accesorio del grupo. Inclusión (:i / :it): los accesorios del grupo se habilitan solo cuando su accesorio habilitante (trigger) está seleccionado. Opción única (:u): siempre hay exactamente uno seleccionado; arranca el ESTANDAR y elegir una alternativa lo reemplaza. |
+| `rule_type` | selection | Tipo | valores: `exclusion`, `inclusion`, `choice`; obligatorio; Exclusión (:e): como máximo un accesorio del grupo. Inclusión (:i / :it): los accesorios del grupo se habilitan solo cuando su accesorio habilitante (trigger) está seleccionado. Opción única (:u): siempre hay exactamente uno seleccionado; arranca el ESTANDAR y elegir una alternativa lo reemplaza. Un miembro puede estar además en grupos de exclusión, no en uno de inclusión. |
 
 ### `sembradora.config.accessory.line` — Accesorio por Configuración con Precio
 

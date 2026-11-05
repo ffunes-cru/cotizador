@@ -53,6 +53,15 @@ class SembradoraConfigAccessoryLine(models.Model):
         help='Si se especifica (> 0), se usa esta cantidad. '
              'Si se deja en 0, se calcula dinámicamente según la configuración.')
 
+    @api.constrains('rule_ids', 'is_standard', 'is_trigger', 'quantity', 'product_id')
+    def _check_config_rules(self):
+        """Editar una línea suelta (p. ej. desde *Accesorios por Configuración*) revalida las reglas
+        de toda su configuración: es la misma validación que al editarla desde la configuración.
+
+        @throws ValidationError Ver SembradoraConfigRel._check_accessories().
+        """
+        self.config_id._check_accessories()
+
     @api.constrains('product_id', 'config_id')
     def _check_product_modelo(self):
         """El accesorio debe ser del mismo modelo de máquina que la configuración.

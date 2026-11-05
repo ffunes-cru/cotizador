@@ -64,7 +64,10 @@ Las reglas viven en tres lugares que tienen que decir lo mismo (ver [Flujos](flu
 2. `_check_accessory_selection()` (mismo archivo): validación de una selección al confirmar.
 3. `_evaluateAccessoryRules()` / `selectChoice()` (`static/src/components/configurador/configurador.js`): guía en el navegador.
 
-Tests en `tests/test_importer.py` (`test_rule_coherence_errors`) y `tests/test_configurator.py`.
+Editar una línea suelta también revalida su configuración (`_check_config_rules` en la línea).
+
+Tests en `tests/test_importer.py` (`test_rule_coherence_errors`), `tests/test_configurator.py`
+(`test_choice_option_in_exclusion_group`) y el tour `cotizador_configurator_tour`.
 
 ## Cambiar cómo se calcula un precio
 

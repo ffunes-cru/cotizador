@@ -57,6 +57,21 @@ class TestConfigurator(CotizadorCase):
         self.assertEqual(by_name['Sensor'].product_uom_qty, 16.0)
         self.assertEqual(by_name['Kit Grueso'].price_unit, 80.0)
 
+    def test_choice_option_in_exclusion_group(self):
+        """Una alternativa de opción única puede estar en una exclusión: Kit Mixto excluye a las cuchillas."""
+        lines = self._lines(self.config)
+        order = self._order()
+        with self.assertRaisesRegex(UserError, "exclusión 'Cuchillas'"):
+            self.service.confirm_configuration(order.id, self.config.id, (
+                lines['Monitor'] | lines['Kit Mixto'] | lines['Cuchilla A']).ids)
+        # Otra alternativa con una cuchilla, o el Kit Mixto sin cuchillas, son válidas
+        self.service.confirm_configuration(order.id, self.config.id, (
+            lines['Monitor'] | lines['Kit Fino'] | lines['Cuchilla A']).ids)
+        self.service.confirm_configuration(order.id, self.config.id, (lines['Monitor'] | lines['Kit Mixto']).ids)
+        # Con una inclusión no: la deseleccionaría y dejaría el grupo sin opción
+        with self.assertRaisesRegex(ValidationError, 'solo puede estar en grupos de exclusión'):
+            lines['Kit Mixto'].rule_ids |= lines['Sensor'].rule_ids
+
     def test_pricelist_applies_to_machine_and_accessories(self):
         self.pricelist.item_ids = [Command.create({'compute_price': 'percentage', 'percent_price': 10})]
         order = self._order()

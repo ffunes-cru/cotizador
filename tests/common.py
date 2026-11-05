@@ -3,14 +3,15 @@ from odoo.tests import TransactionCase
 HEADER = "ID_Configuracion,Modelo,Tipo_Item,Precio_Base,Nombre_Item,Precio_Item,Calc_param,Reglas,Descripcion,ATR_Lineas,ATR_Distancia\n"
 
 # Pionera 001: Monitor (estándar, habilita Sensor), Sensor por línea, grupo de opción única
-# "Kit Siembra" (Fino estándar; Grueso y Mixto alternativas) y grupo exclusivo "Cuchillas".
+# "Kit Siembra" (Fino estándar; Grueso y Mixto alternativas) y grupo exclusivo "Cuchillas" (Cuchilla A,
+# Cuchilla B y la alternativa Kit Mixto: una opción única también puede estar en una exclusión).
 MATRIX_CSV = HEADER + """\
 001,Pionera,BASE,"USD $1.000,00",,,,,,16 Lineas,52 cm
 001,Pionera,ESTANDAR,,Monitor,100,,Monitor:it,,,
 001,Pionera,OPCIONAL,,Sensor,10,ATR_Lineas,Monitor:i,,,
 001,Pionera,ESTANDAR,,Kit Fino,50,,Kit Siembra:u,,,
 001,Pionera,OPCIONAL,,Kit Grueso,80,,Kit Siembra:u,,,
-001,Pionera,OPCIONAL,,Kit Mixto,30,,Kit Siembra:u,,,
+001,Pionera,OPCIONAL,,Kit Mixto,30,,Kit Siembra:u|Cuchillas:e,,,
 001,Pionera,OPCIONAL,,Cuchilla A,20,,Cuchillas:e,,,
 001,Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,
 002,Pionera,BASE,2000,,,,,,18 Lineas,52 cm

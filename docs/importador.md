@@ -98,7 +98,7 @@ Formato `Nombre:sufijo`; varias reglas se separan con `|`. **El sufijo es obliga
 | `:et` | Exclusión | Igual que `:e`. |
 | `:i` | Inclusión | Bloqueado hasta que se elija un habilitante del grupo. |
 | `:it` | Inclusión (habilitante) | Elegirlo **habilita** a los `:i` del grupo. |
-| `:u` | **Opción única** | Siempre hay **exactamente uno** elegido (§4.1). |
+| `:u` | **Opción única** | Siempre hay **exactamente uno** elegido (§4.1). Se combina con `:e`. |
 
 ### 4.1 Opción única (`:u`): estándar con alternativas
 
@@ -114,14 +114,23 @@ Formato `Nombre:sufijo`; varias reglas se separan con `|`. **El sufijo es obliga
 - Cada opción se cotiza a su precio completo. El configurador muestra la diferencia con el estándar
   (`+ USD $ 30,00`, `− USD $ 20,00`).
 - En la cotización, la opción elegida va en la sección **Equipamiento**.
+- Una opción puede estar **además en grupos de exclusión** (`|` separa reglas):
+
+  ```csv
+  001,Pionera,OPCIONAL,,Kit Mixto,30,,Kit Siembra:u|Cuchillas:e,,,
+  001,Pionera,OPCIONAL,,Cuchilla A,20,,Cuchillas:e,,,
+  ```
+
+  Con la Cuchilla A elegida, el Kit Mixto queda bloqueado (y al revés). No puede estar en un grupo de
+  inclusión (`:i`) ni en otra opción única.
 
 ### 4.2 Coherencia (son errores, no avisos)
 
 | Regla | Error si… |
 |---|---|
 | `:u` | el grupo no tiene **exactamente un** `ESTANDAR` en la configuración. |
-| `:u` | un accesorio del grupo tiene además otra regla. |
-| `:e` | hay más de un `ESTANDAR` en el grupo (use `:u`). |
+| `:u` | un accesorio del grupo está además en un grupo de inclusión (`:i` / `:it`) o en otra opción única (exclusión `:e` sí se permite). |
+| `:e` | hay más de un `ESTANDAR` en el grupo, contando las opciones únicas que estén en él (use `:u`). |
 | `:i` | un `ESTANDAR` no habilitante depende de un habilitante (`:it`) que no es `ESTANDAR`. |
 
 Estas mismas validaciones se aplican al editar a mano la configuración en Odoo.
@@ -248,7 +257,7 @@ ID_Configuracion,Modelo,Tipo_Item,Precio_Base,Nombre_Item,Precio_Item,Calc_param
 001,Pionera,OPCIONAL,,Sensor,10,ATR_Lineas,Monitor:i,,,
 001,Pionera,ESTANDAR,,Kit Fino,50,,Kit Siembra:u,,,
 001,Pionera,OPCIONAL,,Kit Grueso,80,,Kit Siembra:u,,,
-001,Pionera,OPCIONAL,,Kit Mixto,30,,Kit Siembra:u,,,
+001,Pionera,OPCIONAL,,Kit Mixto,30,,Kit Siembra:u|Cuchillas:e,,,
 001,Pionera,OPCIONAL,,Cuchilla A,20,,Cuchillas:e,,,
 001,Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,
 002,Pionera,BASE,2000,,,,,,18 Lineas,52 cm
@@ -261,7 +270,8 @@ Configuración `Pionera / 001`:
 - **Arrancan elegidos** *Monitor* y *Kit Fino*.
 - *Sensor* está habilitado (el Monitor es su habilitante) y cotiza 16 × 10.
 - *Kit Grueso* / *Kit Mixto* reemplazan al *Kit Fino* (+30 / −20).
-- *Cuchilla A* y *B* son excluyentes entre sí.
+- *Cuchilla A*, *Cuchilla B* y *Kit Mixto* son excluyentes entre sí: con una cuchilla elegida, el
+  Kit Mixto no se puede elegir.
 
 Es el CSV que usan los tests (`tests/common.py`).
 

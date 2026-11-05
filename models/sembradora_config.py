@@ -17,9 +17,10 @@ def validate_rule_set(lines):
     La usan el importador (sobre el CSV, antes de escribir) y la restricción
     SembradoraConfigRel._check_accessories(), así las dos aplican exactamente lo mismo:
 
-    - un miembro de un grupo de opción única no tiene otras reglas;
+    - un miembro de un grupo de opción única puede estar además en grupos de exclusión, pero no
+      en uno de inclusión (que lo deseleccionaría y dejaría el grupo vacío) ni en otro de opción única;
     - cada grupo de opción única tiene exactamente un ESTANDAR;
-    - un grupo de exclusión tiene como máximo un ESTANDAR;
+    - un grupo de exclusión tiene como máximo un ESTANDAR (también si son opciones únicas);
     - un ESTANDAR de un grupo de inclusión tiene su habilitante también ESTANDAR (o es el habilitante).
 
     @param lines Iterable de dicts `{'name', 'is_standard', 'is_trigger', 'rules'}`, donde
@@ -31,10 +32,11 @@ def validate_rule_set(lines):
     errors = []
     groups = {}
     for line in lines:
-        rule_types = {rtype for _key, rtype, _name in line['rules']}
-        if 'choice' in rule_types and len(line['rules']) > 1:
+        rule_types = [rtype for _key, rtype, _name in line['rules']]
+        if 'choice' in rule_types and (rule_types.count('choice') > 1 or 'inclusion' in rule_types):
             errors.append(
-                f"'{line['name']}' pertenece a un grupo de opción única (:u) y no puede tener otras reglas."
+                f"'{line['name']}' pertenece a un grupo de opción única (:u): además solo puede estar en "
+                f"grupos de exclusión (:e), no en uno de inclusión (:i) ni en otra opción única."
             )
         for key, rtype, name in line['rules']:
             groups.setdefault(key, (rtype, name, []))[2].append(line)

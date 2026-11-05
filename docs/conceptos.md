@@ -40,7 +40,7 @@ flowchart LR
 | **Equipamiento estándar** | Accesorios que vienen incluidos: arrancan elegidos y van en la sección *Equipamiento*. | `is_standard` de la línea; `ESTANDAR` en el CSV. |
 | **Regla de exclusión** (`:e`) | Grupo de accesorios del que se elige como máximo uno (p. ej. dos cuchillas distintas). | `sembradora.accessory.rule`, tipo `exclusion`. |
 | **Regla de inclusión** (`:i` / `:it`) | Los accesorios del grupo solo se pueden elegir si está elegido su **habilitante** (`:it`, p. ej. el sensor necesita el monitor). | Tipo `inclusion`; el habilitante tiene `is_trigger`. |
-| **Opción única** (`:u`) | Grupo del que siempre hay **exactamente uno**: arranca el estándar y elegir otro lo reemplaza. Se muestra como botones de radio con la diferencia de precio. | Tipo `choice`. |
+| **Opción única** (`:u`) | Grupo del que siempre hay **exactamente uno**: arranca el estándar y elegir otro lo reemplaza. Una opción puede estar además en una exclusión. Se muestra como botones de radio con la diferencia de precio. | Tipo `choice`. |
 | **Cantidad dinámica** (`Calc_param`) | Accesorio que se cotiza por unidad de un atributo: un sensor **por línea** en una máquina de 16 líneas → 16 sensores. | Categoría con *Atributo de Cantidad*; el número sale de `cotizador_qty` del valor. |
 | **Moneda del Cotizador** | Moneda en la que están los precios de la matriz de un producto (máquina o accesorio). Puede no ser la de la compañía (p. ej. compañía en ARS, matriz en USD). | `cotizador_currency_id` del producto. |
 | **Lista de Precios de Cotizaciones** | Lista de precios (y por lo tanto moneda) de las cotizaciones de máquinas. | Ajuste de la compañía `cotizador_pricelist_id`. |
@@ -62,7 +62,7 @@ Matriz de la Pionera (el CSV de `docs/importador.md` §8):
 - Configuración **001**: 16 líneas a 52 cm, USD 1.000.
   - *Monitor* (estándar, habilitante) USD 100; *Sensor* (requiere el monitor) USD 10 **por línea**.
   - Grupo de opción única *Kit Siembra*: *Kit Fino* (estándar) 50, *Kit Grueso* 80, *Kit Mixto* 30.
-  - Grupo de exclusión *Cuchillas*: *Cuchilla A* 20, *Cuchilla B* 25.
+  - Grupo de exclusión *Cuchillas*: *Cuchilla A* 20, *Cuchilla B* 25 y la alternativa *Kit Mixto*.
 
 El vendedor elige "Pionera → 16 Líneas → 52 cm". Arrancan elegidos el Monitor y el Kit Fino
 (total 1.150). Cambia al Kit Grueso (+30) y agrega el Sensor (16 × 10 = 160): la cotización queda con

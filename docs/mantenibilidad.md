@@ -313,11 +313,11 @@ python -m coverage report --show-missing
 
 | Área | Funciones | Líneas de código | CCN promedio | CCN máxima | CCN > 10 | A | B | C | D | E | F |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| Servidor | 222 | 2891 | 5.4 | 57 | 20 | 155 | 47 | 12 | 6 | 0 | 2 |
-| Navegador | 86 | 945 | 3.3 | 43 | 4 | 76 | 6 | 2 | 1 | 0 | 1 |
-| Tests | 103 | 841 | 1.4 | 5 | 0 | 103 | 0 | 0 | 0 | 0 | 0 |
+| Servidor | 223 | 2894 | 5.4 | 57 | 20 | 156 | 47 | 11 | 7 | 0 | 2 |
+| Navegador | 86 | 946 | 3.3 | 43 | 4 | 76 | 6 | 2 | 1 | 0 | 1 |
+| Tests | 104 | 860 | 1.4 | 5 | 0 | 104 | 0 | 0 | 0 | 0 | 0 |
 | Herramientas de escritorio | 13 | 218 | 3.4 | 12 | 2 | 11 | 0 | 2 | 0 | 0 | 0 |
-| **Total** | 424 | 4895 | 3.9 | 57 | 26 | 345 | 53 | 16 | 7 | 0 | 3 |
+| **Total** | 426 | 4918 | 3.9 | 57 | 26 | 347 | 53 | 15 | 8 | 0 | 3 |
 
 ## Funciones que requieren atención (CCN > 10)
 
@@ -332,10 +332,10 @@ Ordenadas de mayor a menor complejidad.
 | 26 | D | `_validate_parsed` | [models/sembradora_import_wizard.py:329](../models/sembradora_import_wizard.py#L329) | 45 | 2 |
 | 25 | D | `faltantes_js` | [tools/documentacion.py:150](../tools/documentacion.py#L150) | 31 | 0 |
 | 22 | D | `_parse_input_file` | [models/engineering_code_wizard.py:219](../models/engineering_code_wizard.py#L219) | 37 | 1 |
-| 22 | D | `_evaluateAccessoryRules` | [static/src/components/configurador/configurador.js:607](../static/src/components/configurador/configurador.js#L607) | 61 | 0 |
+| 22 | D | `_evaluateAccessoryRules` | [static/src/components/configurador/configurador.js:612](../static/src/components/configurador/configurador.js#L612) | 61 | 0 |
 | 21 | D | `solicitar_cotizacion` | [controllers/main.py:175](../controllers/main.py#L175) | 39 | 2 |
 | 21 | D | `action_generate_template` | [models/engineering_code_wizard.py:76](../models/engineering_code_wizard.py#L76) | 85 | 1 |
-| 20 | C | `validate_rule_set` | [models/sembradora_config.py:14](../models/sembradora_config.py#L14) | 33 | 1 |
+| 21 | D | `validate_rule_set` | [models/sembradora_config.py:14](../models/sembradora_config.py#L14) | 34 | 1 |
 | 18 | C | `_compute_name` | [models/plan_pago.py:87](../models/plan_pago.py#L87) | 12 | 1 |
 | 18 | C | `_cotizador_add_configuration` | [models/sale_order_inherit.py:663](../models/sale_order_inherit.py#L663) | 47 | 3 |
 | 15 | C | `action_confirm` | [models/descuento_wizard.py:102](../models/descuento_wizard.py#L102) | 47 | 1 |
@@ -370,18 +370,18 @@ Ordenadas de mayor a menor complejidad.
 | [models/res_config_settings.py](../models/res_config_settings.py) | 3 | 19 | 2.0 | 3 | A | 0 |
 | [models/sale_order_inherit.py](../models/sale_order_inherit.py) | 45 | 466 | 3.9 | 18 | C | 3 |
 | [models/sembradora_accessory_rule.py](../models/sembradora_accessory_rule.py) | 1 | 4 | 2.0 | 2 | A | 0 |
-| [models/sembradora_config.py](../models/sembradora_config.py) | 18 | 237 | 4.5 | 20 | C | 1 |
-| [models/sembradora_config_acc_line.py](../models/sembradora_config_acc_line.py) | 1 | 9 | 4.0 | 4 | A | 0 |
+| [models/sembradora_config.py](../models/sembradora_config.py) | 18 | 238 | 4.6 | 21 | D | 1 |
+| [models/sembradora_config_acc_line.py](../models/sembradora_config_acc_line.py) | 2 | 11 | 2.5 | 4 | A | 0 |
 | [models/sembradora_import_wizard.py](../models/sembradora_import_wizard.py) | 49 | 629 | 5.8 | 42 | F | 2 |
 | [scripts/split_csv.py](../scripts/split_csv.py) | 2 | 48 | 7.0 | 11 | C | 1 |
 | [scripts/split_csv_gui.py](../scripts/split_csv_gui.py) | 11 | 170 | 2.7 | 12 | C | 1 |
-| [static/src/components/configurador/configurador.js](../static/src/components/configurador/configurador.js) | 60 | 561 | 3.0 | 22 | D | 1 |
+| [static/src/components/configurador/configurador.js](../static/src/components/configurador/configurador.js) | 60 | 562 | 3.0 | 22 | D | 1 |
 | [static/src/js/cotizador_quote_form.js](../static/src/js/cotizador_quote_form.js) | 2 | 6 | 1.0 | 1 | A | 0 |
 | [static/src/js/cotizador_sequential_configurator.js](../static/src/js/cotizador_sequential_configurator.js) | 24 | 378 | 4.3 | 43 | F | 3 |
-| [static/tests/tours/cotizador_tours.js](../static/tests/tours/cotizador_tours.js) | 2 | 24 | 1.0 | 1 | A | 0 |
+| [static/tests/tours/cotizador_tours.js](../static/tests/tours/cotizador_tours.js) | 2 | 32 | 1.0 | 1 | A | 0 |
 | [tests/common.py](../tests/common.py) | 8 | 29 | 1.2 | 2 | A | 0 |
 | [tests/test_cascade_variants.py](../tests/test_cascade_variants.py) | 11 | 95 | 1.3 | 2 | A | 0 |
-| [tests/test_configurator.py](../tests/test_configurator.py) | 12 | 138 | 2.2 | 5 | A | 0 |
+| [tests/test_configurator.py](../tests/test_configurator.py) | 13 | 149 | 2.1 | 5 | A | 0 |
 | [tests/test_documentacion.py](../tests/test_documentacion.py) | 2 | 7 | 1.0 | 1 | A | 0 |
 | [tests/test_import_mirror.py](../tests/test_import_mirror.py) | 13 | 113 | 1.2 | 2 | A | 0 |
 | [tests/test_importer.py](../tests/test_importer.py) | 11 | 123 | 1.5 | 3 | A | 0 |
@@ -611,40 +611,41 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
-| [47](../models/sembradora_accessory_rule.py#L47) | `_compute_display_name` | 2 | A | 4 | 1 |
+| [48](../models/sembradora_accessory_rule.py#L48) | `_compute_display_name` | 2 | A | 4 | 1 |
 
 </details>
 
-<details><summary><code>models/sembradora_config.py</code> — 18 funciones, CCN máxima 20</summary>
+<details><summary><code>models/sembradora_config.py</code> — 18 funciones, CCN máxima 21</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
-| [14](../models/sembradora_config.py#L14) | `validate_rule_set` | 20 | C | 33 | 1 |
-| [111](../models/sembradora_config.py#L111) | `_compute_description` | 6 | B | 10 | 1 |
-| [127](../models/sembradora_config.py#L127) | `_compute_name` | 2 | A | 4 | 1 |
-| [134](../models/sembradora_config.py#L134) | `create` | 1 | A | 5 | 2 |
-| [145](../models/sembradora_config.py#L145) | `write` | 3 | A | 8 | 2 |
-| [160](../models/sembradora_config.py#L160) | `unlink` | 1 | A | 6 | 1 |
-| [173](../models/sembradora_config.py#L173) | `_check_complete_combination` | 5 | A | 11 | 1 |
-| [193](../models/sembradora_config.py#L193) | `_check_unique_combination` | 3 | A | 28 | 1 |
-| [230](../models/sembradora_config.py#L230) | `_check_accessories_modelo` | 1 | A | 2 | 1 |
-| [238](../models/sembradora_config.py#L238) | `_check_accessories` | 7 | B | 13 | 1 |
-| [257](../models/sembradora_config.py#L257) | `_rule_set_lines` | 3 | A | 8 | 1 |
-| [274](../models/sembradora_config.py#L274) | `_get_accessory_offer` | 8 | B | 36 | 1 |
-| [331](../models/sembradora_config.py#L331) | `_get_default_accessory_lines` | 1 | A | 3 | 1 |
-| [341](../models/sembradora_config.py#L341) | `_check_accessory_selection` | 9 | B | 28 | 2 |
-| [380](../models/sembradora_config.py#L380) | `_get_variant` | 3 | A | 15 | 1 |
-| [393](../models/sembradora_config.py#L393) | `_get_variant.find` | 1 | A | 6 | 0 |
-| [413](../models/sembradora_config.py#L413) | `_sync_variant_code` | 3 | A | 9 | 1 |
-| [424](../models/sembradora_config.py#L424) | `_get_variant_description` | 4 | A | 12 | 1 |
+| [14](../models/sembradora_config.py#L14) | `validate_rule_set` | 21 | D | 34 | 1 |
+| [113](../models/sembradora_config.py#L113) | `_compute_description` | 6 | B | 10 | 1 |
+| [129](../models/sembradora_config.py#L129) | `_compute_name` | 2 | A | 4 | 1 |
+| [136](../models/sembradora_config.py#L136) | `create` | 1 | A | 5 | 2 |
+| [147](../models/sembradora_config.py#L147) | `write` | 3 | A | 8 | 2 |
+| [162](../models/sembradora_config.py#L162) | `unlink` | 1 | A | 6 | 1 |
+| [175](../models/sembradora_config.py#L175) | `_check_complete_combination` | 5 | A | 11 | 1 |
+| [195](../models/sembradora_config.py#L195) | `_check_unique_combination` | 3 | A | 28 | 1 |
+| [232](../models/sembradora_config.py#L232) | `_check_accessories_modelo` | 1 | A | 2 | 1 |
+| [240](../models/sembradora_config.py#L240) | `_check_accessories` | 7 | B | 13 | 1 |
+| [259](../models/sembradora_config.py#L259) | `_rule_set_lines` | 3 | A | 8 | 1 |
+| [276](../models/sembradora_config.py#L276) | `_get_accessory_offer` | 8 | B | 36 | 1 |
+| [333](../models/sembradora_config.py#L333) | `_get_default_accessory_lines` | 1 | A | 3 | 1 |
+| [343](../models/sembradora_config.py#L343) | `_check_accessory_selection` | 9 | B | 28 | 2 |
+| [382](../models/sembradora_config.py#L382) | `_get_variant` | 3 | A | 15 | 1 |
+| [395](../models/sembradora_config.py#L395) | `_get_variant.find` | 1 | A | 6 | 0 |
+| [415](../models/sembradora_config.py#L415) | `_sync_variant_code` | 3 | A | 9 | 1 |
+| [426](../models/sembradora_config.py#L426) | `_get_variant_description` | 4 | A | 12 | 1 |
 
 </details>
 
-<details><summary><code>models/sembradora_config_acc_line.py</code> — 1 funciones, CCN máxima 4</summary>
+<details><summary><code>models/sembradora_config_acc_line.py</code> — 2 funciones, CCN máxima 4</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
-| [57](../models/sembradora_config_acc_line.py#L57) | `_check_product_modelo` | 4 | A | 9 | 1 |
+| [57](../models/sembradora_config_acc_line.py#L57) | `_check_config_rules` | 1 | A | 2 | 1 |
+| [66](../models/sembradora_config_acc_line.py#L66) | `_check_product_modelo` | 4 | A | 9 | 1 |
 
 </details>
 
@@ -775,26 +776,26 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | [511](../static/src/components/configurador/configurador.js#L511) | `get choiceGroups` | 5 | A | 14 | 0 |
 | [521](../static/src/components/configurador/configurador.js#L521) | `(anónima)` | 1 | A | 1 | 2 |
 | [531](../static/src/components/configurador/configurador.js#L531) | `formatDelta` | 3 | A | 4 | 1 |
-| [540](../static/src/components/configurador/configurador.js#L540) | `selectChoice` | 3 | A | 9 | 1 |
-| [555](../static/src/components/configurador/configurador.js#L555) | `get filteredAccessories` | 4 | A | 14 | 0 |
-| [557](../static/src/components/configurador/configurador.js#L557) | `(anónima)` | 1 | A | 1 | 1 |
-| [559](../static/src/components/configurador/configurador.js#L559) | `(anónima)` | 1 | A | 1 | 1 |
-| [565](../static/src/components/configurador/configurador.js#L565) | `(anónima)` | 3 | A | 2 | 1 |
-| [576](../static/src/components/configurador/configurador.js#L576) | `setActiveCategory` | 1 | A | 3 | 1 |
-| [585](../static/src/components/configurador/configurador.js#L585) | `toggleAccessory` | 4 | A | 10 | 1 |
-| [586](../static/src/components/configurador/configurador.js#L586) | `(anónima)` | 1 | A | 1 | 1 |
-| [607](../static/src/components/configurador/configurador.js#L607) | `_evaluateAccessoryRules` | 22 | D | 61 | 0 |
-| [652](../static/src/components/configurador/configurador.js#L652) | `(anónima)` | 1 | A | 1 | 1 |
-| [676](../static/src/components/configurador/configurador.js#L676) | `_recalculateAccessoriesTotal` | 4 | A | 10 | 0 |
-| [691](../static/src/components/configurador/configurador.js#L691) | `get selectedAccessoriesList` | 1 | A | 5 | 0 |
-| [693](../static/src/components/configurador/configurador.js#L693) | `(anónima)` | 1 | A | 1 | 1 |
-| [701](../static/src/components/configurador/configurador.js#L701) | `get selectedAttributesSummary` | 4 | A | 18 | 0 |
-| [706](../static/src/components/configurador/configurador.js#L706) | `(anónima)` | 1 | A | 1 | 1 |
-| [724](../static/src/components/configurador/configurador.js#L724) | `get activeDescription` | 3 | A | 6 | 0 |
-| [732](../static/src/components/configurador/configurador.js#L732) | `toggleDescriptionCollapse` | 1 | A | 3 | 0 |
-| [743](../static/src/components/configurador/configurador.js#L743) | `confirmConfiguration` | 5 | A | 38 | 0 |
-| [762](../static/src/components/configurador/configurador.js#L762) | `(anónima)` | 1 | A | 1 | 1 |
-| [789](../static/src/components/configurador/configurador.js#L789) | `closeAndReturn` | 2 | A | 13 | 0 |
+| [542](../static/src/components/configurador/configurador.js#L542) | `selectChoice` | 4 | A | 10 | 1 |
+| [558](../static/src/components/configurador/configurador.js#L558) | `get filteredAccessories` | 4 | A | 14 | 0 |
+| [560](../static/src/components/configurador/configurador.js#L560) | `(anónima)` | 1 | A | 1 | 1 |
+| [562](../static/src/components/configurador/configurador.js#L562) | `(anónima)` | 1 | A | 1 | 1 |
+| [568](../static/src/components/configurador/configurador.js#L568) | `(anónima)` | 3 | A | 2 | 1 |
+| [579](../static/src/components/configurador/configurador.js#L579) | `setActiveCategory` | 1 | A | 3 | 1 |
+| [588](../static/src/components/configurador/configurador.js#L588) | `toggleAccessory` | 4 | A | 10 | 1 |
+| [589](../static/src/components/configurador/configurador.js#L589) | `(anónima)` | 1 | A | 1 | 1 |
+| [612](../static/src/components/configurador/configurador.js#L612) | `_evaluateAccessoryRules` | 22 | D | 61 | 0 |
+| [657](../static/src/components/configurador/configurador.js#L657) | `(anónima)` | 1 | A | 1 | 1 |
+| [681](../static/src/components/configurador/configurador.js#L681) | `_recalculateAccessoriesTotal` | 4 | A | 10 | 0 |
+| [696](../static/src/components/configurador/configurador.js#L696) | `get selectedAccessoriesList` | 1 | A | 5 | 0 |
+| [698](../static/src/components/configurador/configurador.js#L698) | `(anónima)` | 1 | A | 1 | 1 |
+| [706](../static/src/components/configurador/configurador.js#L706) | `get selectedAttributesSummary` | 4 | A | 18 | 0 |
+| [711](../static/src/components/configurador/configurador.js#L711) | `(anónima)` | 1 | A | 1 | 1 |
+| [729](../static/src/components/configurador/configurador.js#L729) | `get activeDescription` | 3 | A | 6 | 0 |
+| [737](../static/src/components/configurador/configurador.js#L737) | `toggleDescriptionCollapse` | 1 | A | 3 | 0 |
+| [748](../static/src/components/configurador/configurador.js#L748) | `confirmConfiguration` | 5 | A | 38 | 0 |
+| [767](../static/src/components/configurador/configurador.js#L767) | `(anónima)` | 1 | A | 1 | 1 |
+| [794](../static/src/components/configurador/configurador.js#L794) | `closeAndReturn` | 2 | A | 13 | 0 |
 
 </details>
 
@@ -842,8 +843,8 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
-| [16](../static/tests/tours/cotizador_tours.js#L16) | `steps` | 1 | A | 14 | 0 |
-| [35](../static/tests/tours/cotizador_tours.js#L35) | `steps` | 1 | A | 10 | 0 |
+| [17](../static/tests/tours/cotizador_tours.js#L17) | `steps` | 1 | A | 22 | 0 |
+| [45](../static/tests/tours/cotizador_tours.js#L45) | `steps` | 1 | A | 10 | 0 |
 
 </details>
 
@@ -851,14 +852,14 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
-| [22](../tests/common.py#L22) | `analyze_matrix` | 2 | A | 8 | 3 |
-| [32](../tests/common.py#L32) | `import_matrix` | 1 | A | 5 | 3 |
-| [42](../tests/common.py#L42) | `setUpClass` | 1 | A | 6 | 1 |
-| [50](../tests/common.py#L50) | `_wizard` | 1 | A | 2 | 3 |
-| [54](../tests/common.py#L54) | `_import` | 1 | A | 2 | 3 |
-| [58](../tests/common.py#L58) | `_imported` | 1 | A | 2 | 2 |
-| [61](../tests/common.py#L61) | `_order` | 1 | A | 2 | 2 |
-| [64](../tests/common.py#L64) | `_lines` | 2 | A | 2 | 2 |
+| [23](../tests/common.py#L23) | `analyze_matrix` | 2 | A | 8 | 3 |
+| [33](../tests/common.py#L33) | `import_matrix` | 1 | A | 5 | 3 |
+| [43](../tests/common.py#L43) | `setUpClass` | 1 | A | 6 | 1 |
+| [51](../tests/common.py#L51) | `_wizard` | 1 | A | 2 | 3 |
+| [55](../tests/common.py#L55) | `_import` | 1 | A | 2 | 3 |
+| [59](../tests/common.py#L59) | `_imported` | 1 | A | 2 | 2 |
+| [62](../tests/common.py#L62) | `_order` | 1 | A | 2 | 2 |
+| [65](../tests/common.py#L65) | `_lines` | 2 | A | 2 | 2 |
 
 </details>
 
@@ -880,22 +881,23 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 </details>
 
-<details><summary><code>tests/test_configurator.py</code> — 12 funciones, CCN máxima 5</summary>
+<details><summary><code>tests/test_configurator.py</code> — 13 funciones, CCN máxima 5</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
 | [12](../tests/test_configurator.py#L12) | `setUpClass` | 1 | A | 5 | 1 |
 | [18](../tests/test_configurator.py#L18) | `test_offer_and_defaults` | 3 | A | 12 | 1 |
 | [32](../tests/test_configurator.py#L32) | `test_confirm_sections_and_choice_rules` | 5 | A | 24 | 1 |
-| [60](../tests/test_configurator.py#L60) | `test_pricelist_applies_to_machine_and_accessories` | 5 | A | 13 | 1 |
-| [77](../tests/test_configurator.py#L77) | `test_price_cache_invalidated_on_write` | 1 | A | 5 | 1 |
-| [83](../tests/test_configurator.py#L83) | `test_product_currency_and_tax_setting` | 3 | A | 13 | 1 |
-| [98](../tests/test_configurator.py#L98) | `test_quotation_pricelist_applied_when_configuring` | 3 | A | 19 | 1 |
-| [123](../tests/test_configurator.py#L123) | `test_subtotal_consistent_with_line_discount` | 1 | A | 5 | 1 |
-| [129](../tests/test_configurator.py#L129) | `test_rule_constraint_on_manual_edit` | 1 | A | 8 | 1 |
-| [139](../tests/test_configurator.py#L139) | `test_permissions` | 1 | A | 14 | 1 |
-| [154](../tests/test_configurator.py#L154) | `test_lead_create_quotation` | 1 | A | 9 | 1 |
-| [164](../tests/test_configurator.py#L164) | `test_payment_plan_does_not_touch_product_price` | 1 | A | 11 | 1 |
+| [60](../tests/test_configurator.py#L60) | `test_choice_option_in_exclusion_group` | 1 | A | 11 | 1 |
+| [75](../tests/test_configurator.py#L75) | `test_pricelist_applies_to_machine_and_accessories` | 5 | A | 13 | 1 |
+| [92](../tests/test_configurator.py#L92) | `test_price_cache_invalidated_on_write` | 1 | A | 5 | 1 |
+| [98](../tests/test_configurator.py#L98) | `test_product_currency_and_tax_setting` | 3 | A | 13 | 1 |
+| [113](../tests/test_configurator.py#L113) | `test_quotation_pricelist_applied_when_configuring` | 3 | A | 19 | 1 |
+| [138](../tests/test_configurator.py#L138) | `test_subtotal_consistent_with_line_discount` | 1 | A | 5 | 1 |
+| [144](../tests/test_configurator.py#L144) | `test_rule_constraint_on_manual_edit` | 1 | A | 8 | 1 |
+| [154](../tests/test_configurator.py#L154) | `test_permissions` | 1 | A | 14 | 1 |
+| [169](../tests/test_configurator.py#L169) | `test_lead_create_quotation` | 1 | A | 9 | 1 |
+| [179](../tests/test_configurator.py#L179) | `test_payment_plan_does_not_touch_product_price` | 1 | A | 11 | 1 |
 
 </details>
 
