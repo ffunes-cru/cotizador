@@ -12,7 +12,7 @@ class TestConfigurator(CotizadorCase):
     def setUpClass(cls):
         super().setUpClass()
         cls._import(MATRIX_CSV)
-        cls.config = cls._imported('cfg_pionera_001')
+        cls.config = cls._config('Pionera', '16 Lineas', '52 cm')
         cls.service = cls.env['cotizador.configurator.service']
 
     def test_offer_and_defaults(self):

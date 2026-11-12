@@ -116,7 +116,7 @@ Ajuste *Aceptación de Cotizaciones en el Portal*; cada cotización guarda su mo
 ```mermaid
 stateDiagram-v2
     [*] --> Borrador: abrir el importador
-    Borrador --> Analizado: Analizar CSV (no escribe)
+    Borrador --> Analizado: Analizar (no escribe)
     Analizado --> Borrador: Cargar otros archivos
     Analizado --> Importado: Importar (solo sin errores; revalida y escribe todo junto)
     Importado --> [*]

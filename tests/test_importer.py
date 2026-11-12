@@ -10,9 +10,9 @@ from .common import HEADER, MATRIX_CSV, CotizadorCase
 
 # Segundo modelo con accesorios del mismo nombre que Pionera
 DRILLA_CSV = """\
-100,Drilla,BASE,500,,,,,,16 Lineas,70 cm
-100,Drilla,ESTANDAR,,Monitor,90,,,,,
-100,Drilla,OPCIONAL,,Sensor,12,ATR_Lineas,,,,
+Drilla,BASE,500,,,,,,16 Lineas,70 cm
+Drilla,ESTANDAR,,Monitor,90,,,,,
+Drilla,OPCIONAL,,Sensor,12,ATR_Lineas,,,,
 """
 
 
@@ -37,7 +37,7 @@ class TestImporter(CotizadorCase):
     def test_import_end_to_end(self):
         wizard = self._import(MATRIX_CSV)
         self.assertIn('Configuraciones nuevas: <b>2</b>', wizard.analysis_summary)
-        config = self._imported('cfg_pionera_001')
+        config = self._config('Pionera', '16 Lineas', '52 cm')
         self.assertEqual(config.price, 1000.0)
         self.assertTrue(config.modelo_id.is_maquina)
         self.assertEqual(sorted(config.value_ids.mapped('name')), ['16 Lineas', '52 cm'])
@@ -65,12 +65,12 @@ class TestImporter(CotizadorCase):
         monitor_p, monitor_d = self._imported('acc_pionera_monitor'), self._imported('acc_drilla_monitor')
         self.assertNotEqual(monitor_p, monitor_d)
         self.assertEqual((monitor_p.cotizador_modelo_id, monitor_d.cotizador_modelo_id), (pionera, drilla))
-        self.assertEqual(self._imported('cfg_drilla_100').accessory_line_ids.product_id,
+        self.assertEqual(self._config('Drilla', '16 Lineas', '70 cm').accessory_line_ids.product_id,
                          monitor_d | self._imported('acc_drilla_sensor'))
 
         # El accesorio de un modelo no se puede usar en configuraciones de otro
         with self.assertRaisesRegex(ValidationError, 'pertenece al modelo'):
-            self._imported('cfg_drilla_100').accessory_line_ids = [Command.create({'product_id': monitor_p.id})]
+            self._config('Drilla', '16 Lineas', '70 cm').accessory_line_ids = [Command.create({'product_id': monitor_p.id})]
         with self.assertRaisesRegex(ValidationError, 'pertenece al modelo'):
             monitor_p.cotizador_modelo_id = drilla
 
@@ -89,13 +89,13 @@ class TestImporter(CotizadorCase):
 
         # Se quita Cuchilla B de la 001 (la única configuración que la usa) y se re-importa
         cuchilla_b = self._imported('acc_pionera_cuchilla_b')
-        wizard = self._import(MATRIX_CSV.replace("001,Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,\n", ""))
+        wizard = self._import(MATRIX_CSV.replace("Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,\n", ""))
         self.assertIn('Configuraciones modificadas: <b>1</b>', wizard.analysis_summary)
         self.assertFalse(cuchilla_b.active)  # ya no está en el CSV: se archiva
         counts['product.template'] -= 1
         for model, count in counts.items():
             self.assertEqual(self.env[model].search_count([]), count, model)
-        config = self._imported('cfg_pionera_001')
+        config = self._config('Pionera', '16 Lineas', '52 cm')
         self.assertEqual(config.modelo_id.name, 'Pionera II')
         self.assertIn(monitor, config.accessory_line_ids.product_id)
         self.assertNotIn('Cuchilla B', config.accessory_line_ids.product_id.mapped('name'))
@@ -108,8 +108,8 @@ class TestImporter(CotizadorCase):
                                  "Calc_param 'Lineas' debe ser el nombre exacto")
         self.assertAnalysisError(MATRIX_CSV.replace('16 Lineas', 'dieciseis'), "el valor 'dieciseis' no contiene un número")
         self.assertAnalysisError(MATRIX_CSV.replace('"USD $1.000,00"', 'consultar'), "Precio_Base 'consultar'")
-        self.assertAnalysisError(HEADER + "009,Pionera,OPCIONAL,,Kit,10,,,,,\n", 'no tiene fila BASE')
-        self.assertAnalysisError(MATRIX_CSV.replace('18 Lineas', '16 Lineas'), 'misma combinación de atributos')
+        self.assertAnalysisError(HEADER + "Pionera,OPCIONAL,,Kit,10,,,,,\n", 'el accesorio no tiene una fila BASE antes')
+        self.assertAnalysisError(MATRIX_CSV.replace('18 Lineas', '16 Lineas'), 'ya está en otra fila BASE')
         self.assertAnalysisError(MATRIX_CSV.replace('Cuchilla B', 'cuchilla-a'), 'son indistinguibles')
 
     def test_rule_coherence_errors(self):
@@ -156,7 +156,7 @@ class TestImporter(CotizadorCase):
     def test_reimport_replaces_lines_with_accessories_of_another_criterion(self):
         """Re-importar sobre líneas cuyo accesorio no es del modelo (criterio anterior) las reemplaza."""
         self._import(MATRIX_CSV)
-        config = self._imported('cfg_pionera_001')
+        config = self._config('Pionera', '16 Lineas', '52 cm')
         old_monitor = self._imported('acc_pionera_monitor')
         # Como lo dejaba la versión anterior: accesorio compartido (sin modelo) y xmlid sin modelo
         self.env.cr.execute("UPDATE product_template SET cotizador_modelo_id = NULL WHERE id = %s",

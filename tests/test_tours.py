@@ -1,6 +1,6 @@
 from odoo.tests import HttpCase, tagged
 
-from .common import MATRIX_CSV, import_matrix
+from .common import MATRIX_CSV, find_config, import_matrix
 
 
 @tagged('post_install', '-at_install')
@@ -23,4 +23,4 @@ class TestTours(HttpCase):
         self.template.write({'sale_ok': True, 'is_published': True})
         self.start_tour(self.template.website_url, 'cotizador_website_quote_tour', login=None)
         lead = self.env['crm.lead'].search([('email_from', '=', 'tour@example.com')])
-        self.assertEqual(lead.cotizador_config_id, self.env.ref('cotizador_import.cfg_pionera_001'))
+        self.assertEqual(lead.cotizador_config_id, find_config(self.env, 'Pionera', '16 Lineas', '52 cm'))

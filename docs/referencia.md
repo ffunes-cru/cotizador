@@ -191,21 +191,33 @@ Sin campos propios.
 | `accessory_line_ids` | one2many | Accesorios con Precio | → `sembradora.config.accessory.line` |
 | `currency_id` | many2one | Moneda | → `res.currency`; related `modelo_id.cotizador_currency_id`; Moneda de los precios de la matriz de este producto: los de sus configuraciones (máquina) o los de sus líneas de accesorio (accesorio). El importador la fija con la moneda elegida al importar. |
 | `description` | html | Descripción | calculado (guardado); Descripción detallada de la configuración, calculada con las reglas de Descripción Paramétrica del modelo. |
-| `ext_id` | char | ID Externo |  |
 | `modelo_id` | many2one | Modelo | → `product.template`; obligatorio |
 | `name` | char | Configuración | calculado (guardado) |
 | `price` | monetary | Precio de Configuración | En la Moneda del Cotizador del modelo. |
 | `value_ids` | many2many | Combinación Permitida | → `product.attribute.value` |
+
+### `sembradora.import.sheet` — Hoja de Planilla a Importar (asistente)
+
+| Campo | Tipo | Etiqueta | Detalle |
+|---|---|---|---|
+| `name` | char | Hoja | obligatorio |
+| `selected` | boolean | Importar |  |
+| `sequence` | integer | Sequence |  |
+| `source` | char | Planilla | Archivo o planilla de Odoo de la hoja. |
+| `wizard_id` | many2one | Wizard | → `sembradora.import.wizard`; obligatorio |
 
 ### `sembradora.import.wizard` — Importador CSV de Configuraciones de Sembradora (asistente)
 
 | Campo | Tipo | Etiqueta | Detalle |
 |---|---|---|---|
 | `analysis_summary` | html | Resumen del Análisis |  |
-| `csv_file_ids` | many2many | Archivos CSV | → `ir.attachment` |
+| `csv_file_ids` | many2many | Archivos CSV o Excel | → `ir.attachment`; CSV en el formato del importador, o planillas .xlsx en ese formato o en el de la planilla de configuraciones. |
 | `currency_id` | many2one | Moneda de los Precios | → `res.currency`; obligatorio; Moneda de Precio_Base y Precio_Item. Se guarda como Moneda del Cotizador de los modelos y accesorios importados. |
 | `has_errors` | boolean | Tiene Errores |  |
+| `normalized_csv` | binary | CSV Normalizado | Lo que se leyó de las planillas, en el formato del CSV del importador (para revisarlo). |
+| `normalized_csv_name` | char | Nombre del CSV Normalizado |  |
 | `parsed_data` | text | Datos Parseados |  |
+| `sheet_ids` | one2many | Hojas | → `sembradora.import.sheet`; Hojas de las planillas. Solo se importan las marcadas: un libro suele tener varias máquinas, hojas auxiliares y copias, y cada máquina importada queda igual a su hoja. |
 | `state` | selection | Estado | valores: `draft`, `analyzed`, `done` |
 
 ## Campos agregados a modelos de Odoo
@@ -391,6 +403,7 @@ L = leer, E = escribir, C = crear, B = borrar. Sin fila: el grupo no accede al m
 | `sembradora.config.accessory.line` | Role / User | `L---` |
 | `sembradora.config.rel` | Administrador del Configurador | `LECB` |
 | `sembradora.config.rel` | Role / User | `L---` |
+| `sembradora.import.sheet` | Administrador del Configurador | `LECB` |
 | `sembradora.import.wizard` | Administrador del Configurador | `LECB` |
 
 ## Parámetros del sistema

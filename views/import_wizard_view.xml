@@ -5,29 +5,47 @@
         <field name="name">sembradora.import.wizard.form</field>
         <field name="model">sembradora.import.wizard</field>
         <field name="arch" type="xml">
-            <form string="Importar Configuraciones desde CSV">
+            <form string="Importar Configuraciones">
                 <header>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,analyzed,done"/>
                 </header>
                 <sheet>
                     <!-- Paso 1: Carga de CSVs -->
-                    <group invisible="state != 'draft'" string="Cargar Archivos CSV">
-                        <group>
-                            <field name="csv_file_ids" widget="many2many_binary" string="Archivos CSV"/>
+                    <group invisible="state != 'draft'" string="Cargar Archivos" name="upload">
+                        <group name="upload_files">
+                            <field name="csv_file_ids" widget="many2many_binary" string="Archivos CSV o Excel"/>
                             <field name="currency_id" options="{'no_create': True}"/>
                         </group>
+                    </group>
+                    <group invisible="state != 'draft' or not sheet_ids" string="Hojas a importar" name="sheets">
+                        <div class="text-muted" colspan="2">
+                            Cada máquina importada queda igual a su hoja: marque solo las hojas con las
+                            configuraciones a cargar (no las copias ni las exportaciones).
+                        </div>
+                        <field name="sheet_ids" nolabel="1" colspan="2">
+                            <list editable="bottom" create="0" delete="0">
+                                <field name="sequence" column_invisible="1"/>
+                                <field name="selected" widget="boolean_toggle"/>
+                                <!-- force_save: el cliente no manda campos de solo lectura de líneas nuevas -->
+                                <field name="name" force_save="1"/>
+                                <field name="source" force_save="1"/>
+                            </list>
+                        </field>
                     </group>
 
                     <!-- Resultado del análisis / Resumen final -->
                     <group invisible="state == 'draft'" string="Resultado">
+                        <field name="normalized_csv" filename="normalized_csv_name" invisible="not normalized_csv"
+                               string="Matriz leída (CSV)"/>
+                        <field name="normalized_csv_name" invisible="1"/>
                         <field name="analysis_summary" nolabel="1" colspan="2"/>
                         <field name="has_errors" invisible="1"/>
                     </group>
                 </sheet>
                 <footer>
                     <button name="action_analyze"
-                            string="📊 Analizar CSV"
+                            string="📊 Analizar"
                             type="object"
                             class="btn-primary"
                             invisible="state != 'draft'"/>

@@ -29,7 +29,7 @@ MODULO = 'cotizador'
 RAIZ = Path(__file__).resolve().parent.parent
 ## Archivo de la referencia generada.
 ARCHIVO = RAIZ / 'docs' / 'referencia.md'
-## Carpetas con código Python propio (se excluyen scripts/ sueltos y tests/, que se documentan con su nombre).
+## Carpetas con código Python propio (se excluye tests/, cuyos archivos se documentan con su nombre).
 CARPETAS_PY = ('', 'models', 'controllers', 'tools')
 ## Carpetas con JavaScript propio.
 CARPETAS_JS = ('static/src', 'static/tests')

@@ -70,7 +70,6 @@ class SembradoraConfigRel(models.Model):
     - `value_ids`: la combinación completa de valores de atributo (única por modelo).
     - `price`: precio de la máquina en la Moneda del Cotizador del modelo.
     - `accessory_line_ids`: accesorios compatibles, con su precio en esta configuración.
-    - `ext_id`: código externo (ID del CSV o código de ingeniería de Teamcenter).
 
     Toda escritura de modelo, combinación o precio invalida el índice en caché
     product.template._cotizador_config_index().
@@ -78,7 +77,6 @@ class SembradoraConfigRel(models.Model):
     _name = 'sembradora.config.rel'
     _description = 'Matriz de Configuraciones Permitidas'
 
-    ext_id = fields.Char(string='ID Externo', readonly=False, index=True)
     modelo_id = fields.Many2one('product.template', string='Modelo', required=True,
                                 domain=[('is_maquina', '=', True)])
     # Combinación completa de valores de atributo de esta configuración
@@ -225,7 +223,7 @@ class SembradoraConfigRel(models.Model):
             config, duplicate = self.browse(row[0]), self.browse(row[1])
             raise ValidationError(self.env._(
                 "Ya existe una configuración de %(modelo)s con la misma combinación (%(other)s).",
-                modelo=config.modelo_id.name, other=duplicate.ext_id or duplicate.name,
+                modelo=config.modelo_id.name, other=duplicate.name,
             ))
 
     @api.constrains('modelo_id')
@@ -411,17 +409,6 @@ class SembradoraConfigRel(models.Model):
                 modelo=tmpl.name, config=self.name,
             ))
         return variant
-
-    def _sync_variant_code(self):
-        """Copia `ext_id` a la referencia interna (`default_code`) de la variante, si ya existe."""
-        for config in self.filtered('ext_id'):
-            ptavs = self.env['product.template.attribute.value'].search([
-                ('product_tmpl_id', '=', config.modelo_id.id),
-                ('product_attribute_value_id', 'in', config.value_ids.ids),
-            ])
-            variant = config.modelo_id._get_variant_for_combination(ptavs)
-            if variant:
-                variant.sudo().default_code = config.ext_id
 
     def _get_variant_description(self):
         """Descripción de la línea de la máquina en la cotización.

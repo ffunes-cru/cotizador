@@ -45,7 +45,6 @@ flowchart LR
 | **Moneda del Cotizador** | Moneda en la que están los precios de la matriz de un producto (máquina o accesorio). Puede no ser la de la compañía (p. ej. compañía en ARS, matriz en USD). | `cotizador_currency_id` del producto. |
 | **Lista de Precios de Cotizaciones** | Lista de precios (y por lo tanto moneda) de las cotizaciones de máquinas. | Ajuste de la compañía `cotizador_pricelist_id`. |
 | **Descripción paramétrica** | Texto técnico que se arma según los valores elegidos (la regla más específica gana). | `product.template.description.line`. |
-| **Código externo** | Identificador de la configuración fuera de Odoo: el `ID_Configuracion` del CSV. | `ext_id` de la configuración. |
 | **Código de ingeniería (Teamcenter)** | Código de la variante en el sistema de ingeniería. | Referencia interna (`default_code`) de la variante. |
 | **Cascada de totales** | SUB TOTAL → descuentos → plan de pago → SUB TOTAL NETO → IVA → TOTAL → usados → SALDO A CANCELAR. | Campos `amount_*` de `sale.order`. |
 | **Descuento comercial** | Bonificación sobre el **neto** (sin IVA), en porcentaje (en cascada) o monto fijo; el IVA se calcula después. | Línea `is_descuento`, sección *Descuentos*. |

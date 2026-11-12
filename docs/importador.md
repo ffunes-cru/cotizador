@@ -4,6 +4,10 @@ Wizard `sembradora.import.wizard` (`models/sembradora_import_wizard.py`).
 Carga la **matriz de ingeniería**: configuraciones válidas de cada máquina y su precio, accesorios
 compatibles con su precio, reglas entre accesorios y equipamiento estándar.
 
+Lee **CSV** con el formato de este documento (§2) y **planillas** (§11): archivos Excel (`.xlsx`) y,
+con el módulo `cotizador_spreadsheet`, planillas de Odoo. Las planillas tienen el diseño de la
+**planilla de configuraciones** (la que se trabaja a mano, §11.1), que el importador convierte a este CSV.
+
 **Menú:** *Ventas › Configuración › Configurador Sembradoras › Importar Configuraciones*
 **Permisos:** grupo *Configurador de Sembradoras / Administrador del Configurador*.
 
@@ -11,11 +15,14 @@ compatibles con su precio, reglas entre accesorios y equipamiento estándar.
 
 ## 1. Flujo
 
-1. **Cargar** uno o varios CSV (se procesan juntos, como un solo archivo) y elegir la **Moneda de
-   los Precios** (§6).
-2. **📊 Analizar CSV**: valida **todo** el archivo y muestra:
-   - la lista completa de **errores**, con archivo y línea. Si hay alguno, el botón *Importar* no
-     aparece: corrija el CSV y use *Cargar otros archivos*;
+1. **Cargar** uno o varios CSV o Excel (se procesan juntos, como un solo archivo), o elegir una
+   **Planilla de Odoo** (§11.4), y la **Moneda de los Precios** (§6). De las planillas, marcar en
+   **Hojas a importar** las hojas con las máquinas a cargar (§11).
+2. **📊 Analizar**: valida **todo** el archivo y muestra:
+   - la lista completa de **errores**, con archivo y línea (en una planilla, hoja, fila y columna).
+     Si hay alguno, el botón *Importar* no aparece: corrija el archivo y use *Cargar otros archivos*;
+   - si se leyó una planilla, la **Matriz leída (CSV)**: lo que se leyó, en el formato del CSV, para
+     revisarlo (§11.3);
    - si no hay errores, **lo que va a cambiar** (§7.1): una tabla por máquina y, desplegable, el
      detalle de cada configuración nueva, modificada o que se borra, de cada accesorio nuevo,
      archivado o reactivado, y de los valores de atributo que se agregan o quitan. Si se va a borrar
@@ -38,7 +45,6 @@ coma (`"USD $248.866,00"`). Los nombres de columna distinguen mayúsculas.
 
 | Columna | Obligatoria | Uso |
 |---|---|---|
-| `ID_Configuracion` | Sí | Identificador de la configuración **dentro del modelo**. |
 | `Modelo` | Sí | Nombre de la máquina. |
 | `Tipo_Item` | Sí | `BASE`, `OPCIONAL` o `ESTANDAR` (§3). Se aceptan minúsculas y acentos (`Estándar`). |
 | `Precio_Base` | En `BASE` | Precio de la máquina en esta configuración (§6). |
@@ -69,8 +75,8 @@ coma (`"USD $248.866,00"`). Los nombres de columna distinguen mayúsculas.
 
 ## 3. Filas
 
-Cada configuración es **una fila `BASE`** más una fila por accesorio, todas con el mismo
-`Modelo` + `ID_Configuracion`.
+Cada configuración es **una fila `BASE`** y, debajo, una fila por accesorio, con el mismo `Modelo`.
+Un accesorio es de la fila `BASE` anterior.
 
 | `Tipo_Item` | Significado |
 |---|---|
@@ -78,8 +84,11 @@ Cada configuración es **una fila `BASE`** más una fila por accesorio, todas co
 | `OPCIONAL` | Accesorio compatible que el vendedor puede agregar. |
 | `ESTANDAR` | Accesorio de **equipamiento estándar**: arranca **seleccionado**. |
 
+Una configuración es su **combinación de atributos** dentro de su máquina (`Pionera` con `16 Lineas`
+y `52 cm`): no hay columna de ID.
+
 Errores que detecta el análisis:
-- configuración sin `BASE` o con dos;
+- accesorio sin una fila `BASE` antes, o de otro modelo que esa `BASE`;
 - `BASE` sin ningún valor `ATR_`;
 - dos configuraciones del mismo modelo con la misma combinación de atributos;
 - el mismo accesorio dos veces en una configuración;
@@ -184,13 +193,16 @@ producto a la moneda de la lista.
 
 ## 7. Identidad de los registros y re-importación
 
-El importador **nunca busca por nombre**. Cada registro que crea queda registrado con un
-identificador externo propio (módulo `cotizador_import`), armado con el texto del CSV:
+Una **configuración** es su combinación de atributos dentro de su máquina: se busca la de la máquina
+con los mismos valores. Reordenar filas o agregar otras no la afecta, y una oportunidad que la pide la
+conserva.
+
+Para el resto, el importador **nunca busca por nombre**. Cada registro que crea queda registrado con
+un identificador externo propio (módulo `cotizador_import`), armado con el texto del CSV:
 
 | Registro | Identificador |
 |---|---|
 | Máquina | `cotizador_import.modelo_<modelo>` |
-| Configuración | `cotizador_import.cfg_<modelo>_<id_configuracion>` |
 | Atributo / valor | `attr_<atributo>` / `val_<atributo>_<valor>` |
 | Accesorio | `acc_<modelo>_<nombre>` |
 | Categoría de cantidad | `qty_<atributo>` |
@@ -209,8 +221,9 @@ Consecuencias:
 - **Cambiar un nombre en el CSV** crea un registro nuevo (es otro identificador).
 - Dos textos que solo difieren en acentos, mayúsculas o símbolos (`Kit-Fino` / `kit fino`) son un
   **error**: producirían el mismo identificador.
-- Registros creados **a mano** en Odoo no se reutilizan. Si existe una regla manual con el mismo
-  nombre y tipo, la importación se detiene y pide renombrarla o eliminarla.
+- Registros creados **a mano** en Odoo no se reutilizan, salvo las configuraciones (se buscan por
+  combinación). Si existe una regla manual con el mismo nombre y tipo, la importación se detiene y
+  pide renombrarla o eliminarla.
 - **Registros borrados**: si se borra en Odoo algo que creó el importador, la próxima importación lo
   vuelve a crear. Puede quedar el identificador sin registro (al borrar un atributo, la base borra sus
   valores sin borrar sus identificadores); el importador lo reutiliza para el registro nuevo.
@@ -221,13 +234,12 @@ Para cada máquina que está en el archivo:
 
 | Al re-importar… | Resultado |
 |---|---|
-| Configuración que está en el CSV | Se actualizan modelo, combinación, precio y descripción, y sus líneas de accesorio se **reemplazan** por las del CSV, todo junto (también si las líneas viejas usaban accesorios compartidos de una versión anterior). |
-| Configuración que **no** está en el CSV | **Se borra**, también si se creó a mano. Su variante se quita (o se archiva si ya se usó en ventas) y una oportunidad que la pedía queda sin configuración. Se borran antes de crear las nuevas: una combinación que cambia de `ID_Configuracion` no choca. |
+| Configuración que está en el CSV | Se actualizan precio y descripción, y sus líneas de accesorio se **reemplazan** por las del CSV, todo junto. |
+| Configuración que **no** está en el CSV | **Se borra**, también si se creó a mano. Su variante se quita (o se archiva si ya se usó en ventas) y una oportunidad que la pedía queda sin configuración. |
 | Accesorio de la máquina que ya no está en el CSV | **Se archiva** (no se borra: puede estar en cotizaciones). Si vuelve al CSV, se reactiva el mismo producto. |
 | Valores de atributo de la máquina | Quedan **exactamente** los del CSV; un atributo "Siempre" que la máquina ya no usa se le quita. |
 | Regla del importador que ya no está en el CSV | Se borra si ninguna máquina la usa. Las reglas creadas a mano no se tocan. |
 | Atributos, valores y categorías de cantidad | Se crean si faltan; no se borran (pueden ser de otras máquinas). |
-| `ID Externo` (código externo) | Se fija al crear la configuración; después se puede editar en la configuración (*Matriz Base*). |
 
 Las máquinas que no están en el archivo no se tocan. Para dar de baja una máquina entera, archivarla
 en Odoo.
@@ -236,9 +248,9 @@ Ejemplo del detalle que muestra el análisis (y que queda en el chatter de la m�
 
 ```text
 Pionera
-  Configuraciones nuevas: 1          003 · 20 Lineas, 52 cm · 3.000,00
-  Configuraciones modificadas: 1     001: Precio: 1.000,00 → 1.100,00; Kit Fino: precio 50,00 → 60,00; − Cuchilla B
-  Configuraciones que se borran: 1   002 · Pionera: 18 Lineas, 52 cm
+  Configuraciones nuevas: 1          20 Lineas · 52 cm · 3.000,00
+  Configuraciones modificadas: 1     16 Lineas · 52 cm: Precio: 1.000,00 → 1.100,00; Kit Fino: precio 50,00 → 60,00; − Cuchilla B
+  Configuraciones que se borran: 1   Pionera: 18 Lineas, 52 cm
   Accesorios que se archivan: 1      Cuchilla B
   Valores de atributo: 2             Lineas: + 20 Lineas · Lineas: − 18 Lineas
 ```
@@ -251,21 +263,21 @@ En una configuración modificada, `+ accesorio` es una línea nueva, `− acceso
 ## 8. Ejemplo
 
 ```csv
-ID_Configuracion,Modelo,Tipo_Item,Precio_Base,Nombre_Item,Precio_Item,Calc_param,Reglas,Descripcion,ATR_Lineas,ATR_Distancia
-001,Pionera,BASE,"USD $1.000,00",,,,,,16 Lineas,52 cm
-001,Pionera,ESTANDAR,,Monitor,100,,Monitor:it,,,
-001,Pionera,OPCIONAL,,Sensor,10,ATR_Lineas,Monitor:i,,,
-001,Pionera,ESTANDAR,,Kit Fino,50,,Kit Siembra:u,,,
-001,Pionera,OPCIONAL,,Kit Grueso,80,,Kit Siembra:u,,,
-001,Pionera,OPCIONAL,,Kit Mixto,30,,Kit Siembra:u|Cuchillas:e,,,
-001,Pionera,OPCIONAL,,Cuchilla A,20,,Cuchillas:e,,,
-001,Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,
-002,Pionera,BASE,2000,,,,,,18 Lineas,52 cm
-002,Pionera,ESTANDAR,,Kit Fino,55,,Kit Siembra:u,,,
-002,Pionera,OPCIONAL,,Kit Grueso,85,,Kit Siembra:u,,,
+Modelo,Tipo_Item,Precio_Base,Nombre_Item,Precio_Item,Calc_param,Reglas,Descripcion,ATR_Lineas,ATR_Distancia
+Pionera,BASE,"USD $1.000,00",,,,,,16 Lineas,52 cm
+Pionera,ESTANDAR,,Monitor,100,,Monitor:it,,,
+Pionera,OPCIONAL,,Sensor,10,ATR_Lineas,Monitor:i,,,
+Pionera,ESTANDAR,,Kit Fino,50,,Kit Siembra:u,,,
+Pionera,OPCIONAL,,Kit Grueso,80,,Kit Siembra:u,,,
+Pionera,OPCIONAL,,Kit Mixto,30,,Kit Siembra:u|Cuchillas:e,,,
+Pionera,OPCIONAL,,Cuchilla A,20,,Cuchillas:e,,,
+Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,
+Pionera,BASE,2000,,,,,,18 Lineas,52 cm
+Pionera,ESTANDAR,,Kit Fino,55,,Kit Siembra:u,,,
+Pionera,OPCIONAL,,Kit Grueso,85,,Kit Siembra:u,,,
 ```
 
-Configuración `Pionera / 001`:
+Configuración Pionera de 16 líneas:
 
 - **Arrancan elegidos** *Monitor* y *Kit Fino*.
 - *Sensor* está habilitado (el Monitor es su habilitante) y cotiza 16 × 10.
@@ -289,15 +301,9 @@ segundos (120 por defecto). Una configuración que no cambió no se reescribe, a
 pocos cambios es rápido; la primera importación de una máquina grande es la más lenta. Si se corta,
 subir `limit_time_real` en la configuración del servidor.
 
-**Si se parte, las partes de una misma máquina van juntas en la misma importación.** El importador
-deja cada máquina igual al archivo (§7.1): importar las partes por separado borraría, en cada
-importación, las configuraciones de las partes anteriores.
-
-```bash
-python3 scripts/split_csv.py matriz_completa.csv 150   # 150 configuraciones por archivo
-```
-
-(o `scripts/split_csv_gui.py`), y cargar todas las partes juntas en un mismo análisis.
+**Una máquina va entera en una misma importación.** El importador deja cada máquina igual al archivo
+(§7.1): importarla en partes borraría, en cada importación, las configuraciones de las partes
+anteriores.
 
 ---
 
@@ -314,6 +320,112 @@ python3 scripts/split_csv.py matriz_completa.csv 150   # 150 configuraciones por
 | `son indistinguibles para el importador` | Unificar la escritura de ese nombre en todo el CSV. |
 | `regla … creada fuera del importador` | Renombrar o eliminar la regla manual con ese nombre y tipo. |
 | `está en USD, pero la moneda de los precios elegida es …` | Elegir la moneda correcta en el importador, o separar los productos en otro archivo. |
+| `el accesorio no tiene una fila BASE antes` | Poner cada accesorio debajo de la `BASE` de su configuración (§3). |
+| `la combinación … ya está en otra fila BASE` | Dos configuraciones del modelo con los mismos atributos: unificarlas o corregir un valor. |
+| `marque las hojas a importar` | Marcar en *Hojas a importar* las hojas de las máquinas a cargar (§11). |
+| `la hoja no tiene la fila de encabezados con 'Modelo' y 'PRECIO'` | Se marcó una hoja auxiliar: desmarcarla (§11). |
+| `la fórmula no tiene valor calculado` | El .xlsx lo generó un programa que no calcula: abrirlo y guardarlo en Excel, LibreOffice o Google Sheets. |
+
+---
+
+## 11. Planillas: Excel y planillas de Odoo
+
+Una planilla (`.xlsx` o planilla de Odoo) se lee **hoja por hoja**. Al cargarla, el asistente lista
+sus hojas visibles en **Hojas a importar** y se importan **solo las marcadas** (un libro de una sola
+hoja ya viene marcado). Un libro suele tener todas las máquinas, hojas auxiliares, copias y
+exportaciones viejas: como cada máquina importada queda igual a su hoja (§7.1), se marca solo lo que
+se quiere cargar. Una máquina no puede estar en dos hojas marcadas (p. ej. `Domina` y
+`Copia de Domina`): sus configuraciones chocarían.
+
+Cada hoja marcada tiene que ser una **planilla de configuraciones** (§11.1). Las hojas auxiliares
+(costos, descripciones) no se marcan: sus valores llegan a las hojas de máquinas por las fórmulas.
+
+De cada celda se toma el **valor calculado**: las fórmulas valen su resultado. Los precios se leen
+como número; los textos (modelo, valores de atributo, variantes), como se ven en la celda.
+
+**Lo oculto no se lee.** Las columnas y filas ocultas (a mano o por un filtro) son para cálculos
+auxiliares: una columna oculta se saltea y una fila oculta cuenta como vacía (no da reglas, ni datos,
+ni se repite hacia abajo). Como cada máquina queda igual a su hoja, una fila de **datos** oculta por
+error borraría configuraciones: el análisis lista las filas de datos ocultas que no leyó, para
+revisarlas antes de importar.
+
+### 11.1 Planilla de configuraciones
+
+Es la planilla de configuraciones tal como se trabaja: una fila por configuración (o varias, si suma
+variantes de un accesorio) y una columna por accesorio. Reemplaza al script de Google Sheets que la
+convertía al CSV. Código: `models/config_sheet.py`.
+
+```text
+      A            B          C           D (oculta)  E        F            G          H              I            J       K
+ 1    TIPO                                                     ESTANDAR                ESTANDAR
+ 2    CALC PARAM                                                            Lineas
+ 3    REGLAS                                                   Monitor:it   Monitor:i  Kit Siembra:u (H3:I3 combinadas)
+ 4    Modelo       Lineas     Distancia   Costo       PRECIO   Monitor      Sensor     Kit Fino       Kit Grueso   Tolva   PRECIO
+ 5    Pionera      16 Lineas  52 cm       999         1000     100          10         50             80           Chica   30
+ 6                                                                                                                 Grande  45
+ 7                 18 Lineas                          2000     100          -          55             85
+```
+
+- **Encabezado**: la fila (entre las primeras 50) que tiene `Modelo` y `PRECIO` (o `PRECIO BASE`).
+  - Columnas **antes de PRECIO** (salvo Modelo): **atributos**. `Lineas` → `ATR_Lineas`.
+  - Columnas **después de PRECIO**: **accesorios**, con el encabezado como nombre.
+  - Las columnas y filas **ocultas** se ignoran: sirven para cálculos auxiliares (D en el ejemplo).
+- **Filas sobre el encabezado**: datos de cada columna de accesorio, según la etiqueta de la
+  columna A:
+  - `TIPO…`: `ESTANDAR` marca equipamiento estándar; si no, es opcional.
+  - `CALC…` o `…PARAM…`: el atributo de cantidad (§5), por su nombre (`Lineas`).
+  - `REGLA…` o sin etiqueta: reglas (§4, con su sufijo). Ahí también se acepta `ESTANDAR` o el
+    nombre de un atributo (cantidad).
+  - Una regla en celdas **combinadas** vale para todas sus columnas (H3:I3 en el ejemplo).
+- **Filas de datos**:
+  - Una celda vacía **repite la de arriba** (fila 6: Pionera, 16 Lineas, 52 cm, 1000).
+  - Cuando una fila escribe `Modelo` o `PRECIO`, los accesorios dejan de repetirse (fila 7).
+  - Filas seguidas con el mismo modelo, precio y atributos son **una configuración**.
+  - Las celdas combinadas valen en todas sus celdas.
+- **Accesorios**: la celda es el **precio** en esa configuración; vacía, `-` o `0` = no lo tiene.
+  - Si la columna siguiente se llama `PRECIO`, la celda es la **variante** y el precio va al lado:
+    `Tolva` + `Chica` → accesorio **Tolva - Chica** (J y K en el ejemplo).
+  - Un accesorio repetido con el mismo precio en una configuración se carga una vez.
+- **Identidad**: cada configuración es su combinación (§3), así que agregar, quitar o reordenar filas
+  no cambia las demás configuraciones.
+
+El ejemplo da dos configuraciones de Pionera (16 y 18 líneas). La de 16 líneas trae Monitor y Kit
+Fino estándar, Sensor por línea, Kit Grueso como alternativa y las opcionales Tolva - Chica y Tolva - Grande.
+
+### 11.2 Cuidados
+
+- **Códigos con ceros a la izquierda** (`001`): una planilla los convierte en número (`1`). Dar a la
+  columna formato de texto, o escribirlos con un apóstrofo (`'001`).
+- **`.xlsx` generados por programas** (exportaciones, scripts): necesitan los valores calculados de
+  las fórmulas. Si no los tienen, el análisis lo avisa; abrir y guardar el archivo en Excel,
+  LibreOffice o Google Sheets lo resuelve.
+- Desde **Google Sheets**: *Archivo › Descargar › Microsoft Excel (.xlsx)* conserva columnas ocultas,
+  celdas combinadas y valores calculados.
+
+### 11.3 Matriz leída (CSV)
+
+Al analizar una planilla, el asistente ofrece **Matriz leída (CSV)**: lo que se leyó, en el formato
+del CSV. Sirve para revisar la conversión, y se puede volver a importar tal cual.
+
+### 11.4 Planillas de Odoo
+
+Con los módulos `cotizador_spreadsheet` y `spreadsheet_oca` (OCA), el importador tiene el origen
+**Planilla de Odoo**: se elige la planilla en lugar de subir archivos. La planilla de configuraciones
+se trabaja directamente en Odoo y se importa sin exportar nada.
+
+- Las fórmulas se calculan en el navegador al analizar (un libro grande, con miles de fórmulas, tarda
+  unos segundos). Se incluyen los cambios que alguien esté haciendo en ese momento, aunque todavía no
+  haya cerrado la planilla.
+- Los números se leen con **coma decimal** (`17,5`), cualquiera sea el idioma de la planilla o del
+  usuario: es como los escribía Google Sheets, y el texto de un valor de atributo es parte de su
+  identidad.
+- La lista de hojas sale de la última versión guardada: una hoja agregada o renombrada aparece
+  después de cerrar la planilla.
+- Sirven las fórmulas de planilla (`SUM`, referencias entre hojas, etc.). Las funciones que leen
+  datos de Odoo (`ODOO.LIST`, tablas dinámicas) no.
+- Para empezar, una planilla de Excel o Google Sheets se sube como planilla de Odoo desde el menú
+  *Planillas*. Tiene que haberse guardado en Excel, LibreOffice o Google Sheets: los `.xlsx` generados
+  por programas (p. ej. la plantilla de códigos de Teamcenter) no se abren bien.
 
 ---
 

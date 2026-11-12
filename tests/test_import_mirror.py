@@ -15,18 +15,18 @@ from .common import HEADER, MATRIX_CSV, CotizadorCase
 CHANGED_CSV = (
     MATRIX_CSV
     .replace('"USD $1.000,00"', '"USD $1.100,00"')
-    .replace('001,Pionera,ESTANDAR,,Kit Fino,50,', '001,Pionera,ESTANDAR,,Kit Fino,60,')
-    .replace('001,Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,\n', '')
-    .split('002,Pionera,BASE')[0]
-    + '003,Pionera,BASE,3000,,,,,,20 Lineas,52 cm\n'
-    + '003,Pionera,ESTANDAR,,Kit Fino,70,,Kit Siembra:u,,,\n'
+    .replace('Pionera,ESTANDAR,,Kit Fino,50,', 'Pionera,ESTANDAR,,Kit Fino,60,')
+    .replace('Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,\n', '')
+    .split('Pionera,BASE,2000')[0]
+    + 'Pionera,BASE,3000,,,,,,20 Lineas,52 cm\n'
+    + 'Pionera,ESTANDAR,,Kit Fino,70,,Kit Siembra:u,,,\n'
 )
 
 ## Segunda máquina, con un accesorio en el grupo de exclusión "Cuchillas".
 DRILLA_CSV = """\
-100,Drilla,BASE,500,,,,,,16 Lineas,70 cm
-100,Drilla,ESTANDAR,,Monitor,90,,,,,
-100,Drilla,OPCIONAL,,Cuchilla D,10,,Cuchillas:e,,,
+Drilla,BASE,500,,,,,,16 Lineas,70 cm
+Drilla,ESTANDAR,,Monitor,90,,,,,
+Drilla,OPCIONAL,,Cuchilla D,10,,Cuchillas:e,,,
 """
 
 
@@ -41,11 +41,6 @@ class TestImportMirror(CotizadorCase):
         cls._import(MATRIX_CSV)
         cls.pionera = cls._imported('modelo_pionera')
 
-    def _exists(self, xmlid_name):
-        """@param xmlid_name Nombre del xmlid del importador.
-        @return El registro, o None si se borró."""
-        return self.env.ref(f'cotizador_import.{xmlid_name}', raise_if_not_found=False)
-
     def assertSummary(self, wizard, *texts):
         """Cada texto aparece en el resumen del asistente (escapado como en el HTML).
 
@@ -57,7 +52,7 @@ class TestImportMirror(CotizadorCase):
 
     def test_analysis_details_every_change_without_writing(self):
         """El análisis detalla precios, accesorios, configuraciones y valores, y no escribe nada."""
-        config_002 = self._imported('cfg_pionera_002')
+        config_002 = self._config('Pionera', '18 Lineas', '52 cm')
         wizard = self._wizard(CHANGED_CSV)
         amount = wizard._amount
         self.assertFalse(wizard.has_errors)
@@ -66,7 +61,7 @@ class TestImportMirror(CotizadorCase):
             f"Precio: {amount(1000)} → {amount(1100)}",
             f"Kit Fino: precio {amount(50)} → {amount(60)}",
             "− Cuchilla B",
-            f"002 · {config_002.name}",
+            config_002.name,
             "Lineas: + 20 Lineas",
             "Lineas: − 18 Lineas",
             "Cuchilla B",
@@ -77,17 +72,17 @@ class TestImportMirror(CotizadorCase):
         self.assertIn('Accesorios que se archivan (ya no están en el CSV): <b>1</b>', wizard.analysis_summary)
         # Nada se escribió todavía
         self.assertTrue(config_002.exists())
-        self.assertEqual(self._imported('cfg_pionera_001').price, 1000.0)
+        self.assertEqual(self._config('Pionera', '16 Lineas', '52 cm').price, 1000.0)
 
     def test_import_leaves_the_machine_equal_to_the_csv(self):
         """Después de importar, la Pionera es exactamente el CSV."""
-        variant_002 = self._imported('cfg_pionera_002')._get_variant()
+        variant_002 = self._config('Pionera', '18 Lineas', '52 cm')._get_variant()
         cuchilla_b = self._imported('acc_pionera_cuchilla_b')
         before = self.pionera.message_ids
         wizard = self._import(CHANGED_CSV)
 
-        self.assertIsNone(self._exists('cfg_pionera_002'))
-        config_001, config_003 = self._imported('cfg_pionera_001'), self._imported('cfg_pionera_003')
+        self.assertFalse(self._config('Pionera', '18 Lineas', '52 cm'))
+        config_001, config_003 = self._config('Pionera', '16 Lineas', '52 cm'), self._config('Pionera', '20 Lineas', '52 cm')
         self.assertEqual((config_001.price, config_003.price), (1100.0, 3000.0))
         kit_fino = config_001.accessory_line_ids.filtered(lambda l: l.product_id.name == 'Kit Fino')
         self.assertEqual(kit_fino.price, 60.0)
@@ -118,7 +113,7 @@ class TestImportMirror(CotizadorCase):
 
     def test_price_change_keeps_accessory_lines(self):
         """Si solo cambia el precio de la máquina, las líneas de accesorio no se reescriben."""
-        config = self._imported('cfg_pionera_001')
+        config = self._config('Pionera', '16 Lineas', '52 cm')
         lines = config.accessory_line_ids
         self._import(MATRIX_CSV.replace('"USD $1.000,00"', '"USD $1.100,00"'))
         self.assertEqual(config.price, 1100.0)
@@ -126,7 +121,7 @@ class TestImportMirror(CotizadorCase):
 
     def test_duplicate_combination_is_rejected(self):
         """La restricción de combinación única (una consulta SQL) rechaza una combinación repetida."""
-        config = self._imported('cfg_pionera_001')
+        config = self._config('Pionera', '16 Lineas', '52 cm')
         with self.assertRaisesRegex(ValidationError, 'misma combinación'):
             self.env['sembradora.config.rel'].create({
                 'modelo_id': self.pionera.id, 'price': 1, 'value_ids': [Command.set(config.value_ids.ids)],
@@ -140,34 +135,23 @@ class TestImportMirror(CotizadorCase):
         wizard = self._import(MATRIX_CSV)
         self.assertTrue(cuchilla_b.active)
         self.assertIn('Accesorios que se reactivan: <b>1</b>', wizard.analysis_summary)
-        self.assertIn(cuchilla_b, self._imported('cfg_pionera_001').accessory_line_ids.product_id)
+        self.assertIn(cuchilla_b, self._config('Pionera', '16 Lineas', '52 cm').accessory_line_ids.product_id)
 
     def test_machines_not_in_the_file_are_untouched(self):
         """Importar el CSV de una máquina no toca a las demás."""
         self._import(MATRIX_CSV + DRILLA_CSV)
         pionera_configs = self.env['sembradora.config.rel'].search([('modelo_id', '=', self.pionera.id)])
-        wizard = self._import(HEADER + DRILLA_CSV.replace('100,Drilla,BASE,500', '100,Drilla,BASE,600'))
+        wizard = self._import(HEADER + DRILLA_CSV.replace('Drilla,BASE,500', 'Drilla,BASE,600'))
         self.assertEqual(self.env['sembradora.config.rel'].search([('modelo_id', '=', self.pionera.id)]), pionera_configs)
-        self.assertEqual(self._imported('cfg_drilla_100').price, 600.0)
+        self.assertEqual(self._config('Drilla', '16 Lineas', '70 cm').price, 600.0)
         self.assertNotIn('Pionera', wizard.analysis_summary)
-
-    def test_manual_configuration_is_replaced(self):
-        """Una configuración sin xmlid (creada a mano) que no está en el CSV se borra antes de crear
-        las del archivo: la misma combinación con otro origen no choca."""
-        manual = self._imported('cfg_pionera_002')
-        self.env['ir.model.data'].search([('module', '=', 'cotizador_import'), ('name', '=', 'cfg_pionera_002')]).unlink()
-        wizard = self._wizard(MATRIX_CSV)
-        self.assertIn(escape(f"002 · {manual.name}"), wizard.analysis_summary)
-        wizard.action_import()
-        self.assertFalse(manual.exists())
-        self.assertEqual(self._imported('cfg_pionera_002').price, 2000.0)
 
     def test_unused_rules_are_deleted_and_shared_ones_kept(self):
         """Una regla del importador se borra cuando ninguna máquina la usa; si otra máquina la usa, queda."""
         self._import(MATRIX_CSV + DRILLA_CSV)
         cuchillas = self._imported('rule_exclusion_cuchillas')
-        without_knives = MATRIX_CSV.replace('001,Pionera,OPCIONAL,,Cuchilla A,20,,Cuchillas:e,,,\n', '').replace(
-            '001,Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,\n', '').replace('Kit Siembra:u|Cuchillas:e', 'Kit Siembra:u')
+        without_knives = MATRIX_CSV.replace('Pionera,OPCIONAL,,Cuchilla A,20,,Cuchillas:e,,,\n', '').replace(
+            'Pionera,OPCIONAL,,Cuchilla B,25,,Cuchillas:e,,,\n', '').replace('Kit Siembra:u|Cuchillas:e', 'Kit Siembra:u')
         self._import(without_knives)  # la Drilla todavía la usa
         self.assertTrue(cuchillas.exists())
         wizard = self._import(HEADER + DRILLA_CSV.replace(',Cuchillas:e,', ',,'))

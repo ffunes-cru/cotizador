@@ -7,7 +7,7 @@ from odoo.tests.common import JsonRpcException
 from odoo.addons.cotizador.controllers.main import FORM_TOKEN_SCOPE
 from odoo.tools.misc import hmac as hmac_sign
 
-from .common import MATRIX_CSV, import_matrix
+from .common import MATRIX_CSV, find_config, import_matrix
 
 
 @tagged('post_install', '-at_install')
@@ -17,7 +17,7 @@ class TestPublicQuote(HttpCase):
     def setUpClass(cls):
         super().setUpClass()
         import_matrix(cls.env, MATRIX_CSV)
-        cls.config = cls.env.ref('cotizador_import.cfg_pionera_001')
+        cls.config = find_config(cls.env, 'Pionera', '16 Lineas', '52 cm')
         cls.template = cls.config.modelo_id
         cls.template.write({'sale_ok': True, 'is_published': True})
         params = cls.env['ir.config_parameter'].sudo()

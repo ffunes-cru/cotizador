@@ -28,7 +28,6 @@ AREAS = (
     ('Navegador', ('static/src',), '*.js'),
     ('Tests', ('tests',), '*.py'),
     ('Tests', ('static/tests',), '*.js'),
-    ('Herramientas de escritorio', ('scripts',), '*.py'),
 )
 ## Rangos de complejidad: (letra, máximo inclusivo, significado). Escala de radon / McCabe.
 RANGOS = (

@@ -18,7 +18,7 @@ class TestCascade(CotizadorCase):
         """Matriz de ejemplo, IVA 10,5 % de maquinaria y una cotización con el equipamiento estándar."""
         super().setUpClass()
         cls._import(MATRIX_CSV)
-        cls.config = cls._imported('cfg_pionera_001')
+        cls.config = cls._config('Pionera', '16 Lineas', '52 cm')
         cls.tax = cls.env['account.tax'].create({'name': 'IVA 10,5', 'amount': 10.5, 'type_tax_use': 'sale'})
         cls.env.company.cotizador_tax_id = cls.tax
 
@@ -120,7 +120,7 @@ class TestVariants(CotizadorCase):
 
     def test_incomplete_combination_is_an_error(self):
         """Cada configuración necesita un valor de cada atributo de la máquina."""
-        csv_text = HEADER + "001,Pionera,BASE,1000,,,,,,16 Lineas,52 cm\n002,Pionera,BASE,1200,,,,,,18 Lineas,\n"
+        csv_text = HEADER + "Pionera,BASE,1000,,,,,,16 Lineas,52 cm\nPionera,BASE,1200,,,,,,18 Lineas,\n"
         wizard = self._wizard(csv_text)
         self.assertTrue(wizard.has_errors)
         self.assertIn('no tiene valor en ATR_Distancia', wizard.analysis_summary)
@@ -128,7 +128,7 @@ class TestVariants(CotizadorCase):
     def test_teamcenter_id_is_confirmed_by_attributes(self):
         """Un ID de configuración de una plantilla anterior se resuelve a su variante."""
         self._import(MATRIX_CSV)
-        config = self._imported('cfg_pionera_001')
+        config = self._config('Pionera', '16 Lineas', '52 cm')
         csv_text = ("ID_Odoo;Modelo;Lineas;Distancia;CODIGO_INGENIERIA_TEAMCENTER;Codigo_Actual_Odoo\n"
                     f"{config.id};Pionera;16 Lineas;52 cm;TC-001;\n")
         wizard = self.env['engineering.code.wizard'].create({

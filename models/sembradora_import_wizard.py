@@ -1,7 +1,9 @@
 """@file
 Importador CSV de la matriz de ingeniería (asistente `sembradora.import.wizard`).
 
-Formato y reglas para el usuario: docs/importador.md. Diseño:
+Formato y reglas para el usuario: docs/importador.md. Lee CSV en el formato del importador y
+planillas (.xlsx, o planillas de Odoo con el módulo cotizador_spreadsheet) en ese formato o en el de
+la planilla de configuraciones, que config_sheet.py convierte al del CSV. Diseño:
 
 1. **Análisis** (action_analyze()): lee los archivos, los valida completos (_parse() y
    _validate_parsed()) y muestra errores con archivo y línea y un resumen. No escribe nada.
@@ -14,23 +16,26 @@ Formato y reglas para el usuario: docs/importador.md. Diseño:
 plan de cambios (_plan_changes()) se muestra al analizar y, después de importar, queda como log en
 el asistente y en el chatter de cada máquina.
 
-**Identidad**: el importador nunca busca por nombre. Lo que crea queda con un xmlid del módulo
-IMPORT_MODULE armado con el texto del CSV (_xmlid_name()); al re-importar se lo encuentra por
-ese xmlid aunque se haya renombrado en Odoo.
+**Identidad**: una configuración es su **combinación de atributos** dentro de su máquina
+(_match_configs()). El resto (máquinas, atributos, valores, accesorios, reglas) queda con un xmlid del
+módulo IMPORT_MODULE armado con el texto del CSV (_xmlid_name()): el importador nunca busca por nombre,
+así renombrar en Odoo no rompe la re-importación.
 """
+import base64
 import csv
 import io
 import json
 import logging
 import re
-import unicodedata
+import zipfile
 
 from markupsafe import Markup
 
-from odoo import Command, fields, models
+from odoo import Command, api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools import float_compare, formatLang, html2plaintext
 
+from .config_sheet import FIXED_COLUMNS, MatrixError, grid_files, grids_from_xlsx, strip_accents, xlsx_sheet_names
 from .sembradora_config import validate_rule_set
 
 _logger = logging.getLogger(__name__)
@@ -39,11 +44,6 @@ _logger = logging.getLogger(__name__)
 ## reencontrar registros (nunca busca por nombre), así renombrar en Odoo no rompe la re-importación.
 IMPORT_MODULE = 'cotizador_import'
 
-## Columnas con significado fijo. Las de atributos llevan el prefijo ATTRIBUTE_PREFIX.
-FIXED_COLUMNS = {
-    'ID_Configuracion', 'Modelo', 'Tipo_Item', 'Precio_Base', 'Nombre_Item', 'Precio_Item',
-    'Calc_param', 'Reglas', 'Descripcion',
-}
 ## Prefijo de las columnas de atributo: `ATR_Cantidad_de_Lineas` → atributo "Cantidad de Lineas".
 ATTRIBUTE_PREFIX = 'ATR_'
 
@@ -69,22 +69,13 @@ RULE_SUFFIXES = {
 }
 
 
-def _strip_accents(text):
-    """Quita acentos y diacríticos: 'Líneas' → 'Lineas'.
-
-    @param text Texto.
-    @return Texto sin marcas diacríticas.
-    """
-    return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
-
-
 def slugify(text):
     """Convierte un texto en parte de un xmlid: 'Cantidad de Líneas' → 'cantidad_de_lineas'.
 
     @param text Texto del CSV.
     @return Minúsculas sin acentos, con `_` en lugar de cualquier otro símbolo.
     """
-    return re.sub(r'[^a-z0-9]+', '_', _strip_accents(text).lower()).strip('_')
+    return re.sub(r'[^a-z0-9]+', '_', strip_accents(text).lower()).strip('_')
 
 
 def first_number(text):
@@ -138,6 +129,19 @@ def parse_price(price_str):
         return None
 
 
+class SembradoraImportSheet(models.TransientModel):
+    """Hoja de una planilla del importador, para elegir cuáles se importan (`selected`)."""
+    _name = 'sembradora.import.sheet'
+    _description = 'Hoja de Planilla a Importar'
+    _order = 'sequence, id'
+
+    wizard_id = fields.Many2one('sembradora.import.wizard', required=True, ondelete='cascade')
+    sequence = fields.Integer(default=10)
+    source = fields.Char(string='Planilla', readonly=True, help='Archivo o planilla de Odoo de la hoja.')
+    name = fields.Char(string='Hoja', readonly=True, required=True)
+    selected = fields.Boolean(string='Importar')
+
+
 class SembradoraImportWizard(models.TransientModel):
     """Asistente de importación (`sembradora.import.wizard`), solo Administrador del Configurador.
 
@@ -147,7 +151,10 @@ class SembradoraImportWizard(models.TransientModel):
     _name = 'sembradora.import.wizard'
     _description = 'Importador CSV de Configuraciones de Sembradora'
 
-    csv_file_ids = fields.Many2many('ir.attachment', string='Archivos CSV')
+    csv_file_ids = fields.Many2many(
+        'ir.attachment', string='Archivos CSV o Excel',
+        help='CSV en el formato del importador, o planillas .xlsx en ese formato o en el de la planilla de configuraciones.',
+    )
     currency_id = fields.Many2one(
         'res.currency', string='Moneda de los Precios', required=True,
         default=lambda self: self.env.company.currency_id,
@@ -163,23 +170,80 @@ class SembradoraImportWizard(models.TransientModel):
     analysis_summary = fields.Html(string='Resumen del Análisis', readonly=True, sanitize=False)
     # Archivos leídos en el análisis, para importar exactamente lo analizado
     parsed_data = fields.Text(string='Datos Parseados', readonly=True)
+    normalized_csv = fields.Binary(
+        string='CSV Normalizado', readonly=True, attachment=False,
+        help='Lo que se leyó de las planillas, en el formato del CSV del importador (para revisarlo).',
+    )
+    normalized_csv_name = fields.Char(string='Nombre del CSV Normalizado', readonly=True)
+    sheet_ids = fields.One2many(
+        'sembradora.import.sheet', 'wizard_id', string='Hojas',
+        help='Hojas de las planillas. Solo se importan las marcadas: un libro suele tener varias máquinas, '
+             'hojas auxiliares y copias, y cada máquina importada queda igual a su hoja.',
+    )
+
+    @api.onchange('csv_file_ids')
+    def _onchange_csv_file_ids(self):
+        """Lista las hojas de los .xlsx adjuntos, conservando las que ya estaban marcadas."""
+        self._set_sheets([(att.name, xlsx_sheet_names(att.raw or b''))
+                          for att in self.csv_file_ids if (att.name or '').lower().endswith('.xlsx')])
+
+    def _set_sheets(self, sources):
+        """Reemplaza la lista de hojas, conservando las marcadas. Un libro de una sola hoja la marca.
+
+        @param sources Lista de `(planilla, [hojas])`.
+        """
+        before = {(sheet.source, sheet.name) for sheet in self.sheet_ids if sheet.selected}
+        commands = [Command.clear()]
+        for source, names in sources:
+            for sequence, name in enumerate(names):
+                commands.append(Command.create({
+                    'sequence': sequence, 'source': source, 'name': name,
+                    'selected': (source, name) in before or len(names) == 1,
+                }))
+        self.sheet_ids = commands
+
+    def _selected_sheets(self, source):
+        """Hojas marcadas de una planilla.
+
+        @param source Nombre del archivo o de la planilla de Odoo.
+        @return Lista de nombres de hoja, en orden.
+        @throws UserError Si no hay ninguna marcada.
+        """
+        names = [sheet.name for sheet in self.sheet_ids if sheet.source == source and sheet.selected]
+        if not names:
+            raise UserError(f"{source}: marque las hojas a importar en la lista de hojas.")
+        return names
 
     # =========================================================================
     #  LECTURA Y VALIDACIÓN (sin escribir nada)
     # =========================================================================
 
-    def _read_files(self):
-        """Lee los CSV adjuntos (UTF-8 con o sin BOM; si falla, Latin-1).
+    def _read_files(self, notes):
+        """Lee los archivos adjuntos: CSV (UTF-8 con o sin BOM; si falla, Latin-1) o Excel (.xlsx).
 
-        @return Lista de tuplas `(nombre_archivo, encabezado, [(número_de_línea, fila), ...])`,
-                con cada fila como dict {columna: valor}. Es serializable a JSON (parsed_data).
-        @throws UserError Si no hay archivos.
+        De un .xlsx se leen las hojas marcadas en `sheet_ids` (con el diseño del CSV o el de la
+        planilla de configuraciones, config_sheet.grid_files()).
+
+        @param notes Lista donde se agregan avisos para el análisis (filas ocultas no leídas).
+        @return Lista de tuplas `(nombre_archivo, encabezado, [(ubicación, fila), ...])`, con cada fila
+                como dict {columna: valor}. La ubicación es el número de línea del CSV o un texto
+                ("fila 12, columna K") en las planillas. Es serializable a JSON (parsed_data).
+        @throws UserError Si no hay archivos o una planilla no se puede leer.
         """
         if not self.csv_file_ids:
-            raise UserError("Seleccione al menos un archivo CSV.")
+            raise UserError("Seleccione al menos un archivo CSV o Excel.")
         files = []
         for att in self.csv_file_ids:
             raw = att.raw or b''
+            if (att.name or '').lower().endswith('.xlsx'):
+                sheet_names = self._selected_sheets(att.name)
+                try:
+                    files += grid_files(att.name, grids_from_xlsx(raw, sheet_names), sheet_names, notes)
+                except MatrixError as e:
+                    raise UserError(str(e)) from e
+                except (zipfile.BadZipFile, KeyError, ValueError) as e:
+                    raise UserError(f"{att.name}: no es un archivo Excel (.xlsx) válido ({e}).") from e
+                continue
             try:
                 text = raw.decode('utf-8-sig')
             except UnicodeDecodeError:
@@ -189,17 +253,34 @@ class SembradoraImportWizard(models.TransientModel):
             files.append((att.name, reader.fieldnames or [], rows))
         return files
 
+    def _files_from_grids(self, source_name, grids, notes):
+        """Archivos para el importador a partir de las hojas de una planilla ya evaluada.
+
+        Lo usa el módulo cotizador_spreadsheet con las hojas de una planilla de Odoo.
+
+        @param source_name Nombre de la planilla (el de sus hojas en `sheet_ids`).
+        @param grids Lista de dicts de grilla (config_sheet) de las hojas marcadas.
+        @param notes Lista donde se agregan avisos para el análisis.
+        @return Lista como _read_files().
+        @throws UserError Si falta una hoja marcada o no tiene un diseño reconocible.
+        """
+        try:
+            return grid_files(source_name, grids, self._selected_sheets(source_name), notes)
+        except MatrixError as e:
+            raise UserError(str(e)) from e
+
     def _parse(self, files):
         """Valida los archivos completos y los convierte a una estructura independiente de Odoo.
 
-        No consulta la base salvo para la moneda: el mismo análisis sirve para mostrar y para importar.
+        Cada configuración es una fila BASE y las filas de accesorio que la siguen. No consulta la base
+        salvo para la moneda: el mismo análisis sirve para mostrar y para importar.
 
         @param files Salida de _read_files() (o su copia de `parsed_data`).
         @return Tupla `(data, errors)`. `data` tiene `attributes` {columna: {name, values:
                 {valor: cantidad}}}, `qty_columns`, `models` {modelo: {columna: valores}},
                 `accessories` {(modelo, nombre): Calc_param}, `rules` {(nombre, tipo)} y
-                `configs` {(modelo, id): {modelo, conf_id, base, values, price, description,
-                lines}}. Si `errors` no está vacía no se debe importar.
+                `configs` {(modelo, frozenset de (columna, valor)): {modelo, label, values, price,
+                description, lines}}. Si `errors` no está vacía no se debe importar.
         """
         errors = []
         data = {
@@ -208,109 +289,145 @@ class SembradoraImportWizard(models.TransientModel):
             'models': {},          # modelo → {columna: set(valores)}
             'accessories': {},     # (modelo, nombre) → columna Calc_param ('' si no tiene)
             'rules': set(),        # (nombre, tipo)
-            'configs': {},         # (modelo, id) → {...}
+            'configs': {},         # (modelo, combinación) → {...}
         }
-        accessory_origin = {}
-
+        origins = {}  # (modelo, accesorio) → dónde apareció primero, para los mensajes
         for fname, header, rows in files:
-            unknown = [c for c in header if c not in FIXED_COLUMNS and not c.startswith(ATTRIBUTE_PREFIX)]
-            if unknown:
-                errors.append(
-                    f"{fname}: columnas desconocidas {', '.join(unknown)}. Las columnas de atributos "
-                    f"deben empezar con '{ATTRIBUTE_PREFIX}' (p.ej. {ATTRIBUTE_PREFIX}Cantidad_de_Lineas)."
-                )
+            attr_columns = self._parse_header(fname, header, data, errors)
+            if attr_columns is None:
                 continue
-            missing = {'ID_Configuracion', 'Modelo', 'Tipo_Item'} - set(header)
-            if missing:
-                errors.append(f"{fname}: faltan las columnas {', '.join(sorted(missing))}.")
-                continue
-            attr_columns = [c for c in header if c.startswith(ATTRIBUTE_PREFIX)]
-            for col in attr_columns:
-                name = col[len(ATTRIBUTE_PREFIX):].replace('_', ' ').strip()
-                if not name:
-                    errors.append(f"{fname}: la columna '{col}' no tiene nombre de atributo.")
-                data['attributes'].setdefault(col, {'name': name, 'values': {}})
-
-            for line_num, row in rows:
-                where = f"{fname}, línea {line_num}"
+            config = None  # configuración de la última BASE; False si esa BASE tenía errores
+            for line, row in rows:
+                where = f"{fname}, línea {line}" if isinstance(line, int) else f"{fname}, {line}"
                 cell = {k: (v or '').strip() for k, v in row.items() if k}
-                tipo = _strip_accents(cell.get('Tipo_Item', '')).upper()
-                modelo, conf_id = cell.get('Modelo', ''), cell.get('ID_Configuracion', '')
+                tipo = strip_accents(cell.get('Tipo_Item', '')).upper()
                 if tipo not in ITEM_TYPES:
                     errors.append(f"{where}: Tipo_Item '{cell.get('Tipo_Item', '')}' inválido "
                                   f"(use BASE, OPCIONAL o ESTANDAR).")
-                    continue
-                if not modelo or not conf_id:
-                    errors.append(f"{where}: Modelo e ID_Configuracion son obligatorios.")
-                    continue
-                config = data['configs'].setdefault((modelo, conf_id), {
-                    'modelo': modelo, 'conf_id': conf_id, 'base': False,
-                    'values': {}, 'price': 0.0, 'description': '', 'lines': [],
-                })
-
-                if tipo == TYPE_BASE:
-                    if config['base']:
-                        errors.append(f"{where}: la configuración {modelo}/{conf_id} tiene más de una fila BASE.")
-                        continue
-                    price = parse_price(cell.get('Precio_Base'))
-                    if price is None:
-                        errors.append(f"{where}: Precio_Base '{cell.get('Precio_Base', '')}' no es un precio válido.")
-                    errors += self._check_price_currency(where, 'Precio_Base', cell.get('Precio_Base'))
-                    config.update(base=True, price=price or 0.0, description=cell.get('Descripcion', ''))
-                    model_values = data['models'].setdefault(modelo, {})
-                    for col in attr_columns:
-                        if cell.get(col):
-                            config['values'][col] = cell[col]
-                            data['attributes'][col]['values'].setdefault(cell[col], None)
-                            model_values.setdefault(col, set()).add(cell[col])
-                    if not config['values']:
-                        errors.append(f"{where}: la fila BASE no tiene valores de atributos ({ATTRIBUTE_PREFIX}…).")
-                    continue
-
-                # Accesorio (OPCIONAL / ESTANDAR)
-                nombre = cell.get('Nombre_Item', '')
-                if not nombre:
-                    errors.append(f"{where}: Nombre_Item es obligatorio en filas de accesorio.")
-                    continue
-                price = parse_price(cell.get('Precio_Item'))
-                if price is None:
-                    errors.append(f"{where}: Precio_Item '{cell.get('Precio_Item', '')}' no es un precio válido.")
-                errors += self._check_price_currency(where, 'Precio_Item', cell.get('Precio_Item'))
-                calc_param = cell.get('Calc_param', '')
-                if calc_param and calc_param not in attr_columns:
-                    errors.append(f"{where}: Calc_param '{calc_param}' debe ser el nombre exacto de una "
-                                  f"columna de atributo del archivo ({', '.join(attr_columns) or 'no hay'}).")
-                    continue
-                if calc_param:
-                    data['qty_columns'].add(calc_param)
-                previous = data['accessories'].setdefault((modelo, nombre), calc_param)
-                accessory_origin.setdefault((modelo, nombre), where)
-                if previous != calc_param:
-                    errors.append(f"{where}: '{nombre}' de {modelo} tiene Calc_param '{calc_param}', pero en "
-                                  f"{accessory_origin[modelo, nombre]} tiene '{previous}'.")
-
-                rules, is_trigger = [], False
-                for part in filter(None, (p.strip() for p in cell.get('Reglas', '').split('|'))):
-                    name, sep, suffix = part.rpartition(':')
-                    suffix = suffix.strip().lower()
-                    if not sep or not name.strip() or suffix not in RULE_SUFFIXES:
-                        errors.append(f"{where}: regla '{part}' inválida; use Nombre:sufijo con sufijo "
-                                      f"{', '.join(':' + s for s in RULE_SUFFIXES)}.")
-                        continue
-                    rtype, trigger = RULE_SUFFIXES[suffix]
-                    rules.append((name.strip(), rtype))
-                    data['rules'].add((name.strip(), rtype))
-                    is_trigger = is_trigger or trigger
-                if any(line['name'] == nombre for line in config['lines']):
-                    errors.append(f"{where}: '{nombre}' aparece dos veces en la configuración {modelo}/{conf_id}.")
-                    continue
-                config['lines'].append({
-                    'name': nombre, 'price': price or 0.0, 'calc_param': calc_param,
-                    'is_standard': tipo == TYPE_STANDARD, 'is_trigger': is_trigger, 'rules': rules,
-                })
-
+                elif tipo == TYPE_BASE:
+                    config = self._parse_base(where, cell, attr_columns, data, errors)
+                elif config is None:
+                    errors.append(f"{where}: el accesorio no tiene una fila BASE antes (cada accesorio es de la "
+                                  f"fila BASE anterior).")
+                elif config and cell.get('Modelo', '') != config['modelo']:
+                    errors.append(f"{where}: el accesorio es de '{cell.get('Modelo', '')}', pero la fila BASE "
+                                  f"anterior es de '{config['modelo']}'.")
+                elif config:
+                    self._parse_line(where, cell, tipo, config, attr_columns, data, errors, origins)
         errors += self._validate_parsed(data)
         return data, errors
+
+    def _parse_header(self, fname, header, data, errors):
+        """Valida las columnas de un archivo y registra sus atributos.
+
+        @param fname Nombre del archivo.
+        @param header Columnas.
+        @param data Estructura de _parse() (se completan los atributos).
+        @param errors Lista de errores (se agregan los del encabezado).
+        @return Columnas de atributo, o None si el archivo no se puede leer.
+        """
+        unknown = [c for c in header if c not in FIXED_COLUMNS and not c.startswith(ATTRIBUTE_PREFIX)]
+        if unknown:
+            errors.append(f"{fname}: columnas desconocidas {', '.join(unknown)}. Las columnas de atributos deben "
+                          f"empezar con '{ATTRIBUTE_PREFIX}' (p.ej. {ATTRIBUTE_PREFIX}Cantidad_de_Lineas).")
+            return None
+        missing = {'Modelo', 'Tipo_Item'} - set(header)
+        if missing:
+            errors.append(f"{fname}: faltan las columnas {', '.join(sorted(missing))}.")
+            return None
+        attr_columns = [c for c in header if c.startswith(ATTRIBUTE_PREFIX)]
+        for col in attr_columns:
+            name = col[len(ATTRIBUTE_PREFIX):].replace('_', ' ').strip()
+            if not name:
+                errors.append(f"{fname}: la columna '{col}' no tiene nombre de atributo.")
+            data['attributes'].setdefault(col, {'name': name, 'values': {}})
+        return attr_columns
+
+    def _parse_base(self, where, cell, attr_columns, data, errors):
+        """Fila BASE: una configuración nueva con su combinación y su precio.
+
+        @param where Ubicación para los mensajes.
+        @param cell Fila {columna: texto}.
+        @param attr_columns Columnas de atributo del archivo.
+        @param data Estructura de _parse().
+        @param errors Lista de errores.
+        @return La configuración, o False si la fila tiene errores (sus accesorios no se leen).
+        """
+        modelo = cell.get('Modelo', '')
+        values = {col: cell[col] for col in attr_columns if cell.get(col)}
+        if not modelo or not values:
+            errors.append(f"{where}: la fila BASE necesita Modelo y algún valor de atributo ({ATTRIBUTE_PREFIX}…).")
+            return False
+        key = (modelo, frozenset(values.items()))
+        label = ' · '.join(values.values())
+        if key in data['configs']:
+            errors.append(f"{where}: la combinación {label} de {modelo} ya está en otra fila BASE.")
+            return False
+        price = parse_price(cell.get('Precio_Base'))
+        if price is None:
+            errors.append(f"{where}: Precio_Base '{cell.get('Precio_Base', '')}' no es un precio válido.")
+        errors += self._check_price_currency(where, 'Precio_Base', cell.get('Precio_Base'))
+        model_values = data['models'].setdefault(modelo, {})
+        for col, value in values.items():
+            data['attributes'][col]['values'].setdefault(value, None)
+            model_values.setdefault(col, set()).add(value)
+        config = data['configs'][key] = {
+            'modelo': modelo, 'label': label, 'values': values, 'price': price or 0.0,
+            'description': cell.get('Descripcion', ''), 'lines': [],
+        }
+        return config
+
+    def _parse_line(self, where, cell, tipo, config, attr_columns, data, errors, origins):
+        """Fila de accesorio (OPCIONAL / ESTANDAR) de una configuración.
+
+        @param where Ubicación para los mensajes.
+        @param cell Fila {columna: texto}.
+        @param tipo TYPE_OPTIONAL o TYPE_STANDARD.
+        @param config Configuración de la fila BASE anterior.
+        @param attr_columns Columnas de atributo del archivo.
+        @param data Estructura de _parse().
+        @param errors Lista de errores.
+        @param origins {(modelo, accesorio): ubicación} de la primera aparición de cada accesorio.
+        """
+        modelo, nombre = config['modelo'], cell.get('Nombre_Item', '')
+        if not nombre:
+            errors.append(f"{where}: Nombre_Item es obligatorio en filas de accesorio.")
+            return
+        price = parse_price(cell.get('Precio_Item'))
+        if price is None:
+            errors.append(f"{where}: Precio_Item '{cell.get('Precio_Item', '')}' no es un precio válido.")
+        errors += self._check_price_currency(where, 'Precio_Item', cell.get('Precio_Item'))
+        calc_param = cell.get('Calc_param', '')
+        if calc_param and calc_param not in attr_columns:
+            errors.append(f"{where}: Calc_param '{calc_param}' debe ser el nombre exacto de una columna de "
+                          f"atributo del archivo ({', '.join(attr_columns) or 'no hay'}).")
+            return
+        if calc_param:
+            data['qty_columns'].add(calc_param)
+        previous = data['accessories'].setdefault((modelo, nombre), calc_param)
+        origins.setdefault((modelo, nombre), where)
+        if previous != calc_param:
+            errors.append(f"{where}: '{nombre}' de {modelo} tiene Calc_param '{calc_param}', pero en "
+                          f"{origins[modelo, nombre]} tiene '{previous}'.")
+        rules, is_trigger = [], False
+        for part in filter(None, (p.strip() for p in cell.get('Reglas', '').split('|'))):
+            name, sep, suffix = part.rpartition(':')
+            suffix = suffix.strip().lower()
+            if not sep or not name.strip() or suffix not in RULE_SUFFIXES:
+                errors.append(f"{where}: regla '{part}' inválida; use Nombre:sufijo con sufijo "
+                              f"{', '.join(':' + s for s in RULE_SUFFIXES)}.")
+                continue
+            rtype, trigger = RULE_SUFFIXES[suffix]
+            rules.append((name.strip(), rtype))
+            data['rules'].add((name.strip(), rtype))
+            is_trigger = is_trigger or trigger
+        if any(line['name'] == nombre for line in config['lines']):
+            errors.append(f"{where}: '{nombre}' aparece dos veces en la configuración {config['label']} de {modelo}.")
+            return
+        config['lines'].append({
+            'name': nombre, 'price': price or 0.0, 'calc_param': calc_param,
+            'is_standard': tipo == TYPE_STANDARD, 'is_trigger': is_trigger, 'rules': rules,
+        })
 
     def _check_price_currency(self, where, column, price_str):
         """Un precio que indica su moneda (p. ej. 'USD 1.000') debe estar en la moneda elegida.
@@ -328,8 +445,8 @@ class SembradoraImportWizard(models.TransientModel):
 
     def _validate_parsed(self, data):
         """Validaciones que necesitan todos los archivos: cantidades, combinaciones completas
-        (un valor por cada atributo que usa la máquina) y no repetidas, Calc_param presente en la
-        fila BASE, reglas (validate_rule_set()) y textos que darían el mismo xmlid.
+        (un valor por cada atributo que usa la máquina), Calc_param presente en la fila BASE, reglas
+        (validate_rule_set()) y textos que darían el mismo xmlid.
 
         @param data Estructura de _parse(); completa las cantidades de los atributos de cantidad.
         @return Lista de mensajes de error.
@@ -344,24 +461,16 @@ class SembradoraImportWizard(models.TransientModel):
                     errors.append(f"Atributo de cantidad {col}: el valor '{value}' no contiene un número.")
 
         model_columns = {}
-        for (modelo, _conf_id), config in data['configs'].items():
+        for (modelo, _combination), config in data['configs'].items():
             model_columns.setdefault(modelo, set()).update(config['values'])
 
-        combinations = {}
-        for (modelo, conf_id), config in data['configs'].items():
-            label = f"Configuración {modelo}/{conf_id}"
-            if not config['base']:
-                errors.append(f"{label}: no tiene fila BASE.")
-                continue
+        for (modelo, _combination), config in data['configs'].items():
+            label = f"Configuración {config['label']} de {modelo}"
             missing = sorted(model_columns[modelo] - set(config['values']))
             if missing:
                 errors.append(f"{label}: no tiene valor en {', '.join(missing)}, que usan otras configuraciones de "
                               f"{modelo}. Cada configuración necesita un valor de cada atributo de la máquina "
                               f"(una variante por configuración).")
-            combo = (modelo, frozenset(config['values'].items()))
-            if combo in combinations:
-                errors.append(f"{label}: misma combinación de atributos que {modelo}/{combinations[combo]}.")
-            combinations.setdefault(combo, conf_id)
             for line in config['lines']:
                 if line['calc_param'] and line['calc_param'] not in config['values']:
                     errors.append(f"{label}: '{line['name']}' se cotiza por {line['calc_param']}, "
@@ -390,8 +499,6 @@ class SembradoraImportWizard(models.TransientModel):
             check_slugs(f"Valor de {attr['name']}", attr['values'])
         for rtype, _trigger in set(RULE_SUFFIXES.values()):
             check_slugs('Regla', [name for name, t in data['rules'] if t == rtype])
-        for modelo in data['models']:
-            check_slugs(f"ID_Configuracion de {modelo}", [c for m, c in data['configs'] if m == modelo])
         return errors
 
     # =========================================================================
@@ -417,22 +524,43 @@ class SembradoraImportWizard(models.TransientModel):
         record = self.env.ref(f'{IMPORT_MODULE}.{xmlid_name}', raise_if_not_found=False)
         return record if record and record._name == model else self.env[model]
 
-    def _find_or_create(self, model, xmlid_name, create_vals, counters, counter_key):
+    def _find_or_create(self, model, xmlid_name, create_vals):
         """Devuelve el registro del xmlid o lo crea (con su xmlid `noupdate`).
 
         @param model Modelo.
         @param xmlid_name Nombre del xmlid en IMPORT_MODULE.
         @param create_vals Valores para crearlo si no existe (no se aplican si ya existe).
-        @param counters dict de contadores del resumen.
-        @param counter_key Contador a incrementar si se crea.
         @return El registro.
         """
         record = self._find(model, xmlid_name)
         if not record:
             record = self.env[model].create(create_vals)
             self._register_xmlid(model, xmlid_name, record)
-            counters[counter_key] += 1
         return record
+
+    def _match_configs(self, data, templates):
+        """Configuración de Odoo de cada configuración del CSV: la de su máquina con la misma combinación.
+
+        Renombrar o reordenar filas no cambia nada, y las oportunidades conservan su configuración.
+        Una combinación con un valor que todavía no existe es nueva.
+
+        @param data Estructura de _parse().
+        @param templates dict {modelo: product.template} de las máquinas que ya existen.
+        @return dict {clave de configuración: sembradora.config.rel}; vacío si es nueva.
+        """
+        Config = self.env['sembradora.config.rel']
+        existing = {
+            (config.modelo_id.id, frozenset(config.value_ids.ids)): config
+            for config in Config.search([('modelo_id', 'in', [t.id for t in templates.values()])])
+        }
+        matches = {}
+        for key, config_data in data['configs'].items():
+            values = [self._find('product.attribute.value', self._xmlid_name('val', data['attributes'][col]['name'], v))
+                      for col, v in config_data['values'].items()]
+            tmpl = templates.get(key[0])
+            matches[key] = (existing.get((tmpl.id, frozenset(v.id for v in values)), Config)
+                            if tmpl and all(values) else Config)
+        return matches
 
     def _register_xmlid(self, model, xmlid_name, record):
         """Asocia el xmlid del importador a un registro recién creado.
@@ -454,7 +582,6 @@ class SembradoraImportWizard(models.TransientModel):
         else:
             IrModelData.create({'module': IMPORT_MODULE, 'name': xmlid_name, **vals})
 
-
     # =========================================================================
     #  PLAN DE CAMBIOS: el CSV contra la base (sin escribir nada)
     # =========================================================================
@@ -472,11 +599,14 @@ class SembradoraImportWizard(models.TransientModel):
                 values_new: int, rules_new: [textos], rules_deleted: [textos]}`.
         """
         rule_types = self._rule_type_labels()
+        templates = self._planned_templates(data)
+        matches = self._match_configs(data, templates)
         return {
-            'machines': [self._plan_machine(modelo, data) for modelo in sorted(data['models'])],
+            'machines': [self._plan_machine(modelo, templates.get(modelo), data, matches)
+                         for modelo in sorted(data['models'])],
             **self._plan_master_data(data, rule_types),
             'rules_deleted': sorted(f"{rule.name} ({rule_types[rule.rule_type]})"
-                                    for rule in self._stale_rules(data, self._planned_templates(data))),
+                                    for rule in self._stale_rules(data, templates)),
         }
 
     def _rule_type_labels(self):
@@ -510,50 +640,50 @@ class SembradoraImportWizard(models.TransientModel):
         templates = {modelo: self._find('product.template', self._xmlid_name('modelo', modelo)) for modelo in data['models']}
         return {modelo: tmpl for modelo, tmpl in templates.items() if tmpl}
 
-    def _plan_machine(self, modelo, data):
+    def _plan_machine(self, modelo, tmpl, data, matches):
         """Cambios de una máquina: configuraciones, accesorios y valores de atributo.
 
         @param modelo Nombre de la máquina en el CSV.
+        @param tmpl Máquina en Odoo (None si es nueva).
         @param data Estructura de _parse().
+        @param matches Salida de _match_configs().
         @return dict `{modelo, new, configs_new: [textos], configs_changed: [(id, [cambios])],
                 configs_unchanged: int, configs_deleted: [textos], accessories_new: [nombres],
                 accessories_archived: [nombres], accessories_restored: [nombres], attributes: [textos]}`.
         """
-        tmpl = self._find('product.template', self._xmlid_name('modelo', modelo))
-        configs = {conf_id: config for (m, conf_id), config in data['configs'].items() if m == modelo}
+        tmpl = tmpl or self.env['product.template']
+        configs = {key: config for key, config in data['configs'].items() if key[0] == modelo}
         return {
             'modelo': modelo,
             'new': not tmpl,
-            **self._plan_configs(modelo, tmpl, configs),
+            **self._plan_configs(modelo, tmpl, configs, matches),
             **self._plan_accessories(modelo, tmpl, data),
             'attributes': self._plan_attribute_lines(tmpl, data['models'][modelo], data) if tmpl else [],
         }
 
-    def _plan_configs(self, modelo, tmpl, configs):
+    def _plan_configs(self, modelo, tmpl, configs, matches):
         """Configuraciones nuevas, modificadas (con el detalle), sin cambios y que se borran.
 
         @param modelo Nombre de la máquina en el CSV.
         @param tmpl Máquina en Odoo (vacía si es nueva).
-        @param configs {ID_Configuracion: datos de _parse()} de esa máquina.
+        @param configs {clave: datos de _parse()} de esa máquina.
+        @param matches Salida de _match_configs().
         @return dict con `configs_new`, `configs_changed`, `configs_unchanged` y `configs_deleted`.
         """
-        Config = self.env['sembradora.config.rel']
         plan = {'configs_new': [], 'configs_changed': [], 'configs_unchanged': 0}
-        kept = Config
-        for conf_id in sorted(configs):
-            config = self._find(Config._name, self._xmlid_name('cfg', modelo, conf_id))
+        kept = self.env['sembradora.config.rel']
+        for key, config_data in sorted(configs.items(), key=lambda item: item[1]['label']):
+            config = matches[key]
             if not config:
-                values = ', '.join(sorted(configs[conf_id]['values'].values()))
-                plan['configs_new'].append(f"{conf_id} · {values} · {self._amount(configs[conf_id]['price'])}")
+                plan['configs_new'].append(f"{config_data['label']} · {self._amount(config_data['price'])}")
                 continue
             kept |= config
-            changes = self._config_changes(config, configs[conf_id], modelo)
+            changes = self._config_changes(config, config_data, modelo)
             if changes:
-                plan['configs_changed'].append((conf_id, changes))
+                plan['configs_changed'].append((config_data['label'], changes))
             else:
                 plan['configs_unchanged'] += 1
-        stale = self._stale_configs(tmpl, kept)
-        plan['configs_deleted'] = sorted(f"{config.ext_id or '—'} · {config.name}" for config in stale)
+        plan['configs_deleted'] = sorted(self._stale_configs(tmpl, kept).mapped('name'))
         return plan
 
     def _stale_configs(self, tmpl, kept):
@@ -577,9 +707,6 @@ class SembradoraImportWizard(models.TransientModel):
         changes = []
         if float_compare(config.price, config_data['price'], precision_digits=2):
             changes.append(f"Precio: {self._amount(config.price)} → {self._amount(config_data['price'])}")
-        old_values, new_values = sorted(config.value_ids.mapped('name')), sorted(config_data['values'].values())
-        if old_values != new_values:
-            changes.append(f"Combinación: {', '.join(old_values)} → {', '.join(new_values)}")
         if config_data['description'] and html2plaintext(config.description or '').strip() != config_data['description']:
             changes.append("Descripción")
         return changes + self._line_changes(config.accessory_line_ids, config_data['lines'], modelo)
@@ -728,22 +855,58 @@ class SembradoraImportWizard(models.TransientModel):
         @throws UserError Si no hay archivos.
         """
         self.ensure_one()
-        files = self._read_files()
+        notes = []
+        files = self._read_files(notes)
+        return self._analyze(files, any((att.name or '').lower().endswith('.xlsx') for att in self.csv_file_ids), notes)
+
+    def _analyze(self, files, from_sheets=False, notes=()):
+        """Valida los archivos leídos, arma el resumen y los guarda para importarlos tal cual.
+
+        @param files Lista como _read_files().
+        @param from_sheets Algún archivo vino de una planilla: deja además el CSV normalizado para
+               descargar, para revisar cómo se leyó.
+        @param notes Avisos de la lectura (filas ocultas no leídas), que se muestran en el resumen.
+        @return Acción que reabre el asistente en estado `analyzed`.
+        """
         data, errors = self._parse(files)
+        summary = self._build_analysis_html(data, errors, None if errors else self._plan_changes(data))
+        if notes:
+            summary = Markup('<div style="font-size: 13px; color: #8a6d00;"><p>⚠️ Lo que no se leyó (oculto en la '
+                             'planilla): revise que no falte ninguna configuración.</p>%s</div>') % (
+                self._html_list(list(notes))) + summary
         self.write({
             'state': 'analyzed',
             'has_errors': bool(errors),
-            'analysis_summary': self._build_analysis_html(data, errors, None if errors else self._plan_changes(data)),
+            'analysis_summary': summary,
             'parsed_data': json.dumps(files),
+            'normalized_csv': base64.b64encode(self._normalized_csv(files)) if from_sheets else False,
+            'normalized_csv_name': 'matriz_normalizada.csv' if from_sheets else False,
         })
         return self._reopen()
+
+    def _normalized_csv(self, files):
+        """Los archivos leídos en un solo CSV con el formato del importador (re-importable).
+
+        @param files Lista como _read_files().
+        @return Bytes del CSV (UTF-8 con BOM, para que Excel muestre bien los acentos).
+        """
+        header = list(FIXED_COLUMNS)
+        for _name, file_header, _rows in files:
+            header += [c for c in file_header if c.startswith(ATTRIBUTE_PREFIX) and c not in header]
+        out = io.StringIO()
+        writer = csv.DictWriter(out, fieldnames=header, extrasaction='ignore', lineterminator='\n')
+        writer.writeheader()
+        for _name, _header, rows in files:
+            writer.writerows(row for _line, row in rows)
+        return out.getvalue().encode('utf-8-sig')
 
     def action_back_to_upload(self):
         """Vuelve a la carga de archivos descartando el análisis.
 
         @return Acción que reabre el asistente.
         """
-        self.write({'state': 'draft', 'has_errors': False, 'analysis_summary': False, 'parsed_data': False})
+        self.write({'state': 'draft', 'has_errors': False, 'analysis_summary': False, 'parsed_data': False,
+                    'normalized_csv': False, 'normalized_csv_name': False})
         return self._reopen()
 
     def _reopen(self):
@@ -820,7 +983,7 @@ class SembradoraImportWizard(models.TransientModel):
         @param machine Un elemento de `machines` de _plan_changes().
         @return Markup (vacío si la máquina no cambia).
         """
-        changed = [Markup('<b>%s</b>: %s') % (conf_id, '; '.join(changes)) for conf_id, changes in machine['configs_changed']]
+        changed = [Markup('<b>%s</b>: %s') % (label, '; '.join(changes)) for label, changes in machine['configs_changed']]
         sections = (
             ('Configuraciones nuevas', machine['configs_new']),
             ('Configuraciones modificadas', changed),
@@ -888,18 +1051,14 @@ class SembradoraImportWizard(models.TransientModel):
             raise UserError("El CSV tiene errores; vuelva a analizarlo:\n" + "\n".join(errors[:50]))
         plan = self._plan_changes(data)
 
-        counters = dict.fromkeys([
-            'configs_created', 'configs_updated', 'lines', 'standard_lines', 'models_created',
-            'accessories_created', 'attributes_created', 'values_created', 'categories_created',
-            'rules_created',
-        ], 0)
-        values = self._import_attributes(data, counters)
-        qty_categories = self._import_qty_categories(data, values, counters)
-        templates = self._import_models(data, values, counters)
-        self._delete_stale_configs(data, templates)
-        accessories = self._import_accessories(data, templates, qty_categories, counters)
-        rules = self._import_rules(data, counters)
-        self._import_configs(data, values, templates, accessories, rules, counters)
+        values = self._import_attributes(data)
+        qty_categories = self._import_qty_categories(data, values)
+        templates = self._import_models(data, values)
+        matches = self._match_configs(data, templates)
+        self._delete_stale_configs(templates, matches)
+        accessories = self._import_accessories(data, templates, qty_categories)
+        rules = self._import_rules(data)
+        self._import_configs(data, values, templates, accessories, rules, matches)
         self._archive_stale_accessories(templates, accessories)
         self._stale_rules(data, templates).unlink()
         self.env['product.template'].union(*templates.values()).with_context(
@@ -914,20 +1073,19 @@ class SembradoraImportWizard(models.TransientModel):
         })
         return self._reopen()
 
-    def _delete_stale_configs(self, data, templates):
+    def _delete_stale_configs(self, templates, matches):
         """Borra las configuraciones de cada máquina del CSV que no están en el archivo.
 
-        Va antes de crear las nuevas: así una combinación que cambia de ID_Configuracion no choca
-        con la restricción de combinación única. Las variantes se quitan al final (las usadas en
-        ventas se archivan) y una oportunidad que pedía esa configuración la pierde.
+        Va antes de crear las nuevas: así una combinación que pasa de una configuración borrada a
+        una nueva no choca con la restricción de combinación única. Las variantes se quitan al final
+        (las usadas en ventas se archivan) y una oportunidad que pedía esa configuración la pierde.
 
-        @param data Estructura de _parse().
         @param templates Salida de _import_models().
+        @param matches Salida de _match_configs() (las configuraciones que siguen).
         """
         Config = self.env['sembradora.config.rel']
         for modelo, tmpl in templates.items():
-            kept = Config.union(*(self._find(Config._name, self._xmlid_name('cfg', modelo, conf_id))
-                                  for m, conf_id in data['configs'] if m == modelo))
+            kept = Config.union(*(config for (m, _combination), config in matches.items() if m == modelo))
             self._stale_configs(tmpl, kept).unlink()
 
     def _archive_stale_accessories(self, templates, accessories):
@@ -959,13 +1117,12 @@ class SembradoraImportWizard(models.TransientModel):
             if detail:
                 templates[machine['modelo']].message_post(
                     body=Markup('<p>Importación de la matriz (%s):</p>%s') % (
-                        ', '.join(a.name for a in self.csv_file_ids), detail))
+                        ', '.join(name for name, _header, _rows in json.loads(self.parsed_data)), detail))
 
-    def _import_attributes(self, data, counters):
+    def _import_attributes(self, data):
         """Crea atributos (variantes "Siempre") y valores; guarda la cantidad de los de cantidad.
 
         @param data Estructura de _parse().
-        @param counters dict de contadores del resumen.
         @return dict {(columna, valor): product.attribute.value}.
         """
         values = {}
@@ -974,7 +1131,7 @@ class SembradoraImportWizard(models.TransientModel):
                 continue
             attribute = self._find_or_create('product.attribute', self._xmlid_name('attr', attr_data['name']), {
                 'name': attr_data['name'], 'create_variant': 'always',
-            }, counters, 'attributes_created')
+            })
             if attribute.create_variant != 'always':
                 raise UserError(f"El atributo '{attribute.name}' crea variantes en modo '{attribute.create_variant}'; "
                                 f"el cotizador necesita el modo 'Siempre' (una variante por configuración).")
@@ -982,19 +1139,18 @@ class SembradoraImportWizard(models.TransientModel):
             for value_name, qty in attr_data['values'].items():
                 value = self._find_or_create(
                     'product.attribute.value', self._xmlid_name('val', attr_data['name'], value_name),
-                    {'name': value_name, 'attribute_id': attribute.id}, counters, 'values_created',
+                    {'name': value_name, 'attribute_id': attribute.id},
                 )
                 if col in data['qty_columns'] and value.cotizador_qty != qty:
                     value.cotizador_qty = qty
                 values[col, value_name] = value
         return values
 
-    def _import_qty_categories(self, data, values, counters):
+    def _import_qty_categories(self, data, values):
         """Una subcategoría de *Accesorio* por atributo de cantidad, vinculada a él.
 
         @param data Estructura de _parse().
         @param values Salida de _import_attributes().
-        @param counters dict de contadores del resumen.
         @return dict {columna: product.category}.
         """
         cat_base = self.env.ref('cotizador.cat_accesorio_base')
@@ -1003,13 +1159,13 @@ class SembradoraImportWizard(models.TransientModel):
             attribute = next(v.attribute_id for (c, _name), v in values.items() if c == col)
             categ = self._find_or_create('product.category', self._xmlid_name('qty', attribute.name), {
                 'name': attribute.name, 'parent_id': cat_base.id,
-            }, counters, 'categories_created')
+            })
             if categ.cotizador_qty_attribute_id != attribute:
                 categ.cotizador_qty_attribute_id = attribute
             categories[col] = categ
         return categories
 
-    def _import_models(self, data, values, counters):
+    def _import_models(self, data, values):
         """Máquinas (categoría *Máquina*) con la moneda elegida y sus líneas de atributo.
 
         Las líneas de atributo quedan con exactamente los valores del CSV y en el orden de las
@@ -1017,7 +1173,6 @@ class SembradoraImportWizard(models.TransientModel):
 
         @param data Estructura de _parse().
         @param values Salida de _import_attributes().
-        @param counters dict de contadores del resumen.
         @return dict {modelo: product.template}.
         """
         cat_maquina = self.env.ref('cotizador.cat_maquina')
@@ -1027,7 +1182,7 @@ class SembradoraImportWizard(models.TransientModel):
             tmpl = self._find_or_create('product.template', self._xmlid_name('modelo', modelo), {
                 'name': modelo, 'categ_id': cat_maquina.id, 'type': 'consu',
                 'cotizador_currency_id': self.currency_id.id,
-            }, counters, 'models_created')
+            })
             if tmpl.cotizador_currency_id != self.currency_id:
                 tmpl.cotizador_currency_id = self.currency_id
             for col, value_names in model_values.items():
@@ -1046,7 +1201,7 @@ class SembradoraImportWizard(models.TransientModel):
             templates[modelo] = tmpl
         return templates
 
-    def _import_accessories(self, data, templates, qty_categories, counters):
+    def _import_accessories(self, data, templates, qty_categories):
         """Accesorios: uno por (modelo, nombre), con su categoría, modelo y moneda.
 
         El mismo nombre en dos modelos son dos productos. Si ya existen se actualizan solo
@@ -1056,7 +1211,6 @@ class SembradoraImportWizard(models.TransientModel):
         @param data Estructura de _parse().
         @param templates Salida de _import_models().
         @param qty_categories Salida de _import_qty_categories().
-        @param counters dict de contadores del resumen.
         @return dict {(modelo, nombre): product.product}.
         """
         cat_base = self.env.ref('cotizador.cat_accesorio_base')
@@ -1069,7 +1223,7 @@ class SembradoraImportWizard(models.TransientModel):
             }
             product = self._find_or_create('product.product', self._xmlid_name('acc', modelo, nombre), {
                 **vals, 'name': nombre, 'type': 'consu',
-            }, counters, 'accessories_created')
+            })
             if not product.active:
                 product.product_tmpl_id.active = True
                 product.active = True
@@ -1079,11 +1233,10 @@ class SembradoraImportWizard(models.TransientModel):
             accessories[modelo, nombre] = product
         return accessories
 
-    def _import_rules(self, data, counters):
+    def _import_rules(self, data):
         """Reglas: una por (nombre, tipo).
 
         @param data Estructura de _parse().
-        @param counters dict de contadores del resumen.
         @return dict {(nombre, tipo): sembradora.accessory.rule}.
         @throws UserError Si existe una regla creada a mano con el mismo nombre y tipo.
         """
@@ -1096,70 +1249,70 @@ class SembradoraImportWizard(models.TransientModel):
                 raise UserError(f"Ya existe una regla '{name}' ({rtype}) creada fuera del importador. "
                                 f"Renómbrela o elimínela antes de importar.")
             rules[name, rtype] = self._find_or_create(
-                Rule._name, xmlid_name, {'name': name, 'rule_type': rtype}, counters, 'rules_created',
+                Rule._name, xmlid_name, {'name': name, 'rule_type': rtype},
             )
         return rules
 
-    def _import_configs(self, data, values, templates, accessories, rules, counters):
-        """Crea las configuraciones nuevas y actualiza solo las que cambiaron.
+    def _import_configs(self, data, values, templates, accessories, rules, matches):
+        """Crea las configuraciones nuevas y actualiza solo lo que cambió.
 
-        Una configuración igual al CSV no se escribe (re-importar el mismo archivo no toca la base)
-        y sus líneas de accesorio se reemplazan solo si alguna cambió. Cuando se reemplazan, datos y
-        líneas van en una sola escritura: las restricciones (reglas, accesorios del mismo modelo) se
-        validan sobre el estado final, así re-importar sobre líneas con accesorios de otro criterio
-        (p. ej. compartidos entre modelos) las reemplaza sin fallar. El `ext_id` se fija solo al crear.
+        Una configuración igual al CSV no se escribe (re-importar el mismo archivo no toca la base).
+        Si alguna línea de accesorio cambió se reemplazan todas, junto con los datos y en una sola
+        escritura: las restricciones (reglas, accesorios del mismo modelo) se validan sobre el estado final.
 
         @param data Estructura de _parse().
         @param values Salida de _import_attributes().
         @param templates Salida de _import_models().
         @param accessories Salida de _import_accessories().
         @param rules Salida de _import_rules().
-        @param counters dict de contadores del resumen.
+        @param matches Salida de _match_configs().
         """
         Config = self.env['sembradora.config.rel']
-        for (modelo, conf_id), config_data in data['configs'].items():
-            xmlid_name = self._xmlid_name('cfg', modelo, conf_id)
-            vals = {
-                'modelo_id': templates[modelo].id,
-                'value_ids': [values[col, v].id for col, v in config_data['values'].items()],
-                'price': config_data['price'],
-            }
-            if config_data['description']:
-                vals['description'] = config_data['description']
-            lines = [Command.create({
-                'product_id': accessories[modelo, line['name']].id,
-                'price': line['price'],
-                'is_standard': line['is_standard'],
-                'is_trigger': line['is_trigger'],
-                'rule_ids': [Command.set([rules[r].id for r in line['rules']])],
-            }) for line in config_data['lines']]
-            config = self._find(Config._name, xmlid_name)
+        for key, config_data in data['configs'].items():
+            modelo, config = key[0], matches[key]
             if not config:
-                vals['value_ids'] = [Command.set(vals['value_ids'])]
-                self._find_or_create(Config._name, xmlid_name, {**vals, 'accessory_line_ids': lines, 'ext_id': conf_id},
-                                     counters, 'configs_created')
+                Config.create({
+                    'modelo_id': templates[modelo].id,
+                    'value_ids': [Command.set([values[col, v].id for col, v in config_data['values'].items()])],
+                    'price': config_data['price'],
+                    'description': config_data['description'] or False,
+                    'accessory_line_ids': self._line_commands(modelo, config_data, accessories, rules),
+                })
                 continue
-            changed = self._changed_config_vals(config, vals)
+            changed = self._changed_config_vals(config, config_data)
             if self._line_changes(config.accessory_line_ids, config_data['lines'], modelo):
-                changed['accessory_line_ids'] = [Command.delete(line.id) for line in config.accessory_line_ids] + lines
+                changed['accessory_line_ids'] = [Command.delete(line.id) for line in config.accessory_line_ids] + \
+                    self._line_commands(modelo, config_data, accessories, rules)
             if changed:
                 config.write(changed)
-                counters['configs_updated'] += 1
 
-    def _changed_config_vals(self, config, vals):
-        """Solo los datos de la configuración que difieren del CSV, listos para escribir.
+    def _line_commands(self, modelo, config_data, accessories, rules):
+        """Comandos que crean las líneas de accesorio de una configuración del CSV.
 
-        @param config Configuración existente.
-        @param vals `{modelo_id, value_ids: [ids], price, description?}` según el CSV.
+        @param modelo Nombre de la máquina.
+        @param config_data Configuración de _parse().
+        @param accessories Salida de _import_accessories().
+        @param rules Salida de _import_rules().
+        @return Lista de Command.create.
+        """
+        return [Command.create({
+            'product_id': accessories[modelo, line['name']].id,
+            'price': line['price'],
+            'is_standard': line['is_standard'],
+            'is_trigger': line['is_trigger'],
+            'rule_ids': [Command.set([rules[r].id for r in line['rules']])],
+        }) for line in config_data['lines']]
+
+    def _changed_config_vals(self, config, config_data):
+        """Precio y descripción de la configuración, si difieren del CSV.
+
+        @param config Configuración existente (misma máquina y combinación).
+        @param config_data Datos de la configuración en _parse().
         @return dict para write() (vacío si no cambió nada).
         """
         changed = {}
-        if config.modelo_id.id != vals['modelo_id']:
-            changed['modelo_id'] = vals['modelo_id']
-        if set(config.value_ids.ids) != set(vals['value_ids']):
-            changed['value_ids'] = [Command.set(vals['value_ids'])]
-        if float_compare(config.price, vals['price'], precision_digits=2):
-            changed['price'] = vals['price']
-        if 'description' in vals and html2plaintext(config.description or '').strip() != vals['description']:
-            changed['description'] = vals['description']
+        if float_compare(config.price, config_data['price'], precision_digits=2):
+            changed['price'] = config_data['price']
+        if config_data['description'] and html2plaintext(config.description or '').strip() != config_data['description']:
+            changed['description'] = config_data['description']
         return changed

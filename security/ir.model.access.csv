@@ -20,3 +20,4 @@ access_cotizador_bcra_wizard_deuda,access.cotizador.bcra.wizard.deuda,model_coti
 access_cotizador_bcra_wizard_cheque,access.cotizador.bcra.wizard.cheque,model_cotizador_bcra_wizard_cheque,base.group_user,1,1,1,1
 access_equipo_usado_wizard,access.equipo.usado.wizard,model_equipo_usado_wizard,base.group_user,1,1,1,1
 access_cotizador_descuento_wizard,access.cotizador.descuento.wizard,model_cotizador_descuento_wizard,base.group_user,1,1,1,1
+access_sembradora_import_sheet,access.sembradora.import.sheet,model_sembradora_import_sheet,group_cotizador_manager,1,1,1,1

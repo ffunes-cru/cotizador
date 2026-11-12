@@ -3,7 +3,8 @@
 Módulo de Odoo 19 para cotizar maquinaria agrícola configurable de Crucianelli:
 
 - **Matriz de ingeniería**: configuraciones válidas de cada máquina con su precio, accesorios compatibles,
-  reglas entre accesorios y equipamiento estándar. Se carga y se actualiza por CSV.
+  reglas entre accesorios y equipamiento estándar. Se carga y se actualiza por CSV, Excel o planillas de Odoo
+  (módulo `cotizador_spreadsheet`), también con la planilla de configuraciones tal como se trabaja.
 - **Configurador del vendedor** en la cotización y **configurador paso a paso en la tienda**, con
   solicitud de cotización al CRM.
 - **Cotización** con secciones, cascada de totales (descuentos, toma de usados), planes de pago, modos de
@@ -28,7 +29,7 @@ Leer en este orden. Los diagramas son [Mermaid](https://mermaid.js.org/): GitHub
 | [Conceptos de Odoo](docs/odoo.md) | Las piezas de Odoo que usa el módulo (listas de precios, variantes, xmlids, permisos, OWL…), con enlaces a la documentación oficial. |
 | [Arquitectura](docs/arquitectura.md) | Qué hace cada archivo, cómo viaja un pedido, cómo se calcula un precio y las decisiones de diseño. |
 | [Flujos](docs/flujos.md) | De la solicitud a la venta, reglas de accesorios, cascada de totales, portal, tienda. |
-| [Importador](docs/importador.md) | Formato del CSV de la matriz, validaciones y errores frecuentes. |
+| [Importador](docs/importador.md) | Formato del CSV y de la planilla de configuraciones, planillas, validaciones y errores frecuentes. |
 | [Seguridad](docs/seguridad.md) | Quién puede qué, protecciones del formulario público y diagnóstico de errores de acceso. |
 | [Operación](docs/operacion.md) | Puesta en marcha, ajustes, comandos y problemas comunes. |
 | [Recetas](docs/recetas.md) | Paso a paso para los cambios más habituales y cómo documentar el código. |
@@ -58,5 +59,5 @@ Leer en este orden. Los diagramas son [Mermaid](https://mermaid.js.org/): GitHub
 Después de instalar: activar la moneda de la matriz, elegir la *Lista de Precios de Cotizaciones* e
 importar la matriz (ver [Operación](docs/operacion.md#puesta-en-marcha)).
 
-Opcional: `openpyxl` (plantilla Excel de Teamcenter; sin él se usa CSV), Chrome y `websocket-client` para
+Opcional: `openpyxl` (plantilla Excel de Teamcenter, sin él se usa CSV; e importar .xlsx), Chrome y `websocket-client` para
 los tours de navegador, `doxygen` para el HTML de la documentación del código.

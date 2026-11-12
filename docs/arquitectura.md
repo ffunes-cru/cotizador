@@ -77,7 +77,6 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `tests/` | Tests (Python, HTTP y tours). `common.py` tiene el CSV de ejemplo. |
 | `tools/documentacion.py` | Verificador de documentación y generador de [la referencia](referencia.md). |
 | `tools/complejidad.py` | Mide la complejidad ciclomática de cada función y genera la parte automática de [Mantenibilidad](mantenibilidad.md). No lo carga Odoo. |
-| `scripts/` | Herramientas de escritorio para dividir CSV grandes (no las carga Odoo). |
 | `docs/Doxyfile` | Configuración de Doxygen para la documentación del código. |
 | `mkdocs.yml`, `docs/index.md`, `tools/mkdocs_hooks.py` | Sitio de la documentación con buscador (MkDocs Material). La portada es este README; los enlaces al código abren GitHub. |
 

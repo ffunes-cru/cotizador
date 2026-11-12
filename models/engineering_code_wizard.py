@@ -118,7 +118,7 @@ class EngineeringCodeWizard(models.TransientModel):
                     val.attribute_id.name: val.name
                     for val in cfg.value_ids
                 }
-                export_rows.append((cfg.id, self.modelo_id.name, val_by_attr, cfg.ext_id or ''))
+                export_rows.append((cfg.id, self.modelo_id.name, val_by_attr, ''))
         else:
             # Fallback para modelos con creación dinámica de variantes sin configs aún
             import itertools

@@ -26,8 +26,8 @@ class TestTeamcenterTemplate(CotizadorCase):
         """Matriz de ejemplo: la Pionera con dos configuraciones (001 y 002), una variante cada una."""
         super().setUpClass()
         cls._import(MATRIX_CSV)
-        cls.v001 = cls._imported('cfg_pionera_001')._get_variant()
-        cls.v002 = cls._imported('cfg_pionera_002')._get_variant()
+        cls.v001 = cls._config('Pionera', '16 Lineas', '52 cm')._get_variant()
+        cls.v002 = cls._config('Pionera', '18 Lineas', '52 cm')._get_variant()
         cls.modelo = cls.v001.product_tmpl_id
 
     def _wizard(self, **vals):
