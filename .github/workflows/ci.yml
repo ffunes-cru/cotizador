@@ -2,7 +2,7 @@
 #
 # - tests: en un runner de GitHub, con las imágenes oficiales de Odoo 19 y PostgreSQL 16.
 # - staging: push a la rama principal, o a mano desde Actions → CI/CD → Run workflow (cualquier rama).
-# - produccion: tag v<versión del manifiesto> sobre un commit de la rama principal (desplegar.sh rechaza
+# - produccion: tag v<versión del manifiesto>, con o sin la serie de Odoo, sobre un commit de la rama principal (desplegar.sh rechaza
 #   cualquier otro). Ej.: git tag v19.0.2.1.0 && git push origin v19.0.2.1.0
 #
 # Los dos despliegues van por SSH con una clave cuyo único comando posible es scripts/desplegar.sh del repo
@@ -93,11 +93,17 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+      # Con o sin la serie de Odoo: manifiesto 19.0.2.1.0 → tag v19.0.2.1.0 o v2.1.0
       - name: El tag es la versión del manifiesto
         run: |
-          version="$(python3 -c "import ast; print(ast.literal_eval(open('__manifest__.py').read())['version'])")"
-          [ "$GITHUB_REF_NAME" = "v$version" ] \
-            || { echo "::error::El tag $GITHUB_REF_NAME no es la versión del manifiesto (v$version)."; exit 1; }
+          read -r completa corta <<< "$(python3 -c "import ast
+          v = ast.literal_eval(open('__manifest__.py').read())['version']
+          p = v.split('.')
+          print(v, '.'.join(p[2:]) if len(p) == 5 else v)")"
+          case "$GITHUB_REF_NAME" in
+            "v$completa" | "v$corta") ;;
+            *) echo "::error::El tag $GITHUB_REF_NAME no es la versión del manifiesto (v$completa o v$corta)."; exit 1 ;;
+          esac
       - name: Desplegar en producción por SSH
         env:
           SSH_KEY: ${{ secrets.PRODUCCION_SSH_KEY }}
