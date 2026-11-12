@@ -61,3 +61,7 @@ importar la matriz (ver [Operación](docs/operacion.md#puesta-en-marcha)).
 
 Opcional: `openpyxl` (plantilla Excel de Teamcenter, sin él se usa CSV; e importar .xlsx), Chrome y `websocket-client` para
 los tours de navegador, `doxygen` para el HTML de la documentación del código.
+
+## Licencia
+
+AGPL-3.0 o posterior: software libre. Ver [`LICENSE`](LICENSE).
