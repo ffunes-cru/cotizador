@@ -38,13 +38,15 @@ Leer en este orden. Los diagramas son [Mermaid](https://mermaid.js.org/): GitHub
 | [Referencia](docs/referencia.md) | **Generada** desde Odoo: modelos, campos, permisos, parámetros y quién llama a cada método. |
 | Código (Doxygen) | Cada clase, función y parámetro documentado en el código. HTML navegable: `doxygen docs/Doxyfile` → `docs/api/html/index.html`. |
 
-## Ramas
+## Ramas y despliegue
 
 | Rama | Contenido |
 |---|---|
-| `main` | Estable: lo que corre en producción. Solo recibe cambios probados en `dev`. |
-| `dev` | Desarrollo. Lo nuevo entra acá y pasa a `main` cuando está verificado. |
-| `poc/studio-precios` | Pruebas de concepto archivadas: *Configurador Studio* (editor visual de la matriz) y *Asistente de Precios* (ajustes de precio en bloque). No se mantienen; la matriz se edita con el importador CSV. |
+| `main` | Principal. Cada push corre los tests y se despliega en **staging**. |
+| `poc/studio-precios` | Pruebas de concepto archivadas: *Configurador Studio* (editor visual de la matriz) y *Asistente de Precios* (ajustes de precio en bloque). No se mantienen; la matriz se edita con el importador. |
+
+**Producción** se despliega con un tag de la versión del manifiesto sobre un commit de `main`
+(`git tag v2.1.0 && git push origin v2.1.0`, o con la serie: `v19.0.2.1.0`). Ver `.github/workflows/ci.yml`.
 
 ## Inicio rápido
 
