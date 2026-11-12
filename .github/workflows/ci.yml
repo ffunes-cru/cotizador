@@ -76,7 +76,7 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
-          DESTINO: ${{ vars.STAGING_SSH_DESTINO }}
+          DESTINO: ${{ secrets.STAGING_SSH_DESTINO }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
@@ -102,7 +102,7 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.PRODUCCION_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.PRODUCCION_KNOWN_HOSTS }}
-          DESTINO: ${{ vars.PRODUCCION_SSH_DESTINO }}
+          DESTINO: ${{ secrets.PRODUCCION_SSH_DESTINO }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
