@@ -1,0 +1,110 @@
+# Tests en cada push y despliegue al VPS (repo de infra ffunes-cru/servidor, privado):
+#
+# - tests: en un runner de GitHub, con las imágenes oficiales de Odoo 19 y PostgreSQL 16.
+# - staging: push a la rama principal, o a mano desde Actions → CI/CD → Run workflow (cualquier rama).
+# - produccion: tag v<versión del manifiesto> sobre un commit de la rama principal (desplegar.sh rechaza
+#   cualquier otro). Ej.: git tag v19.0.2.1.0 && git push origin v19.0.2.1.0
+#
+# Los dos despliegues van por SSH con una clave cuyo único comando posible es scripts/desplegar.sh del repo
+# de infra, con el entorno fijo (comando forzado en authorized_keys). Ver el README de ese repo.
+name: CI/CD
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DB_PORT: 5433
+      HTTP_PORT: 8079
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cotizador
+
+      # Odoo y PostgreSQL con la red del runner (--network host), y por lo tanto con su DNS: con la red propia
+      # de los contenedores de Actions, apt a veces no resolvía los espejos de Ubuntu.
+      - name: PostgreSQL
+        run: |
+          docker run -d --name db --network host -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo \
+            postgres:16 -p "$DB_PORT"
+          until docker exec db pg_isready -q -p "$DB_PORT"; do sleep 1; done
+
+      - name: Instalar el cotizador y correr sus tests
+        run: |
+          docker run --rm --network host --user root -e DB_PORT -e HTTP_PORT \
+            -v "$GITHUB_WORKSPACE/cotizador:/src:ro" --entrypoint bash odoo:19.0 -ec '
+              # Prueba espejos de Ubuntu de a uno: a veces el DNS de los runners no resuelve algún dominio
+              for espejo in http://azure.archive.ubuntu.com/ubuntu/ http://mirrors.edge.kernel.org/ubuntu/ \
+                            http://archive.ubuntu.com/ubuntu/; do
+                sed -i -E "s#^URIs: .*#URIs: $espejo#" /etc/apt/sources.list.d/ubuntu.sources
+                timeout 120 apt-get -o Acquire::Retries=2 update -qq > /dev/null 2>&1 || true
+                apt-cache show python3-websocket > /dev/null 2>&1 && break
+                echo "Espejo $espejo no disponible, pruebo el siguiente"
+              done
+              curl -fsSL --retry 3 -o /tmp/chrome.deb \
+                https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+              # Sin Chrome y websocket-client, Odoo saltea los tests de navegador sin avisar
+              apt-get install -y -qq /tmp/chrome.deb python3-websocket > /dev/null
+              mkdir -p /ws/addons && cp -r /src /ws/addons/cotizador && chown -R odoo /ws
+              runuser -u odoo -- odoo --addons-path=/ws/addons \
+                --db_host=localhost --db_port="$DB_PORT" --db_user=odoo --db_password=odoo \
+                --http-port="$HTTP_PORT" -d cotizador_ci -i cotizador \
+                --test-tags=/cotizador --stop-after-init --log-level=test
+            '
+
+  staging:
+    needs: tests
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: desplegar-staging
+      cancel-in-progress: false
+    steps:
+      - name: Desplegar en staging por SSH
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
+          DESTINO: ${{ vars.STAGING_SSH_DESTINO }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$DESTINO" "cotizador $GITHUB_SHA"
+
+  produccion:
+    needs: tests
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: produccion
+    concurrency:
+      group: desplegar-produccion
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: El tag es la versión del manifiesto
+        run: |
+          version="$(python3 -c "import ast; print(ast.literal_eval(open('__manifest__.py').read())['version'])")"
+          [ "$GITHUB_REF_NAME" = "v$version" ] \
+            || { echo "::error::El tag $GITHUB_REF_NAME no es la versión del manifiesto (v$version)."; exit 1; }
+      - name: Desplegar en producción por SSH
+        env:
+          SSH_KEY: ${{ secrets.PRODUCCION_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PRODUCCION_KNOWN_HOSTS }}
+          DESTINO: ${{ vars.PRODUCCION_SSH_DESTINO }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$DESTINO" "cotizador $GITHUB_SHA"
