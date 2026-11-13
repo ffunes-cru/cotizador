@@ -32,6 +32,7 @@ Leer en este orden. Los diagramas son [Mermaid](https://mermaid.js.org/): GitHub
 | [Importador](docs/importador.md) | Formato del CSV y de la planilla de configuraciones, planillas, validaciones y errores frecuentes. |
 | [Seguridad](docs/seguridad.md) | Quién puede qué, protecciones del formulario público y diagnóstico de errores de acceso. |
 | [Operación](docs/operacion.md) | Puesta en marcha, ajustes, comandos y problemas comunes. |
+| [Despliegue](docs/despliegue.md) | Staging y producción en el VPS: CI/CD con GitHub Actions, tags de versión y primera instalación. |
 | [Recetas](docs/recetas.md) | Paso a paso para los cambios más habituales y cómo documentar el código. |
 | [Pendientes](docs/pendientes.md) | Problemas conocidos y decisiones abiertas, con su gravedad. |
 | [Mantenibilidad](docs/mantenibilidad.md) | Complejidad ciclomática de cada función (generada), puntos críticos, mejoras priorizadas y reglas para el código nuevo. |
@@ -46,7 +47,7 @@ Leer en este orden. Los diagramas son [Mermaid](https://mermaid.js.org/): GitHub
 | `poc/studio-precios` | Pruebas de concepto archivadas: *Configurador Studio* (editor visual de la matriz) y *Asistente de Precios* (ajustes de precio en bloque). No se mantienen; la matriz se edita con el importador. |
 
 **Producción** se despliega con un tag de la versión del manifiesto sobre un commit de `main`
-(`git tag v2.1.0 && git push origin v2.1.0`, o con la serie: `v19.0.2.1.0`). Ver `.github/workflows/ci.yml`.
+(`git tag v2.1.0 && git push origin v2.1.0`, o con la serie: `v19.0.2.1.0`). Ver [Despliegue](docs/despliegue.md).
 
 ## Inicio rápido
 

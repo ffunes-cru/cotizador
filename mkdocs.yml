@@ -26,6 +26,7 @@ nav:
   - Importador: importador.md
   - Seguridad: seguridad.md
   - Operación: operacion.md
+  - Despliegue: despliegue.md
   - Recetas: recetas.md
   - Pendientes: pendientes.md
   - Mantenibilidad: mantenibilidad.md
