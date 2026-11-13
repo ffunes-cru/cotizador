@@ -10,6 +10,7 @@
 
 site_name: Cotizador de Sembradoras
 site_description: Módulo de Odoo 19 — matriz de ingeniería, configurador y cotizaciones
+site_url: https://ffunes-cru.github.io/cotizador/
 repo_url: https://github.com/ffunes-cru/cotizador
 docs_dir: docs
 site_dir: site
