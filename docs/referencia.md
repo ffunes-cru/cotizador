@@ -231,6 +231,12 @@ Sin campos propios.
 | `equipo_cotizado_id` | many2one | Equipo (Sembradora/Ferti) | → `product.template`; Modelo de máquina cotizada o de interés (categoría Máquina). |
 | `lider_equipo_id` | many2one | Líder de Equipo | → `res.users`; calculado (guardado); Líder o responsable del equipo de ventas. |
 
+### `crm.team` — Sales Team
+
+| Campo | Tipo | Etiqueta | Detalle |
+|---|---|---|---|
+| `cotizador_supervisor_id` | many2one | Supervisor de Zona | → `res.users`; Usuario con el nivel Supervisor de Zona que ve, en solo lectura, las cotizaciones y oportunidades de este concesionario. |
+
 ### `product.attribute` — Product Attribute
 
 | Campo | Tipo | Etiqueta | Detalle |

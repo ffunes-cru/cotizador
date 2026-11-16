@@ -17,4 +17,110 @@
         <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
         <field name="comment">Puede crear y modificar configuraciones, precios, accesorios y reglas del configurador.</field>
     </record>
+
+    <!-- Niveles comerciales (issue #1). Los niveles estándar de Ventas siguen valiendo:
+         Vendedor = "Usuario: solo sus documentos"; Gerencia = "Usuario: todos los documentos" o "Administrador".
+         Cada concesionario es un equipo de ventas: su líder es el usuario del concesionario y sus miembros, los
+         vendedores. Las reglas de abajo se suman (OR) a la regla estándar "solo sus documentos". -->
+    <record id="res_groups_privilege_nivel_comercial" model="res.groups.privilege">
+        <field name="name">Nivel Comercial (Cotizador)</field>
+        <field name="sequence">51</field>
+        <field name="category_id" ref="base.module_category_sales"/>
+        <field name="placeholder">Vendedor (solo lo suyo)</field>
+    </record>
+
+    <record id="group_lider_concesionario" model="res.groups">
+        <field name="name">Líder de Concesionario</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_nivel_comercial"/>
+        <field name="implied_ids" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+        <field name="comment">Ve y edita todo lo de los equipos de ventas (concesionarios) que lidera.</field>
+    </record>
+
+    <record id="group_supervisor_zona" model="res.groups">
+        <field name="name">Supervisor de Zona</field>
+        <field name="sequence">20</field>
+        <field name="privilege_id" ref="res_groups_privilege_nivel_comercial"/>
+        <field name="implied_ids" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+        <field name="comment">Ve en solo lectura lo de los concesionarios que supervisa; crea sus propias cotizaciones y las asigna a un concesionario.</field>
+    </record>
+
+    <!-- Líder: todo lo de sus equipos, con todos los permisos -->
+    <record id="rule_lider_sale_order" model="ir.rule">
+        <field name="name">Cotizador: cotizaciones de los equipos que lidera</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="domain_force">[('team_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_lider_concesionario'))]"/>
+    </record>
+    <record id="rule_lider_sale_order_line" model="ir.rule">
+        <field name="name">Cotizador: líneas de los equipos que lidera</field>
+        <field name="model_id" ref="sale.model_sale_order_line"/>
+        <field name="domain_force">[('order_id.team_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_lider_concesionario'))]"/>
+    </record>
+    <record id="rule_lider_sale_report" model="ir.rule">
+        <field name="name">Cotizador: análisis de ventas de los equipos que lidera</field>
+        <field name="model_id" ref="sale.model_sale_report"/>
+        <field name="domain_force">[('team_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_lider_concesionario'))]"/>
+    </record>
+    <record id="rule_lider_crm_lead" model="ir.rule">
+        <field name="name">Cotizador: oportunidades de los equipos que lidera</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="domain_force">[('team_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_lider_concesionario'))]"/>
+    </record>
+    <record id="rule_lider_crm_activity_report" model="ir.rule">
+        <field name="name">Cotizador: actividades de los equipos que lidera</field>
+        <field name="model_id" ref="crm.model_crm_activity_report"/>
+        <field name="domain_force">[('team_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_lider_concesionario'))]"/>
+    </record>
+
+    <!-- Supervisor: solo lectura de los equipos que supervisa. Escribe solo lo suyo (regla estándar). -->
+    <record id="rule_supervisor_sale_order" model="ir.rule">
+        <field name="name">Cotizador: cotizaciones de los equipos que supervisa (lectura)</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="domain_force">[('team_id.cotizador_supervisor_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_supervisor_zona'))]"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_supervisor_sale_order_line" model="ir.rule">
+        <field name="name">Cotizador: líneas de los equipos que supervisa (lectura)</field>
+        <field name="model_id" ref="sale.model_sale_order_line"/>
+        <field name="domain_force">[('order_id.team_id.cotizador_supervisor_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_supervisor_zona'))]"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_supervisor_sale_report" model="ir.rule">
+        <field name="name">Cotizador: análisis de ventas de los equipos que supervisa</field>
+        <field name="model_id" ref="sale.model_sale_report"/>
+        <field name="domain_force">[('team_id.cotizador_supervisor_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_supervisor_zona'))]"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_supervisor_crm_lead" model="ir.rule">
+        <field name="name">Cotizador: oportunidades de los equipos que supervisa (lectura)</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="domain_force">[('team_id.cotizador_supervisor_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_supervisor_zona'))]"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_supervisor_crm_activity_report" model="ir.rule">
+        <field name="name">Cotizador: actividades de los equipos que supervisa</field>
+        <field name="model_id" ref="crm.model_crm_activity_report"/>
+        <field name="domain_force">[('team_id.cotizador_supervisor_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_supervisor_zona'))]"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
 </odoo>

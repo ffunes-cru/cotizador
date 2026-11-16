@@ -59,7 +59,9 @@
 
             <xpath expr="//field[@name='partner_id']" position="after">
                 <field name="equipo_cotizado_id" options="{'no_create': True}"/>
-                <field name="user_id" widget="many2one_avatar_user" string="Concesionario"/>
+                <!-- Niveles de usuario: cada concesionario es un equipo de ventas (crm.team) -->
+                <field name="team_id" string="Concesionario" options="{'no_create': True}"/>
+                <field name="user_id" widget="many2one_avatar_user"/>
             </xpath>
 
             <!-- Ocultar columna estándar de porcentaje de descuento en líneas para evitar conflictos con los descuentos en cascada -->

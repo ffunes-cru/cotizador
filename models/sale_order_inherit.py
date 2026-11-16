@@ -420,22 +420,26 @@ class SaleOrderInherit(models.Model):
         """Mantiene la oportunidad del CRM al día con la cotización.
 
         - Cotización de una máquina sin oportunidad: crea una en la primera etapa no ganada.
-        - Con oportunidad: copia cliente, vendedor y líder de equipo, y recalcula el ingreso
-          esperado con crm.lead._sync_expected_revenue_from_orders() (convertido a la moneda
+        - Con oportunidad: copia cliente, vendedor, concesionario (equipo) y su líder, y recalcula el
+          ingreso esperado con crm.lead._sync_expected_revenue_from_orders() (convertido a la moneda
           de la compañía, tomando la última cotización o pedido de la oportunidad).
+
+        Corre con sudo: la oportunidad acompaña a la cotización, que el usuario ya pudo modificar. Sin
+        sudo, un supervisor de zona que asigna su cotización a un concesionario no podría actualizar la
+        oportunidad, que en ese momento deja de ser suya.
 
         Se omite con el contexto `skip_crm_sync` (la solicitud web arma la oportunidad aparte).
         """
         if self.env.context.get('skip_crm_sync'):
             return
-        for order in self.filtered('partner_id'):
+        for order in self.sudo().filtered('partner_id'):
             lead = order.opportunity_id
             if not lead:
                 maquina = order.equipo_cotizado_id or order._get_maquina_template()
                 if not maquina:
                     continue
                 initial_stage = self.env['crm.stage'].search([('is_won', '=', False)], order='sequence asc', limit=1)
-                lead = self.env['crm.lead'].create({
+                lead = order.env['crm.lead'].create({
                     'name': f"Cotización {order.name} - {order.partner_id.name}",
                     'partner_id': order.partner_id.id,
                     'user_id': order.user_id.id or self.env.uid,
@@ -445,17 +449,28 @@ class SaleOrderInherit(models.Model):
                     'stage_id': initial_stage.id,
                 })
                 order.opportunity_id = lead
-            else:
-                update_vals = {}
-                if lead.partner_id != order.partner_id:
-                    update_vals['partner_id'] = order.partner_id.id
-                if order.user_id and lead.user_id != order.user_id:
-                    update_vals['user_id'] = order.user_id.id
-                if order.team_id.user_id and not lead.lider_equipo_id:
-                    update_vals['lider_equipo_id'] = order.team_id.user_id.id
-                if update_vals:
-                    lead.write(update_vals)
+            elif update_vals := order._crm_lead_changes(lead):
+                lead.write(update_vals)
             lead._sync_expected_revenue_from_orders()
+
+    def _crm_lead_changes(self, lead):
+        """Valores de la oportunidad que difieren de la cotización: cliente, vendedor, concesionario y su líder.
+
+        @param lead crm.lead de la cotización.
+        @return dict para `lead.write()` (vacío si no hay cambios).
+        """
+        self.ensure_one()
+        vals = {}
+        if lead.partner_id != self.partner_id:
+            vals['partner_id'] = self.partner_id.id
+        if self.user_id and lead.user_id != self.user_id:
+            vals['user_id'] = self.user_id.id
+        if self.team_id and lead.team_id != self.team_id:
+            vals['team_id'] = self.team_id.id
+            vals['lider_equipo_id'] = self.team_id.user_id.id
+        elif self.team_id.user_id and not lead.lider_equipo_id:
+            vals['lider_equipo_id'] = self.team_id.user_id.id
+        return vals
 
     @api.onchange('equipo_cotizado_id')
     def _onchange_equipo_cotizado_id_pricelist(self):
@@ -488,13 +503,13 @@ class SaleOrderInherit(models.Model):
         return orders
 
     def write(self, vals):
-        """Escribe y sincroniza el CRM si cambian líneas, estado, cliente o vendedor.
+        """Escribe y sincroniza el CRM si cambian líneas, estado, cliente, vendedor o concesionario.
 
         @param vals Valores a escribir.
         @return True.
         """
         res = super().write(vals)
-        if any(f in vals for f in ('order_line', 'state', 'partner_id', 'user_id')):
+        if any(f in vals for f in ('order_line', 'state', 'partner_id', 'user_id', 'team_id')):
             self._sync_with_crm()
         return res
 

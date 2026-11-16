@@ -24,13 +24,31 @@ flowchart LR
 
 | Rol | Dónde trabaja | Qué hace | Guía |
 |---|---|---|---|
-| **Vendedor** | *Ventas* y *CRM* | Cotiza con el configurador, agrega descuentos, usados y plan de pago, consulta el BCRA, imprime y envía. | [Cotizar una máquina](cotizar.md) |
+| **Vendedor** (y su líder, supervisor y gerencia: [niveles](#niveles-de-usuario)) | *Ventas* y *CRM* | Cotiza con el configurador, agrega descuentos, usados y plan de pago, consulta el BCRA, imprime y envía. | [Cotizar una máquina](cotizar.md) |
 | **Administrador del Configurador** | *Ventas › Configuración › Configurador Sembradoras* | Todo lo del vendedor, y además mantiene la matriz, las reglas de accesorios, los planes de pago y los ajustes. | [Mantener la matriz](matriz.md) · [Puesta en marcha y ajustes](administracion.md) |
 | **Cliente** | Tienda web y portal (`/my`) | Configura una máquina y pide cotización; ve sus cotizaciones y, si el vendedor lo habilita, las firma. | [Tienda y portal](tienda.md) |
 
 El vendedor **no puede modificar la matriz**: solo la lee. Si un precio o una combinación está mal, lo
 corrige el administrador. Los permisos se asignan en *Ajustes › Usuarios*, sección *Configurador de
 Sembradoras*.
+
+## Niveles de usuario
+
+Cada **concesionario** es un *equipo de ventas* de Odoo: su **líder** es el usuario del concesionario y sus
+**miembros**, los vendedores. Varios concesionarios forman una **zona**, a cargo de un **supervisor**. Qué ve y qué
+edita cada uno en cotizaciones y oportunidades del CRM:
+
+| Nivel | Ve | Edita |
+|---|---|---|
+| **Gerencia** | Todo | Todo |
+| **Supervisor de zona** | Lo de los concesionarios de su zona, y puede filtrar o agrupar por concesionario | Solo lo que crea él. Cuando asigna una cotización a un concesionario, la sigue viendo pero ya no la edita. |
+| **Líder de concesionario** | Todo lo de su concesionario | Todo lo de su concesionario, incluido lo de sus vendedores |
+| **Vendedor** | Solo lo suyo | Solo lo suyo |
+
+Para asignar una cotización, el supervisor completa **Concesionario** y **Vendedor** (el líder o un vendedor del
+concesionario). Los contactos (clientes) no se restringen: los ve cualquier usuario de Ventas.
+
+Cómo se configura: [Puesta en marcha y ajustes › Niveles de usuario](administracion.md#niveles-de-usuario).
 
 ## Palabras que conviene conocer
 
