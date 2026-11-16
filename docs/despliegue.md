@@ -53,7 +53,7 @@ todos los repos de módulos.
 - `spreadsheet_oca` va en `odoo-shared-addons` del VPS, copiado solo ese módulo de
   [OCA/spreadsheet](https://github.com/OCA/spreadsheet/tree/19.0) (ver el README del repo de infra).
 - Después de instalar: moneda de la matriz, *Lista de Precios de Cotizaciones* e importar la matriz (ver
-  [Operación](operacion.md#puesta-en-marcha)).
+  [Puesta en marcha y ajustes](uso/administracion.md#puesta-en-marcha)).
 
 ## Importar en un entorno con datos
 

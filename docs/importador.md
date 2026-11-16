@@ -1,8 +1,8 @@
-# Importador CSV de Configuraciones de Sembradora
+# Formato de la planilla
 
-Wizard `sembradora.import.wizard` (`models/sembradora_import_wizard.py`).
-Carga la **matriz de ingeniería**: configuraciones válidas de cada máquina y su precio, accesorios
-compatibles con su precio, reglas entre accesorios y equipamiento estándar.
+Referencia completa de lo que lee el importador de la **matriz**: configuraciones válidas de cada máquina y
+su precio, accesorios compatibles con su precio, reglas entre accesorios y equipamiento estándar. El paso a paso
+para importar está en [Mantener la matriz](uso/matriz.md); acá, el detalle de cada columna, fila y mensaje.
 
 Lee **CSV** con el formato de este documento (§2) y **planillas** (§11): archivos Excel (`.xlsx`) y,
 con el módulo `cotizador_spreadsheet`, planillas de Odoo. Las planillas tienen el diseño de la
@@ -10,6 +10,7 @@ con el módulo `cotizador_spreadsheet`, planillas de Odoo. Las planillas tienen 
 
 **Menú:** *Ventas › Configuración › Configurador Sembradoras › Importar Configuraciones*
 **Permisos:** grupo *Configurador de Sembradoras / Administrador del Configurador*.
+**Código:** asistente `sembradora.import.wizard` (`models/sembradora_import_wizard.py`).
 
 ---
 

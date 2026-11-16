@@ -16,23 +16,37 @@ Módulo de Odoo 19 para cotizar maquinaria agrícola configurable de Crucianelli
 
 ## Documentación
 
-Leer en este orden. Los diagramas son [Mermaid](https://mermaid.js.org/): GitHub, GitLab, VS Code (con
-*Markdown Preview Mermaid Support*) y el HTML de Doxygen los dibujan solos.
+**Sitio con buscador**: <https://ffunes-cru.github.io/cotizador/>. Se publica solo con cada push a `main`
+(`.github/workflows/docs.yml`); para armarlo en local, ver
+[Operación técnica › Comandos frecuentes](docs/operacion.md#comandos-frecuentes). Los diagramas son
+[Mermaid](https://mermaid.js.org/): GitHub, VS Code (con *Markdown Preview Mermaid Support*) y el sitio los
+dibujan solos.
 
-**Sitio con buscador**: <https://ffunes-cru.github.io/cotizador/>. Los mismos documentos como sitio web, con
-búsqueda en todo el texto (p. ej. `modo_silencioso` encuentra el parámetro y el campo) y el código de Doxygen
-enlazado en el menú. Se publica solo con cada push a `main` (`.github/workflows/docs.yml`); para armarlo en
-local, ver [Operación › Comandos frecuentes](docs/operacion.md#comandos-frecuentes).
+### Guía de uso
+
+Para el vendedor y el administrador: qué hacer en cada pantalla, sin código.
+
+| Documento | Para quién | Para qué |
+|---|---|---|
+| [Introducción](docs/uso/index.md) | Todos | Qué hace el cotizador, quién hace qué y las palabras que conviene conocer. Empezar acá. |
+| [Conceptos](docs/conceptos.md) | Todos | El glosario completo y un ejemplo de punta a punta. |
+| [Cotizar una máquina](docs/uso/cotizar.md) | Vendedor | Configurador, descuentos, usados, planes de pago, BCRA, PDF y firma del cliente. |
+| [Tienda y portal](docs/uso/tienda.md) | Vendedor y administrador | Qué ve el cliente en la web y qué le llega al CRM. |
+| [Mantener la matriz](docs/uso/matriz.md) | Administrador | Importar la planilla de configuraciones, correcciones a mano, Teamcenter y planes de pago. |
+| [Formato de la planilla](docs/importador.md) | Administrador | Referencia completa de la planilla de configuraciones y del CSV, con los mensajes de error. |
+| [Puesta en marcha y ajustes](docs/uso/administracion.md) | Administrador | Dejar el cotizador listo, cada ajuste y problemas frecuentes. |
+
+### Desarrollo y mantenimiento
+
+Para quien cambia el código o lo opera en el servidor.
 
 | Documento | Para qué |
 |---|---|
-| [Conceptos](docs/conceptos.md) | El negocio en palabras simples, el glosario y un ejemplo completo. Empezar acá. |
 | [Conceptos de Odoo](docs/odoo.md) | Las piezas de Odoo que usa el módulo (listas de precios, variantes, xmlids, permisos, OWL…), con enlaces a la documentación oficial. |
 | [Arquitectura](docs/arquitectura.md) | Qué hace cada archivo, cómo viaja un pedido, cómo se calcula un precio y las decisiones de diseño. |
-| [Flujos](docs/flujos.md) | De la solicitud a la venta, reglas de accesorios, cascada de totales, portal, tienda. |
-| [Importador](docs/importador.md) | Formato del CSV y de la planilla de configuraciones, planillas, validaciones y errores frecuentes. |
-| [Seguridad](docs/seguridad.md) | Quién puede qué, protecciones del formulario público y diagnóstico de errores de acceso. |
-| [Operación](docs/operacion.md) | Puesta en marcha, ajustes, comandos y problemas comunes. |
+| [Flujos](docs/flujos.md) | Estados y reglas en detalle: solicitud a venta, reglas de accesorios, cascada de totales, portal, tienda. |
+| [Seguridad](docs/seguridad.md) | Grupos y permisos, protecciones del formulario público y diagnóstico de errores de acceso. |
+| [Operación técnica](docs/operacion.md) | Parámetros del sistema, comandos (tests, referencia, documentación) y problemas del servidor. |
 | [Despliegue](docs/despliegue.md) | Staging y producción en el VPS: CI/CD con GitHub Actions, tags de versión y primera instalación. |
 | [Recetas](docs/recetas.md) | Paso a paso para los cambios más habituales y cómo documentar el código. |
 | [Pendientes](docs/pendientes.md) | Problemas conocidos y decisiones abiertas, con su gravedad. |
@@ -61,7 +75,7 @@ local, ver [Operación › Comandos frecuentes](docs/operacion.md#comandos-frecu
 ```
 
 Después de instalar: activar la moneda de la matriz, elegir la *Lista de Precios de Cotizaciones* e
-importar la matriz (ver [Operación](docs/operacion.md#puesta-en-marcha)).
+importar la matriz (ver [Puesta en marcha y ajustes](docs/uso/administracion.md#puesta-en-marcha)).
 
 Opcional: `openpyxl` (plantilla Excel de Teamcenter, sin él se usa CSV; e importar .xlsx), Chrome y `websocket-client` para
 los tours de navegador, `doxygen` para el HTML de la documentación del código.

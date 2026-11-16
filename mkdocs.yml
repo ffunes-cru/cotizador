@@ -20,19 +20,26 @@ exclude_docs: |
 
 nav:
   - Inicio: index.md
-  - Conceptos: conceptos.md
-  - Conceptos de Odoo: odoo.md
-  - Arquitectura: arquitectura.md
-  - Flujos: flujos.md
-  - Importador: importador.md
-  - Seguridad: seguridad.md
-  - Operación: operacion.md
-  - Despliegue: despliegue.md
-  - Recetas: recetas.md
-  - Pendientes: pendientes.md
-  - Mantenibilidad: mantenibilidad.md
-  - Referencia: referencia.md
-  - Código (Doxygen): api/html/index.html
+  - Guía de uso:
+      - Introducción: uso/index.md
+      - Conceptos: conceptos.md
+      - Cotizar una máquina: uso/cotizar.md
+      - Tienda y portal: uso/tienda.md
+      - Mantener la matriz: uso/matriz.md
+      - Formato de la planilla: importador.md
+      - Puesta en marcha y ajustes: uso/administracion.md
+  - Desarrollo y mantenimiento:
+      - Conceptos de Odoo: odoo.md
+      - Arquitectura: arquitectura.md
+      - Flujos: flujos.md
+      - Seguridad: seguridad.md
+      - Operación técnica: operacion.md
+      - Despliegue: despliegue.md
+      - Recetas: recetas.md
+      - Pendientes: pendientes.md
+      - Mantenibilidad: mantenibilidad.md
+      - Referencia: referencia.md
+      - Código (Doxygen): api/html/index.html
 
 theme:
   name: material
@@ -75,6 +82,8 @@ markdown_extensions:
   - md_in_html
   - toc:
       permalink: true
+      # Anclas como las de GitHub (con tildes): los mismos enlaces sirven en el repo y en el sitio
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
   - pymdownx.details
   - pymdownx.superfences:
       custom_fences:

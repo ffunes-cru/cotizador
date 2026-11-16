@@ -1,0 +1,52 @@
+# Puesta en marcha y ajustes
+
+Guía del **Administrador del Configurador**: dejar el cotizador listo para cotizar y ajustar cómo se comporta.
+
+## Puesta en marcha
+
+1. **Monedas**: activar las monedas de la matriz (por ejemplo USD) y cargar sus tasas, aunque la compañía
+   trabaje en otra (por ejemplo ARS). *Contabilidad › Configuración › Monedas*.
+2. **Lista de precios** en la moneda en que se cotiza, y elegirla como *Lista de Precios de Cotizaciones*
+   (abajo).
+3. **Permisos**: dar *Administrador del Configurador* a quien mantiene la matriz (*Ajustes › Usuarios*,
+   sección *Configurador de Sembradoras*). Los vendedores no necesitan nada especial.
+4. **Importar la matriz**: [Mantener la matriz](matriz.md).
+5. **Planes de pago**: cargar las plantillas (*Plantillas Planes de Pago*).
+6. **Tienda**: publicar las máquinas, configurar el captcha (*Ajustes › Sitio web*) y elegir el modo de la
+   tienda.
+
+## Ajustes
+
+*Ajustes › Ventas › Cotizador de Sembradoras*.
+
+| Ajuste | Qué controla |
+|---|---|
+| **Lista de Precios de Cotizaciones** | Lista, y por lo tanto moneda, de las cotizaciones de máquinas: las que nacen del CRM y de la web, y las creadas a mano al configurar la primera máquina. Vacía: la lista habitual del cliente. |
+| **Impuesto de Maquinaria** | Impuesto de máquinas y accesorios cotizados con el configurador. Vacío: el de cada producto. |
+| **Plan de Pago Obligatorio** | No deja confirmar una cotización sin plan de pago. |
+| **Modo Silencioso** | El configurador del vendedor muestra solo el subtotal de los accesorios por cantidad, sin el precio por unidad. |
+| **Modo de la Tienda Online** | *Solicitar Cotización* (sin pago online, todo va al CRM) o *Comercio Electrónico Estándar* (carrito para lo que no es máquina). Ver [Tienda](tienda.md#modo-de-la-tienda). |
+| **Aceptación de Cotizaciones en el Portal** | Modo con que nacen las cotizaciones: *Habilitado por el Vendedor*, *Solo el Vendedor* o *Estándar Odoo*. Ver [Cotizar › Aceptación](cotizar.md#5-aceptación-del-cliente). |
+| **Condiciones Generales Predeterminadas** | Texto del pie de las cotizaciones nuevas. |
+| **Protección del Formulario de Solicitud Web** | Solicitudes por IP y por email o teléfono por hora (0 = sin límite) y segundos mínimos para completar el formulario. Avisa si falta configurar el captcha. |
+
+En cada producto:
+
+| Dato | Dónde | Qué controla |
+|---|---|---|
+| *Moneda del Cotizador* | Ficha de máquinas y accesorios | Moneda de sus precios de matriz. La fija el importador. |
+| *Modelo de Máquina* | Ficha de accesorios | Máquina a la que pertenece el accesorio. |
+| *Atributo de Cantidad* | Categoría de producto | Los accesorios de la categoría van por cantidad, según ese atributo. |
+| *Cantidad (Cotizador)* | Valor de atributo | El número de ese valor (`16 Líneas` → 16). |
+
+## Problemas frecuentes
+
+| Qué pasa | Por qué | Qué hacer |
+|---|---|---|
+| Las cotizaciones salen en la moneda de la compañía y no en la de la matriz | No hay *Lista de Precios de Cotizaciones*, o la cotización ya tenía productos. | Elegir la lista en los ajustes; en una cotización ya cargada, cambiar la lista y *Actualizar precios*. |
+| No aparece una moneda para elegir | Está inactiva. | Activarla y cargar su tasa. |
+| El análisis dice "está en USD, pero la moneda de los precios elegida es …" | Moneda equivocada en el importador. | Elegir la moneda de la planilla. |
+| "pertenece al modelo … y no puede usarse en una configuración de …" | Se usó el accesorio de otra máquina. | Cada máquina tiene sus accesorios: crear o importar el de esta. |
+| "The number of variants to generate is above allowed limit" al importar | La máquina tiene más de 1000 configuraciones. | Pedir que suban el parámetro `product.dynamic_variant_limit` ([Operación técnica](../operacion.md)). |
+| Todas las solicitudes web dan "espere" | El servidor no ve la IP real de los visitantes. | Problema de configuración del servidor ([Operación técnica](../operacion.md#problemas-comunes)). |
+| La consulta BCRA da error | La API del BCRA no responde. | Reintentar más tarde. |

@@ -1,7 +1,7 @@
 # Recetas
 
 Cambios habituales, paso a paso. Al terminar cualquier cambio de código: tests, regenerar
-[la referencia](referencia.md) (comando en [Operación](operacion.md#comandos-frecuentes)), actualizar el
+[la referencia](referencia.md) (comando en [Operación técnica](operacion.md#comandos-frecuentes)), actualizar el
 documento de `docs/` que corresponda y commitear todo junto.
 
 ## Cambios que no requieren programar
@@ -45,7 +45,8 @@ Con el usuario *Administrador del Configurador*:
 2. Mostrarlo en `views/res_config_settings_view.xml`.
 3. Leerlo donde se usa: `env['ir.config_parameter'].sudo().get_param('cotizador.<nombre>', <defecto>)` o
    `company.<campo>`.
-4. Documentarlo en [Operación](operacion.md#ajustes).
+4. Documentarlo en la guía de uso ([Puesta en marcha y ajustes](uso/administracion.md#ajustes)) y su
+   parámetro en [Operación técnica](operacion.md#parámetros-del-sistema).
 
 ## Agregar una sección o un tipo de línea a la cotización
 
@@ -118,11 +119,17 @@ HTML navegable de todo el código: `doxygen docs/Doxyfile` desde la carpeta del 
 
 ## Actualizar la documentación
 
+La documentación tiene dos partes: la **guía de uso** (`docs/uso/`, más `conceptos.md` e `importador.md`), escrita
+para el vendedor y el administrador, con los nombres que se ven en pantalla y sin código; y **desarrollo y
+mantenimiento** (el resto de `docs/`). Un cambio visible para el usuario va en las dos.
+
 | Cambió… | Actualizar |
 |---|---|
 | Un modelo, campo, permiso o método público | Regenerar `docs/referencia.md`. |
 | El formato del CSV o un error del importador | `docs/importador.md`. |
-| Un ajuste o un menú | `docs/operacion.md`. |
+| Un ajuste o un menú | `docs/uso/administracion.md` (o `docs/uso/matriz.md`, si es del mantenimiento de la matriz) y, si es un parámetro del sistema, `docs/operacion.md`. |
+| Algo que ve o hace el vendedor (botón, asistente, total) | `docs/uso/cotizar.md`. |
+| La tienda o el portal del cliente | `docs/uso/tienda.md`. |
 | Un estado, una regla o un flujo | `docs/flujos.md`. |
-| Un grupo, permiso o protección | `docs/seguridad.md`. |
+| Un grupo, permiso o protección | `docs/seguridad.md` y, si cambia quién hace qué, `docs/uso/index.md`. |
 | Se resolvió o apareció un problema conocido | `docs/pendientes.md`. |

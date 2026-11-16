@@ -230,10 +230,10 @@ def generar(env):
         _puntos_de_entrada(env, propios + heredados),
         '## Permisos por modelo',
         'L = leer, E = escribir, C = crear, B = borrar. Sin fila: el grupo no accede al modelo. '
-        'Ver [permisos de acceso](odoo.md#permisos-de-acceso).',
+        'Ver [permisos de acceso](odoo.md#grupos-permisos-de-acceso-y-reglas).',
         _matriz_acceso(env),
         '## Parámetros del sistema',
-        'Ajustes guardados en `ir.config_parameter` (ver [Operación](operacion.md#ajustes)).',
+        'Ajustes guardados en `ir.config_parameter` (ver [Operación técnica](operacion.md#parámetros-del-sistema)).',
         _parametros(env),
     ]
     return '\n\n'.join(secciones) + '\n'

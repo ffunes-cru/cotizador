@@ -142,7 +142,7 @@ Oficial: [Method decorators](https://www.odoo.com/documentation/19.0/developer/r
 
 `res.config.settings` es la pantalla de *Ajustes*. Un campo con `config_parameter='cotizador.x'` se guarda
 en `ir.config_parameter` (visible en *Ajustes › Técnico › Parámetros del sistema*); uno *related* a la
-compañía se guarda en la compañía. Ver [Operación](operacion.md#ajustes).
+compañía se guarda en la compañía. Ver [Puesta en marcha y ajustes](uso/administracion.md#ajustes).
 
 Oficial: [res.config.settings](https://www.odoo.com/documentation/19.0/developer/reference/backend/orm.html)
 

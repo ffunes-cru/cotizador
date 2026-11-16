@@ -379,7 +379,7 @@ Métodos públicos (invocables por RPC) y quién los llama: botones de vistas, J
 
 ## Permisos por modelo
 
-L = leer, E = escribir, C = crear, B = borrar. Sin fila: el grupo no accede al modelo. Ver [permisos de acceso](odoo.md#permisos-de-acceso).
+L = leer, E = escribir, C = crear, B = borrar. Sin fila: el grupo no accede al modelo. Ver [permisos de acceso](odoo.md#grupos-permisos-de-acceso-y-reglas).
 
 | Modelo | Grupo | Permisos |
 |---|---|---|
@@ -408,7 +408,7 @@ L = leer, E = escribir, C = crear, B = borrar. Sin fila: el grupo no accede al m
 
 ## Parámetros del sistema
 
-Ajustes guardados en `ir.config_parameter` (ver [Operación](operacion.md#ajustes)).
+Ajustes guardados en `ir.config_parameter` (ver [Operación técnica](operacion.md#parámetros-del-sistema)).
 
 | Parámetro | Ajuste | Por defecto |
 |---|---|---|

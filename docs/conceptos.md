@@ -9,7 +9,7 @@ módulo gira alrededor de ella:
 
 ```mermaid
 flowchart LR
-    CSV[Planilla de Ingeniería<br/>CSV] -- importador --> M[(Matriz<br/>configuraciones + accesorios + reglas)]
+    CSV[Planilla de<br/>configuraciones] -- importador --> M[(Matriz<br/>configuraciones + accesorios + reglas)]
     M --> C[Configurador del vendedor<br/>en la cotización]
     M --> W[Configurador de la tienda<br/>solicitud de cotización]
     W -- lead --> CRM[Oportunidad del CRM]
@@ -79,4 +79,5 @@ tasa del día de la cotización.
 
 - [Conceptos de Odoo](odoo.md): las piezas de Odoo que usa el módulo.
 - [Flujos](flujos.md): cómo se arma una cotización y qué pasa en cada paso.
-- [Importador](importador.md): el formato del CSV.
+- [Formato de la planilla](importador.md): las columnas de la planilla de configuraciones y del CSV.
+- [Guía de uso](uso/index.md): qué hace cada uno en el día a día.
