@@ -229,7 +229,7 @@ Sin campos propios.
 | `cotizador_config_id` | many2one | Configuración Solicitada | → `sembradora.config.rel`; Configuración elegida en la tienda online. "Crear Cotización" arma la cotización con esta máquina y su equipamiento estándar. |
 | `cotizador_request_ip` | char | IP de la Solicitud Web | IP desde la que se envió la solicitud de cotización en la tienda (control de abuso). |
 | `equipo_cotizado_id` | many2one | Equipo (Sembradora/Ferti) | → `product.template`; Modelo de máquina cotizada o de interés (categoría Máquina). |
-| `lider_equipo_id` | many2one | Líder de Equipo | → `res.users`; calculado (guardado); Líder o responsable del equipo de ventas. |
+| `lider_equipo_id` | many2one | Concesionario | → `res.users`; calculado (guardado); Líder del equipo de ventas: el usuario del concesionario. Se propone solo a partir del equipo y se actualiza desde la cotización cuando cambia el equipo. |
 
 ### `crm.team` — Sales Team
 

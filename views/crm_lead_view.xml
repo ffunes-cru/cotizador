@@ -99,20 +99,20 @@
                 <attribute name="class">o_kanban_card_crm_lead_revenue fw-bold text-success mb-2</attribute>
             </xpath>
 
-            <!-- 4 y 5. Footer nativo de Odoo con Líder de Equipo y Vendedor Concesionario -->
+            <!-- 4 y 5. Footer nativo de Odoo con Concesionario (líder del equipo) y Vendedor -->
             <xpath expr="//t[@t-name='card']//footer//div[hasclass('mt-auto')]" position="replace">
-                <div class="d-flex align-items-center text-muted small text-truncate me-2" title="Líder de Equipo">
+                <div class="d-flex align-items-center text-muted small text-truncate me-2" title="Concesionario">
                     <i class="fa fa-user-circle me-1 text-secondary"/>
                     <t t-if="record.lider_equipo_id and record.lider_equipo_id.value">
                         <field name="lider_equipo_id" class="text-truncate"/>
                     </t>
                     <t t-else="">
-                        <span class="fst-italic text-muted">Sin Líder</span>
+                        <span class="fst-italic text-muted">Sin Concesionario</span>
                     </t>
                 </div>
             </xpath>
             <xpath expr="//t[@t-name='card']//footer//div[hasclass('ms-auto')]" position="replace">
-                <div class="ms-auto d-flex align-items-center text-muted small text-truncate" title="Concesionario / Vendedor">
+                <div class="ms-auto d-flex align-items-center text-muted small text-truncate" title="Vendedor">
                     <field name="user_id" widget="many2one_avatar_user" domain="[('share', '=', False)]" class="me-1"/>
                     <t t-if="record.user_id and record.user_id.value">
                         <field name="user_id" class="text-truncate"/>
