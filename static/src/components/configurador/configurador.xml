@@ -11,12 +11,12 @@
                     </div>
                     <div>
                         <div class="d-flex align-items-center gap-2">
-                            <span class="fs-6 fw-bold text-body text-truncate" style="max-width: 190px;">Configurador</span>
+                            <span class="fs-6 fw-bold text-body text-truncate o_cotizador_titulo">Configurador</span>
                             <span t-if="state.order.name" class="badge bg-secondary-subtle text-body border text-truncate">
                                 <t t-esc="state.order.name"/>
                             </span>
                         </div>
-                        <div t-if="state.order.partner_name" class="o-scroll-text" style="max-width: 220px;">
+                        <div t-if="state.order.partner_name" class="o-scroll-text o_cotizador_cliente">
                             <small class="text-muted o-scroll-text-content">
                                 Cliente: <span class="fw-bold text-body"><t t-esc="state.order.partner_name"/></span>
                             </small>
@@ -27,10 +27,10 @@
                 <!-- Stepper Central (Desktop) -->
                 <nav class="mx-auto d-none d-md-flex align-items-center gap-2 stepper-nav">
                     <!-- Paso 1: Modelo -->
-                    <button class="step-btn d-flex align-items-center gap-2 btn btn-link text-decoration-none"
+                    <button class="btn btn-link step-btn"
                             t-att-class="state.step === 'select_model' ? 'active text-primary fw-bold' : (state.selectedModel ? 'completed text-success fw-semibold' : 'text-muted')"
                             t-on-click="goToModelSelection">
-                        <span class="step-num rounded-circle d-flex align-items-center justify-content-center">
+                        <span class="step-num">
                             <i t-if="state.selectedModel &amp;&amp; state.step !== 'select_model'" class="fa fa-check"/>
                             <t t-else="">1</t>
                         </span>
@@ -40,11 +40,11 @@
                     <i class="fa fa-chevron-right text-muted fs-8"/>
 
                     <!-- Paso 2: Configuración -->
-                    <button class="step-btn d-flex align-items-center gap-2 btn btn-link text-decoration-none"
+                    <button class="btn btn-link step-btn"
                             t-att-class="state.step === 'configure_attributes' ? 'active text-primary fw-bold' : (state.configFinalized ? 'completed text-success fw-semibold' : 'text-muted')"
                             t-att-disabled="!state.selectedModel"
                             t-on-click="goToAttributes">
-                        <span class="step-num rounded-circle d-flex align-items-center justify-content-center">
+                        <span class="step-num">
                             <i t-if="state.configFinalized &amp;&amp; state.step !== 'configure_attributes'" class="fa fa-check"/>
                             <t t-else="">2</t>
                         </span>
@@ -54,11 +54,11 @@
                     <i class="fa fa-chevron-right text-muted fs-8"/>
 
                     <!-- Paso 3: Accesorios -->
-                    <button class="step-btn d-flex align-items-center gap-2 btn btn-link text-decoration-none"
+                    <button class="btn btn-link step-btn"
                             t-att-class="state.step === 'select_accessories' ? 'active text-primary fw-bold' : (state.configFinalized ? 'text-body' : 'text-muted')"
                             t-att-disabled="!state.configFinalized"
                             t-on-click="goToAccessories">
-                        <span class="step-num rounded-circle d-flex align-items-center justify-content-center">
+                        <span class="step-num">
                             3
                         </span>
                         <span class="step-label">Accesorios</span>
@@ -85,7 +85,7 @@
 
             <!-- Spinner de Carga General -->
             <div t-if="state.loading" class="flex-grow-1 d-flex flex-column align-items-center justify-content-center">
-                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"/>
+                <div class="spinner-border text-primary mb-3 o_cotizador_spinner" role="status"/>
                 <p class="text-muted fw-bold">Cargando catálogo y cotización...</p>
             </div>
 
@@ -98,16 +98,16 @@
                     <!-- ========================================== -->
                     <!-- PASO 1: SELECCIONAR MODELO DE SEMBRADORA   -->
                     <!-- ========================================== -->
-                    <div t-if="state.step === 'select_model'" class="step-container mx-auto" style="max-width: 1000px;">
+                    <div t-if="state.step === 'select_model'" class="step-container">
                         <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
                             <div>
                                 <h3 class="fw-bold mb-1 text-body">Seleccione el Modelo</h3>
                                 <p class="text-muted mb-0">Elija la máquina base que desea cotizar para este presupuesto.</p>
                             </div>
-                            <div class="search-box position-relative" style="min-width: 280px;">
-                                <i class="fa fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"/>
+                            <div class="search-box">
+                                <i class="fa fa-search text-muted"/>
                                 <input type="text"
-                                       class="form-control rounded-pill ps-5 shadow-sm"
+                                       class="form-control"
                                        placeholder="Buscar modelo o código..."
                                        t-model="state.searchModel"/>
                             </div>
@@ -122,10 +122,9 @@
                                          t-on-click="() => this.selectModel(model)">
                                         
                                         <!-- Contenedor de Imagen de la Máquina -->
-                                        <div class="model-image-container position-relative bg-body-tertiary d-flex align-items-center justify-content-center p-3 border-bottom" style="height: 160px;">
+                                        <div class="model-image-container bg-body-tertiary p-3 border-bottom">
                                             <img t-if="model.has_image"
                                                  t-att-src="model.image_url"
-                                                 class="img-fluid object-fit-contain h-100 w-100"
                                                  t-att-alt="model.name"/>
                                             <div t-else="" class="text-secondary d-flex flex-column align-items-center justify-content-center">
                                                 <i class="fa fa-cogs fa-3x opacity-25 mb-2"/>
@@ -167,15 +166,14 @@
                     <!-- ======================================================== -->
                     <!-- PASO 2: CONFIGURACIÓN EN ÁRBOL DINÁMICO DE DECISIÓN      -->
                     <!-- ======================================================== -->
-                    <div t-elif="state.step === 'configure_attributes'" class="step-container mx-auto" style="max-width: 860px;">
+                    <div t-elif="state.step === 'configure_attributes'" class="step-container step-container-narrow">
                         
                         <!-- Barra Superior del Modelo Seleccionado con Miniatura -->
                         <div class="d-flex align-items-center justify-content-between p-3 bg-body rounded-4 shadow-sm border mb-4">
                             <div class="d-flex align-items-center gap-3 min-w-0 me-2">
-                                <div class="rounded-3 border bg-body-tertiary d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 54px; height: 54px;">
+                                <div class="o_cotizador_thumb o_cotizador_thumb_md bg-body-tertiary">
                                     <img t-if="state.selectedModel.has_image"
                                          t-att-src="state.selectedModel.image_url"
-                                         class="img-fluid object-fit-contain h-100 w-100"
                                          t-att-alt="state.selectedModel.name"/>
                                     <i t-else="" class="fa fa-cogs fa-lg text-secondary"/>
                                 </div>
@@ -243,7 +241,7 @@
                                              class="tree-leaf-open card rounded-4 border-primary shadow-sm bg-body p-3 p-md-4">
                                             <div class="d-flex align-items-center justify-content-between mb-3">
                                                 <div>
-                                                    <small class="text-uppercase text-primary fw-bold fs-8 tracking-wider">
+                                                    <small class="o_cotizador_seccion text-primary">
                                                         Paso <t t-esc="attrIndex + 1"/> de <t t-esc="state.attributes.length"/>
                                                     </small>
                                                     <h5 class="fw-bold mb-0 text-body">
@@ -285,7 +283,7 @@
                         <!-- Banner de Configuración Completada -->
                         <div t-if="state.configFinalized" class="mt-4 p-3 bg-success-subtle border border-success-subtle rounded-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 shadow-sm animate-fade-in">
                             <div class="d-flex align-items-center gap-3">
-                                <div class="bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                                <div class="bg-success text-white o_cotizador_ok">
                                     <i class="fa fa-check fa-lg"/>
                                 </div>
                                 <div>
@@ -307,7 +305,7 @@
                     <!-- ========================================== -->
                     <!-- PASO 3: SELECCIONAR ACCESORIOS             -->
                     <!-- ========================================== -->
-                    <div t-elif="state.step === 'select_accessories'" class="step-container mx-auto" style="max-width: 1000px;">
+                    <div t-elif="state.step === 'select_accessories'" class="step-container">
                         
                         <!-- Encabezado de Accesorios -->
                         <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
@@ -317,10 +315,10 @@
                             </div>
                             
                             <!-- Buscador de Accesorios -->
-                            <div class="search-box position-relative" style="min-width: 260px;">
-                                <i class="fa fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"/>
+                            <div class="search-box">
+                                <i class="fa fa-search text-muted"/>
                                 <input type="text"
-                                       class="form-control rounded-pill ps-5 shadow-sm"
+                                       class="form-control"
                                        placeholder="Buscar accesorio..."
                                        t-model="state.searchAccessory"/>
                             </div>
@@ -403,10 +401,9 @@
                                         
                                         <div class="d-flex align-items-start gap-3">
                                             <!-- Miniatura de Imagen de Accesorio -->
-                                            <div class="rounded-3 border bg-body d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 60px; height: 60px;">
+                                            <div class="o_cotizador_thumb o_cotizador_thumb_lg bg-body">
                                                 <img t-if="acc.has_image"
                                                      t-att-src="acc.image_url"
-                                                     class="img-fluid object-fit-contain h-100 w-100"
                                                      t-att-alt="acc.product_name"/>
                                                 <i t-else="" class="fa fa-puzzle-piece fa-lg text-secondary opacity-50"/>
                                             </div>
@@ -420,7 +417,7 @@
                                                     </div>
                                                     
                                                     <!-- Switch de Activación (espacio protegido intocable) -->
-                                                    <div class="form-check form-switch p-0 m-0 flex-shrink-0" style="min-width: 44px; text-align: right;">
+                                                    <div class="form-check form-switch p-0 m-0 flex-shrink-0">
                                                         <input class="form-check-input cursor-pointer float-none m-0"
                                                                type="checkbox"
                                                                role="switch"
@@ -485,91 +482,32 @@
                         </span>
                     </div>
 
-                    <!-- Ficha de la Máquina Seleccionada con Miniatura -->
+                    <!-- Máquina, especificaciones, descripción y accesorios (mismas subplantillas que en móvil) -->
                     <div class="p-3 border-bottom bg-body-tertiary flex-shrink-0">
-                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-2">Máquina Base</small>
-                        <div t-if="state.selectedModel" class="d-flex align-items-center gap-2">
-                            <div class="rounded-3 border bg-body d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 48px; height: 48px;">
-                                <img t-if="state.selectedModel.has_image"
-                                     t-att-src="state.selectedModel.image_url"
-                                     class="img-fluid object-fit-contain h-100 w-100"
-                                     t-att-alt="state.selectedModel.name"/>
-                                <i t-else="" class="fa fa-cogs text-secondary"/>
-                            </div>
-                            <div class="o-scroll-text min-w-0">
-                                <div class="fw-bold text-body fs-6 o-scroll-text-content"><t t-esc="state.selectedModel.name"/></div>
-                                <small t-if="state.selectedModel.default_code" class="text-muted d-block fw-semibold">
-                                    Cód: <t t-esc="state.selectedModel.default_code"/>
-                                </small>
-                            </div>
-                        </div>
-                        <div t-else="" class="text-muted small fst-italic">
-                            Seleccione un modelo para comenzar
-                        </div>
+                        <small class="o_cotizador_seccion text-muted d-block mb-2">Máquina Base</small>
+                        <t t-call="cotizador.Configurador.Maquina"/>
                     </div>
 
-                    <!-- Lista de Especificaciones y Accesorios Seleccionados -->
                     <div class="flex-grow-1 overflow-y-auto p-3 summary-specs-scroll">
-                        
-                        <!-- Especificaciones Técnicas Elegidas -->
                         <div class="mb-3">
-                            <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-2">Especificaciones</small>
-                            <div t-if="selectedAttributesSummary.length > 0" class="d-flex flex-column gap-1">
-                                <t t-foreach="selectedAttributesSummary" t-as="spec" t-key="spec.attr_id">
-                                    <div class="d-flex justify-content-between align-items-center small py-1 border-bottom fs-8">
-                                        <span class="text-muted fw-semibold text-truncate me-2"><t t-esc="spec.attr_name"/>:</span>
-                                        <span class="text-body fw-bold text-end flex-shrink-0"><t t-esc="spec.value_name"/></span>
-                                    </div>
-                                </t>
-                            </div>
-                            <div t-else="" class="text-muted small fst-italic">
-                                Ninguna especificación seleccionada
-                            </div>
+                            <small class="o_cotizador_seccion text-muted d-block mb-2">Especificaciones</small>
+                            <t t-call="cotizador.Configurador.Especificaciones"/>
                         </div>
 
-                        <!-- Descripción Técnica / Paramétrica -->
-                        <div t-if="activeDescription" class="mb-3">
-                            <div class="border rounded-3 p-2 bg-body-tertiary">
-                                <div class="d-flex align-items-center justify-content-between cursor-pointer"
-                                     t-on-click="toggleDescriptionCollapse"
-                                     title="Ver descripción técnica configurada">
-                                    <div class="d-flex align-items-center gap-2 min-w-0">
-                                        <i class="fa fa-file-text-o text-primary flex-shrink-0"/>
-                                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider text-truncate">Descripción Técnica</small>
-                                    </div>
-                                    <i class="fa text-muted fs-8 flex-shrink-0" t-att-class="state.showDescriptionCollapse ? 'fa-chevron-up' : 'fa-chevron-down'"/>
-                                </div>
-                                <div t-if="state.showDescriptionCollapse" class="mt-2 pt-2 border-top config-rich-description overflow-auto" style="max-height: 250px;">
-                                    <t t-out="activeDescription"/>
-                                </div>
-                            </div>
-                        </div>
+                        <t t-call="cotizador.Configurador.Descripcion"/>
 
-                        <!-- Accesorios Seleccionados -->
                         <div class="mb-3">
                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider">Accesorios Elegidos</small>
+                                <small class="o_cotizador_seccion text-muted">Accesorios Elegidos</small>
                                 <span class="badge bg-secondary-subtle text-body border rounded-pill fs-8">
                                     <t t-esc="selectedAccessoriesList.length"/>
                                 </span>
                             </div>
-
-                            <div t-if="selectedAccessoriesList.length > 0" class="d-flex flex-column gap-1">
-                                <t t-foreach="selectedAccessoriesList" t-as="acc" t-key="acc.line_id">
-                                    <div class="d-flex justify-content-between align-items-center small py-1 border-bottom fs-8">
-                                        <div class="o-scroll-text min-w-0 me-2">
-                                            <span class="o-scroll-text-content text-body fw-semibold">• <t t-esc="acc.product_name"/></span>
-                                            <small class="text-muted ms-1">(x<t t-esc="acc.quantity"/>)</small>
-                                        </div>
-                                        <span class="text-body fw-bold flex-shrink-0"><t t-esc="formatCurrency(acc.subtotal)"/></span>
-                                    </div>
-                                </t>
-                            </div>
+                            <t t-if="selectedAccessoriesList.length > 0" t-call="cotizador.Configurador.AccesoriosElegidos"/>
                             <div t-else="" class="text-muted small fst-italic">
                                 No se han seleccionado accesorios adicionales
                             </div>
                         </div>
-
                     </div>
 
                     <!-- Totales y Botón de Confirmación -->
@@ -677,7 +615,7 @@
             <div t-if="state.showMobileSummary" 
                  class="mobile-summary-backdrop position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-end animate-fade-in"
                  t-on-click.self="closeMobileSummary">
-                <div class="mobile-summary-sheet bg-body rounded-top-4 p-3 p-md-4 shadow-lg border-top w-100 overflow-auto" style="max-height: 82vh;">
+                <div class="mobile-summary-sheet bg-body rounded-top-4 p-3 p-md-4 shadow-lg border-top w-100 overflow-auto">
                     <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                         <div class="d-flex align-items-center gap-2">
                             <i class="fa fa-file-text-o text-primary"/>
@@ -688,75 +626,25 @@
                         </button>
                     </div>
 
-                    <!-- Máquina con Miniatura -->
                     <div class="mb-3">
-                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">Máquina</small>
-                        <div t-if="state.selectedModel" class="d-flex align-items-center gap-2 p-2 bg-body-tertiary rounded border">
-                            <div class="rounded border bg-body d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0" style="width: 44px; height: 44px;">
-                                <img t-if="state.selectedModel.has_image"
-                                     t-att-src="state.selectedModel.image_url"
-                                     class="img-fluid object-fit-contain h-100 w-100"
-                                     t-att-alt="state.selectedModel.name"/>
-                                <i t-else="" class="fa fa-cogs text-secondary"/>
-                            </div>
-                            <div class="o-scroll-text min-w-0">
-                                <div class="fw-bold text-body fs-6 o-scroll-text-content"><t t-esc="state.selectedModel.name"/></div>
-                                <small t-if="state.selectedModel.default_code" class="text-muted d-block fw-semibold">
-                                    Ref: <t t-esc="state.selectedModel.default_code"/>
-                                </small>
-                            </div>
+                        <small class="o_cotizador_seccion text-muted d-block mb-1">Máquina</small>
+                        <div class="p-2 bg-body-tertiary rounded border">
+                            <t t-call="cotizador.Configurador.Maquina"/>
                         </div>
-                        <div t-else="" class="text-muted small">No seleccionada</div>
                     </div>
 
-                    <!-- Especificaciones -->
                     <div class="mb-3">
-                        <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider d-block mb-1">Especificaciones</small>
-                        <div class="d-flex flex-column gap-1">
-                            <t t-foreach="selectedAttributesSummary" t-as="spec" t-key="spec.attr_id">
-                                <div class="d-flex justify-content-between align-items-center small py-1 border-bottom fs-8">
-                                    <span class="text-muted fw-semibold text-truncate me-2"><t t-esc="spec.attr_name"/>:</span>
-                                    <span class="text-body fw-bold flex-shrink-0"><t t-esc="spec.value_name"/></span>
-                                </div>
-                            </t>
-                        </div>
+                        <small class="o_cotizador_seccion text-muted d-block mb-1">Especificaciones</small>
+                        <t t-call="cotizador.Configurador.Especificaciones"/>
                     </div>
 
-                    <!-- Descripción Técnica / Paramétrica -->
-                    <div t-if="activeDescription" class="mb-3">
-                        <div class="border rounded-3 p-2 bg-body-tertiary">
-                            <div class="d-flex align-items-center justify-content-between cursor-pointer"
-                                 t-on-click="toggleDescriptionCollapse">
-                                <div class="d-flex align-items-center gap-2 min-w-0">
-                                    <i class="fa fa-file-text-o text-primary flex-shrink-0"/>
-                                    <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider text-truncate">Descripción Técnica</small>
-                                </div>
-                                <i class="fa text-muted fs-8 flex-shrink-0" t-att-class="state.showDescriptionCollapse ? 'fa-chevron-up' : 'fa-chevron-down'"/>
-                            </div>
-                            <div t-if="state.showDescriptionCollapse" class="mt-2 pt-2 border-top config-rich-description overflow-auto" style="max-height: 220px;">
-                                <t t-out="activeDescription"/>
-                            </div>
-                        </div>
-                    </div>
+                    <t t-call="cotizador.Configurador.Descripcion"/>
 
-                    <!-- Accesorios -->
                     <div t-if="selectedAccessoriesList.length > 0" class="mb-3">
-                        <div class="d-flex align-items-center justify-content-between mb-1">
-                            <small class="text-uppercase text-muted fw-bold fs-8 tracking-wider">
-                                Accesorios Elegidos (<t t-esc="selectedAccessoriesList.length"/>)
-                            </small>
-                        </div>
-                        <div class="d-flex flex-column gap-1">
-                            <t t-foreach="selectedAccessoriesList" t-as="acc" t-key="acc.line_id">
-                                <div class="d-flex justify-content-between align-items-center small py-1 border-bottom fs-8">
-                                    <div class="o-scroll-text min-w-0 me-2">
-                                        <span class="o-scroll-text-content text-body fw-semibold">• <t t-esc="acc.product_name"/></span>
-                                        <small class="text-muted ms-1">(x<t t-esc="acc.quantity"/>)</small>
-                                    </div>
-                                    <span class="text-body fw-bold flex-shrink-0"><t t-esc="formatCurrency(acc.subtotal)"/></span>
-                                </div>
-                            </t>
-                        </div>
+                        <small class="o_cotizador_seccion text-muted d-block mb-1">
+                            Accesorios Elegidos (<t t-esc="selectedAccessoriesList.length"/>)
+                        </small>
+                        <t t-call="cotizador.Configurador.AccesoriosElegidos"/>
                     </div>
 
                     <!-- Totales Compactos -->
@@ -786,6 +674,74 @@
                 </div>
             </div>
 
+        </div>
+    </t>
+
+    <!-- Bloques del resumen, compartidos por el panel de escritorio y la hoja de móvil -->
+    <t t-name="cotizador.Configurador.Maquina">
+        <div t-if="state.selectedModel" class="d-flex align-items-center gap-2">
+            <div class="o_cotizador_thumb bg-body">
+                <img t-if="state.selectedModel.has_image"
+                     t-att-src="state.selectedModel.image_url"
+                     t-att-alt="state.selectedModel.name"/>
+                <i t-else="" class="fa fa-cogs text-secondary"/>
+            </div>
+            <div class="o-scroll-text min-w-0">
+                <div class="fw-bold text-body fs-6 o-scroll-text-content"><t t-esc="state.selectedModel.name"/></div>
+                <small t-if="state.selectedModel.default_code" class="text-muted d-block fw-semibold">
+                    Cód: <t t-esc="state.selectedModel.default_code"/>
+                </small>
+            </div>
+        </div>
+        <div t-else="" class="text-muted small fst-italic">
+            Seleccione un modelo para comenzar
+        </div>
+    </t>
+
+    <t t-name="cotizador.Configurador.Especificaciones">
+        <div t-if="selectedAttributesSummary.length > 0" class="d-flex flex-column gap-1">
+            <t t-foreach="selectedAttributesSummary" t-as="spec" t-key="spec.attr_id">
+                <div class="o_cotizador_fila">
+                    <span class="text-muted fw-semibold text-truncate me-2"><t t-esc="spec.attr_name"/>:</span>
+                    <span class="text-body fw-bold text-end flex-shrink-0"><t t-esc="spec.value_name"/></span>
+                </div>
+            </t>
+        </div>
+        <div t-else="" class="text-muted small fst-italic">
+            Ninguna especificación seleccionada
+        </div>
+    </t>
+
+    <t t-name="cotizador.Configurador.Descripcion">
+        <div t-if="activeDescription" class="mb-3">
+            <div class="border rounded-3 p-2 bg-body-tertiary">
+                <div class="d-flex align-items-center justify-content-between cursor-pointer"
+                     t-on-click="toggleDescriptionCollapse"
+                     title="Ver descripción técnica configurada">
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                        <i class="fa fa-file-text-o text-primary flex-shrink-0"/>
+                        <small class="o_cotizador_seccion text-muted text-truncate">Descripción Técnica</small>
+                    </div>
+                    <i class="fa text-muted fs-8 flex-shrink-0" t-att-class="state.showDescriptionCollapse ? 'fa-chevron-up' : 'fa-chevron-down'"/>
+                </div>
+                <div t-if="state.showDescriptionCollapse" class="mt-2 pt-2 border-top config-rich-description overflow-auto">
+                    <t t-out="activeDescription"/>
+                </div>
+            </div>
+        </div>
+    </t>
+
+    <t t-name="cotizador.Configurador.AccesoriosElegidos">
+        <div class="d-flex flex-column gap-1">
+            <t t-foreach="selectedAccessoriesList" t-as="acc" t-key="acc.line_id">
+                <div class="o_cotizador_fila">
+                    <div class="o-scroll-text min-w-0 me-2">
+                        <span class="o-scroll-text-content text-body fw-semibold">• <t t-esc="acc.product_name"/></span>
+                        <small class="text-muted ms-1">(x<t t-esc="acc.quantity"/>)</small>
+                    </div>
+                    <span class="text-body fw-bold flex-shrink-0"><t t-esc="formatCurrency(acc.subtotal)"/></span>
+                </div>
+            </t>
         </div>
     </t>
 </templates>

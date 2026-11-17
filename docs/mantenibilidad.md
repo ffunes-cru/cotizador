@@ -286,6 +286,27 @@ plantilla de Ingeniería.
 5. **HTML en plantillas** (QWeb en Python y en JavaScript), no en f-strings: escapan solas y no suman
    caminos.
 6. Al cambiar código, **regenerar este documento** y commitearlo junto.
+7. **Estilos**: ver abajo.
+
+### Estilos
+
+Las plantillas (QWeb de la tienda y el portal, OWL del configurador) usan Bootstrap 5.3, el de Odoo 19.
+
+- **Colores: una utilidad del tema en el markup** (`text-muted`, `text-danger`, `bg-light`…). Odoo las
+  redefine según el contexto (dentro de un modal, sobre un fondo de color, en una combinación `o_cc`), y una
+  clase propia con el color fijo no se entera.
+- **Estructura repetida: una clase propia** (`o_cotizador_*`) en el SCSS: espaciado, tamaños, tipografía,
+  bordes, disposición. Si la misma combinación de utilidades aparece dos veces, es una clase.
+- **Sin `style=""`**, salvo valores que calcula el código (el ancho de la barra de progreso).
+- **Sin `@extend` de utilidades**: arrastra todas sus variantes por contexto y el resultado depende del orden
+  del bundle.
+- **Antes de usar una clase, comprobar que existe** en el bundle donde se usa: las de Bootstrap 4
+  (`font-weight-bold`, `ml-1`) y algunas de 5.3 (`bg-body` en el backend) no están, y no avisan.
+
+| Archivo | Bundle | Qué estiliza |
+|---|---|---|
+| `static/src/scss/cotizador_frontend.scss` | `web.assets_frontend` | Configurador de la tienda, modal *Solicitar Cotización*, cotización en el portal. |
+| `static/src/components/configurador/configurador.scss` | `web.assets_backend` | Configurador del vendedor. |
 
 ## Regenerar
 
@@ -347,7 +368,7 @@ Ordenadas de mayor a menor complejidad.
 | 14 | C | `_parse` | [models/sembradora_import_wizard.py:272](../models/sembradora_import_wizard.py#L272) | 35 | 2 |
 | 13 | C | `get_config_accessories` | [models/configurator_service.py:163](../models/configurator_service.py#L163) | 47 | 3 |
 | 13 | C | `_detalle` | [tools/documentacion.py:299](../tools/documentacion.py#L299) | 18 | 1 |
-| 12 | C | `_sync_expected_revenue_from_orders` | [models/crm_lead_inherit.py:56](../models/crm_lead_inherit.py#L56) | 21 | 1 |
+| 12 | C | `_sync_expected_revenue_from_orders` | [models/crm_lead_inherit.py:57](../models/crm_lead_inherit.py#L57) | 21 | 1 |
 | 12 | C | `formatOptionName` | [static/src/js/cotizador_sequential_configurator.js:125](../static/src/js/cotizador_sequential_configurator.js#L125) | 18 | 2 |
 | 11 | C | `_create_lead` | [controllers/main.py:232](../controllers/main.py#L232) | 29 | 11 |
 | 11 | C | `_parse_deudas` | [models/bcra_service.py:96](../models/bcra_service.py#L96) | 26 | 1 |
@@ -487,11 +508,11 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
-| [50](../models/crm_lead_inherit.py#L50) | `_compute_lider_equipo_id` | 5 | A | 4 | 1 |
-| [56](../models/crm_lead_inherit.py#L56) | `_sync_expected_revenue_from_orders` | 12 | C | 21 | 1 |
-| [87](../models/crm_lead_inherit.py#L87) | `create` | 3 | A | 6 | 2 |
-| [99](../models/crm_lead_inherit.py#L99) | `write` | 2 | A | 5 | 2 |
-| [110](../models/crm_lead_inherit.py#L110) | `action_cotizador_create_quotation` | 4 | A | 26 | 1 |
+| [51](../models/crm_lead_inherit.py#L51) | `_compute_lider_equipo_id` | 5 | A | 4 | 1 |
+| [57](../models/crm_lead_inherit.py#L57) | `_sync_expected_revenue_from_orders` | 12 | C | 21 | 1 |
+| [88](../models/crm_lead_inherit.py#L88) | `create` | 3 | A | 6 | 2 |
+| [100](../models/crm_lead_inherit.py#L100) | `write` | 2 | A | 5 | 2 |
+| [111](../models/crm_lead_inherit.py#L111) | `action_cotizador_create_quotation` | 4 | A | 26 | 1 |
 
 </details>
 

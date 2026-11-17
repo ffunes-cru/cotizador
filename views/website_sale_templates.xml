@@ -119,15 +119,15 @@
             <t t-set="ecommerce_mode" t-value="request.env['ir.config_parameter'].sudo().get_param('cotizador.ecommerce_mode', 'quote_only')"/>
             <t t-if="ecommerce_mode == 'quote_only' or product.is_maquina">
                 <div class="modal fade" id="modal_solicitar_cotizacion" tabindex="-1" aria-labelledby="modalSolicitarCotizacionLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg my-2" style="max-height: calc(100vh - 2rem);">
-                        <form action="/cotizador/solicitar_cotizacion" method="POST" data-captcha="cotizador_quote" data-cotizador-quote-form="1" class="modal-content shadow-lg border-0 rounded-4 overflow-hidden d-flex flex-column" style="max-height: calc(100vh - 2rem);">
+                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg my-2">
+                        <form action="/cotizador/solicitar_cotizacion" method="POST" data-captcha="cotizador_quote" data-cotizador-quote-form="1" class="modal-content shadow-lg border-0 rounded-4 overflow-hidden d-flex flex-column">
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                             <input type="hidden" name="product_template_id" t-att-value="product.id"/>
                             <input type="hidden" class="o_not_editable product_id" name="product_id" t-att-value="product_variant.id if product_variant else ''"/>
                             <input type="hidden" name="config_id" id="modal_input_config_id" value=""/>
                             <input type="hidden" name="cotizador_form_token" value=""/>
                             <!-- Honeypot anti-bot oculto para seguridad -->
-                            <input type="text" name="website_quick_check" style="display:none !important;" tabindex="-1" autocomplete="off" aria-hidden="true"/>
+                            <input type="text" name="website_quick_check" class="o_cotizador_honeypot" tabindex="-1" autocomplete="off" aria-hidden="true"/>
 
                             <div class="modal-header bg-white border-bottom py-3 px-4 flex-shrink-0">
                                 <div>
@@ -135,7 +135,7 @@
                                         <h5 class="modal-title fw-bold text-dark mb-0" id="modalSolicitarCotizacionLabel">
                                             <i class="fa fa-file-text-o text-danger me-2"/>Solicitar Cotización Oficial
                                         </h5>
-                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle small px-2 py-1">
+                                        <span class="badge o_cotizador_badge small px-2 py-1">
                                             Crucianelli
                                         </span>
                                     </div>
@@ -146,7 +146,7 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
 
-                            <div class="modal-body py-3 px-4 flex-grow-1" style="overflow-y: auto; min-height: 0; max-height: calc(100vh - 230px);">
+                            <div class="modal-body py-3 px-4 flex-grow-1">
                                 <!-- Resumen de Configuración Seleccionada -->
                                 <div id="modal_config_summary_box" class="p-3 mb-3 bg-light rounded-3 border">
                                     <span class="text-muted small d-block mb-1">
@@ -166,14 +166,14 @@
 
                                 <div class="row g-2">
                                     <div class="col-md-6">
-                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                        <label class="form-label text-muted">
                                             Nombre y Apellido <span class="text-danger">*</span>
                                         </label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-user text-muted"/></span>
+                                            <span class="input-group-text bg-light"><i class="fa fa-user text-muted"/></span>
                                             <input type="text"
                                                    name="contact_name"
-                                                   class="form-control border-start-0 ps-0"
+                                                   class="form-control"
                                                    required="required"
                                                    maxlength="100"
                                                    placeholder="Ej. Juan Pérez"
@@ -181,28 +181,28 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                        <label class="form-label text-muted">
                                             Empresa / Razón Social
                                         </label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-building text-muted"/></span>
+                                            <span class="input-group-text bg-light"><i class="fa fa-building text-muted"/></span>
                                             <input type="text"
                                                    name="company_name"
-                                                   class="form-control border-start-0 ps-0"
+                                                   class="form-control"
                                                    maxlength="100"
                                                    placeholder="Ej. Agropecuaria del Sur S.A."
                                                    t-att-value="request.env.user.partner_id.commercial_company_name if not request.env.user._is_public() else ''"/>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                        <label class="form-label text-muted">
                                             Teléfono / WhatsApp <span class="text-danger">*</span>
                                         </label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-phone text-muted"/></span>
+                                            <span class="input-group-text bg-light"><i class="fa fa-phone text-muted"/></span>
                                             <input type="tel"
                                                    name="phone"
-                                                   class="form-control border-start-0 ps-0"
+                                                   class="form-control"
                                                    required="required"
                                                    maxlength="40"
                                                    placeholder="Ej. +54 9 341 555-1234"
@@ -210,14 +210,14 @@
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                        <label class="form-label text-muted">
                                             Correo Electrónico <span class="text-danger">*</span>
                                         </label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-envelope text-muted"/></span>
+                                            <span class="input-group-text bg-light"><i class="fa fa-envelope text-muted"/></span>
                                             <input type="email"
                                                    name="email"
-                                                   class="form-control border-start-0 ps-0"
+                                                   class="form-control"
                                                    required="required"
                                                    maxlength="100"
                                                    placeholder="Ej. juan@ejemplo.com"
@@ -225,21 +225,21 @@
                                         </div>
                                     </div>
                                     <div class="col-md-12">
-                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                        <label class="form-label text-muted">
                                             Localidad / Provincia
                                         </label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0"><i class="fa fa-map-marker text-muted"/></span>
+                                            <span class="input-group-text bg-light"><i class="fa fa-map-marker text-muted"/></span>
                                             <input type="text"
                                                    name="city"
-                                                   class="form-control border-start-0 ps-0"
+                                                   class="form-control"
                                                    maxlength="100"
                                                    placeholder="Ej. Armstrong, Santa Fe"
                                                    t-att-value="request.env.user.partner_id.city if not request.env.user._is_public() else ''"/>
                                         </div>
                                     </div>
                                     <div class="col-md-12">
-                                        <label class="form-label fw-semibold small text-muted mb-1">
+                                        <label class="form-label text-muted">
                                             Comentarios / Consulta Específica
                                         </label>
                                         <textarea name="notes"
@@ -251,7 +251,7 @@
                                 </div>
                             </div>
 
-                            <div class="modal-footer bg-light py-3 px-4 border-top" style="flex-shrink: 0; position: sticky; bottom: 0; z-index: 10;">
+                            <div class="modal-footer bg-light py-3 px-4 border-top">
                                 <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">
                                     Cancelar
                                 </button>
@@ -272,7 +272,7 @@
     <template id="quote_request_received" name="Solicitud de Cotización Recibida">
         <t t-call="website.layout">
             <div id="wrap" class="oe_structure">
-                <div class="container py-5" style="max-width: 720px;">
+                <div class="container py-5 o_cotizador_recibida">
                     <div class="text-center">
                         <i class="fa fa-check-circle fa-4x text-success mb-3" title="Recibida"/>
                         <h1 class="h3 fw-bold">¡Solicitud de cotización recibida!</h1>

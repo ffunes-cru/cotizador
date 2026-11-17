@@ -50,7 +50,7 @@
             'cotizador/static/tests/tours/**/*',
         ],
         'web.assets_frontend': [
-            'cotizador/static/src/css/cotizador_sequential_configurator.css',
+            'cotizador/static/src/scss/cotizador_frontend.scss',
             'cotizador/static/src/js/cotizador_sequential_configurator.js',
             'cotizador/static/src/js/cotizador_quote_form.js',
         ],
