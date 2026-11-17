@@ -7,7 +7,7 @@
 | Ver la matriz en la tienda (combinaciones y precios de su lista) | ✔ | ✔ | ✔ | ✔ |
 | Pedir cotización desde la tienda | ✔ (solo lead, con límites) | ✔ (oportunidad + cotización) | ✔ | ✔ |
 | Leer configuraciones, accesorios, reglas, planes | — | — | ✔ | ✔ |
-| Cotizar con el configurador, descuentos, usados, plan de pago, BCRA | — | — | ✔ (en sus cotizaciones, según Ventas) | ✔ |
+| Cotizar con el configurador, descuentos, usados, plan de pago, BCRA | — | — | ✔ (en las cotizaciones que puede editar según su [nivel](#niveles-comerciales-concesionario-zona-gerencia)) | ✔ |
 | Modificar la matriz, reglas, descripciones y planes de pago | — | — | — | ✔ |
 | Importador, Teamcenter | — | — | — | ✔ |
 
@@ -15,6 +15,34 @@ El grupo *Administrador del Configurador* (`cotizador.group_cotizador_manager`) 
 solo sus documentos*. Al instalar lo reciben `admin` y el superusuario; los demás se asignan en *Ajustes ›
 Usuarios › Configurador de Sembradoras*. La matriz de permisos completa está en la
 [referencia](referencia.md#permisos-por-modelo).
+
+## Niveles comerciales (concesionario, zona, gerencia)
+
+Pedido en el issue #1. Se apoya en el estándar de Ventas y agrega solo lo que falta:
+
+- **Concesionario = equipo de ventas** (`crm.team`): el líder estándar (`user_id`) es el usuario del concesionario
+  y los miembros, sus vendedores. Se agrega `cotizador_supervisor_id` (*Supervisor de Zona*,
+  `models/crm_team.py`): la zona son los equipos con el mismo supervisor.
+- **Grupos**: los estándar de Ventas (*solo sus documentos*, *todos los documentos*, *administrador*) más el
+  privilegio *Nivel Comercial (Cotizador)* con dos grupos, que implican *solo sus documentos*:
+  `cotizador.group_lider_concesionario` y `cotizador.group_supervisor_zona`.
+- **Reglas** (`security/cotizador_security.xml`): Odoo combina con OR las reglas de los grupos del usuario, así
+  que las nuevas **amplían** la regla estándar "solo sus documentos" (`user_id` = el usuario, o vacío).
+
+| Grupo | Modelos | Dominio | Permisos |
+|---|---|---|---|
+| Líder de Concesionario | `sale.order`, `sale.report`, `crm.lead`, `crm.activity.report` | `team_id.user_id = usuario` | Todos |
+| | `sale.order.line` | `order_id.team_id.user_id = usuario` | Todos |
+| Supervisor de Zona | `sale.order`, `sale.report`, `crm.lead`, `crm.activity.report` | `team_id.cotizador_supervisor_id = usuario` | Solo lectura |
+| | `sale.order.line` | `order_id.team_id.cotizador_supervisor_id = usuario` | Solo lectura |
+
+En la cotización, *Concesionario* (`sale.order.lider_equipo_id`) es el líder del equipo del vendedor, relacionado y
+guardado (`team_id.user_id`) para filtrar y agrupar; el equipo lo calcula Odoo a partir del vendedor. El supervisor
+escribe solo lo suyo por la regla estándar. Al asignar una cotización (cambiar *Vendedor*), Odoo
+controla el permiso **antes** de escribir, cuando todavía es suya; desde ahí queda en solo lectura. La
+oportunidad la actualiza `sale.order._sync_with_crm()` con `sudo()`, porque en ese momento deja de ser del
+supervisor. No se restringen los contactos (`res.partner`), que comparten todos los módulos, ni las facturas.
+Tests: `tests/test_niveles_usuario.py`.
 
 ## Las tres capas
 
@@ -66,6 +94,9 @@ una cotización desde el portal lo decide el modo de aceptación (`_has_to_be_pa
 |---|---|---|
 | Un vendedor no puede guardar un cambio en una configuración | Los vendedores solo leen la matriz. | Lo hace un administrador. |
 | El vendedor no ve el menú del configurador | Menús restringidos al administrador. | Es lo esperado; el configurador se abre desde la cotización (*Configurar*). |
+| Un líder no ve las cotizaciones de un vendedor suyo | La cotización no tiene ese concesionario (equipo), o el usuario no es el *Líder del equipo*, o no tiene el nivel *Líder de Concesionario*. | Revisar el campo *Concesionario* de la cotización y el equipo de ventas. |
+| Un supervisor no ve un concesionario | El equipo no tiene a ese usuario como *Supervisor de Zona*, o el usuario no tiene ese nivel. | Completar el supervisor en el equipo de ventas. |
+| El supervisor no puede editar una cotización que creó | La asignó a otro vendedor: desde ahí la ve en solo lectura. | Lo esperado (issue #1). La edita el concesionario o gerencia. |
 
 ## Ver también
 

@@ -11,7 +11,9 @@ Hay dos caminos:
   todavía es un *lead* sin cliente, primero hay que convertirla con el botón estándar del CRM.
 - **Desde cero**: *Ventas › Pedidos › Cotizaciones › Nuevo*, elegir el cliente y seguir con el paso 2.
 
-En la cotización, el campo **Concesionario** es el vendedor responsable (el *Vendedor* de Odoo).
+Quien lleva la cotización es el **Vendedor** (pestaña *Otra información*). Con él, Odoo completa solo el equipo de
+ventas y, junto al cliente, el **Concesionario**: el líder de ese equipo. Quién ve y quién edita cada cotización
+depende de esos campos ([Niveles de usuario](index.md#niveles-de-usuario)).
 
 ## 2. Configurar el equipo
 

@@ -23,12 +23,13 @@ class CrmLeadInherit(models.Model):
     )
     lider_equipo_id = fields.Many2one(
         'res.users',
-        string='Líder de Equipo',
+        string='Concesionario',
         compute='_compute_lider_equipo_id',
         store=True,
         readonly=False,
         tracking=True,
-        help='Líder o responsable del equipo de ventas.',
+        help='Líder del equipo de ventas: el usuario del concesionario. Se propone solo a partir del '
+             'equipo y se actualiza desde la cotización cuando cambia el equipo.',
     )
     cotizador_config_id = fields.Many2one(
         'sembradora.config.rel',
@@ -48,7 +49,7 @@ class CrmLeadInherit(models.Model):
 
     @api.depends('team_id', 'team_id.user_id')
     def _compute_lider_equipo_id(self):
-        """Propone como líder al jefe del equipo de ventas, si todavía no hay uno."""
+        """Propone como concesionario al líder del equipo de ventas, si todavía no hay uno."""
         for lead in self:
             if not lead.lider_equipo_id and lead.team_id and lead.team_id.user_id:
                 lead.lider_equipo_id = lead.team_id.user_id

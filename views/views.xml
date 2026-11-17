@@ -59,7 +59,8 @@
 
             <xpath expr="//field[@name='partner_id']" position="after">
                 <field name="equipo_cotizado_id" options="{'no_create': True}"/>
-                <field name="user_id" widget="many2one_avatar_user" string="Concesionario"/>
+                <!-- Concesionario: líder del equipo de ventas del vendedor (el vendedor queda en su lugar estándar) -->
+                <field name="lider_equipo_id" widget="many2one_avatar_user"/>
             </xpath>
 
             <!-- Ocultar columna estándar de porcentaje de descuento en líneas para evitar conflictos con los descuentos en cascada -->
@@ -165,6 +166,32 @@
                     </div>
                     <field name="amount_saldo_cancelar" nolabel="1" class="oe_subtotal_footer_separator fw-bold fs-4" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                 </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Buscar, filtrar y agrupar cotizaciones por concesionario (líder del equipo del vendedor) -->
+    <record id="view_sales_order_filter_cotizador" model="ir.ui.view">
+        <field name="name">sale.order.search.cotizador</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="lider_equipo_id"/>
+            </xpath>
+            <xpath expr="//search" position="inside">
+                <filter name="group_by_concesionario" string="Concesionario" context="{'group_by': 'lider_equipo_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="sale_order_tree_cotizador" model="ir.ui.view">
+        <field name="name">sale.order.list.cotizador</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="lider_equipo_id" widget="many2one_avatar_user" optional="show"/>
             </xpath>
         </field>
     </record>

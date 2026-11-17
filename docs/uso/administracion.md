@@ -9,11 +9,33 @@ Guía del **Administrador del Configurador**: dejar el cotizador listo para coti
 2. **Lista de precios** en la moneda en que se cotiza, y elegirla como *Lista de Precios de Cotizaciones*
    (abajo).
 3. **Permisos**: dar *Administrador del Configurador* a quien mantiene la matriz (*Ajustes › Usuarios*,
-   sección *Configurador de Sembradoras*). Los vendedores no necesitan nada especial.
+   sección *Configurador de Sembradoras*), y armar los concesionarios y los niveles (abajo).
 4. **Importar la matriz**: [Mantener la matriz](matriz.md).
 5. **Planes de pago**: cargar las plantillas (*Plantillas Planes de Pago*).
 6. **Tienda**: publicar las máquinas, configurar el captcha (*Ajustes › Sitio web*) y elegir el modo de la
    tienda.
+
+## Niveles de usuario
+
+Qué ve y edita cada nivel: [Guía de uso › Niveles de usuario](index.md#niveles-de-usuario).
+
+1. **Concesionarios**: uno por *equipo de ventas* (*CRM › Configuración › Equipos de ventas*, o *Ventas ›
+   Configuración › Equipos de ventas*). En cada uno:
+   - **Líder del equipo**: el usuario del concesionario;
+   - **Miembros**: sus vendedores;
+   - **Supervisor de Zona**: el supervisor de la zona del concesionario. Los equipos con el mismo supervisor
+     forman su zona; la lista de equipos se puede agrupar por supervisor.
+2. **Nivel de cada usuario** (*Ajustes › Usuarios*, sección *Ventas*):
+
+   | Nivel | *Ventas* | *Nivel Comercial (Cotizador)* |
+   |---|---|---|
+   | Vendedor | Usuario: solo sus documentos | *Vendedor (solo lo suyo)*, sin elegir otro |
+   | Líder de concesionario | Usuario: solo sus documentos | Líder de Concesionario |
+   | Supervisor de zona | Usuario: solo sus documentos | Supervisor de Zona |
+   | Gerencia | Usuario: todos los documentos (o Administrador) | *Vendedor (solo lo suyo)*, sin elegir otro |
+
+Un líder ve lo de todos los equipos que lidera, y un supervisor, lo de todos los que supervisa: no hace falta
+un usuario por zona.
 
 ## Ajustes
 

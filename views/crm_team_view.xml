@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Concesionario = equipo de ventas: su líder es el usuario del concesionario y el supervisor de zona ve
+         en solo lectura lo del equipo (security/cotizador_security.xml). -->
+    <record id="crm_team_view_form_cotizador" model="ir.ui.view">
+        <field name="name">crm.team.form.cotizador</field>
+        <field name="model">crm.team</field>
+        <field name="inherit_id" ref="sales_team.crm_team_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="cotizador_supervisor_id" widget="many2one_avatar_user"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="crm_team_view_tree_cotizador" model="ir.ui.view">
+        <field name="name">crm.team.list.cotizador</field>
+        <field name="model">crm.team</field>
+        <field name="inherit_id" ref="sales_team.crm_team_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="cotizador_supervisor_id" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="crm_team_view_search_cotizador" model="ir.ui.view">
+        <field name="name">crm.team.search.cotizador</field>
+        <field name="model">crm.team</field>
+        <field name="inherit_id" ref="sales_team.crm_team_view_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <field name="cotizador_supervisor_id"/>
+                <filter name="group_by_supervisor" string="Supervisor de Zona" context="{'group_by': 'cotizador_supervisor_id'}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

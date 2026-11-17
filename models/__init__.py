@@ -20,4 +20,5 @@ from . import equipo_usado_wizard
 from . import descuento_wizard
 from . import res_users_inherit
 from . import res_company
+from . import crm_team
 

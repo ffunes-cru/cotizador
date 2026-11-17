@@ -49,6 +49,7 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `product_attribute_inherit.py` | Opciones de visualización del atributo; `cotizador_qty` del valor. |
 | `sale_order_inherit.py` | **Cotización**: alta de una configuración, cascada de totales, sincronización con el CRM, modos de aceptación en el portal, BCRA, impresión. Líneas: `cotizador_section` y marcas de descuento, usado y plan de pago. |
 | `crm_lead_inherit.py` | Oportunidad: configuración pedida en la web, IP, *Crear Cotización*, ingreso esperado en moneda de la compañía. |
+| `crm_team.py` | Equipo de ventas = concesionario: *Supervisor de Zona* para los niveles de usuario (reglas en `security/`, ver [Seguridad](seguridad.md#niveles-comerciales-concesionario-zona-gerencia)). |
 | `configurator_service.py` | RPC del configurador del vendedor. |
 | `sembradora_import_wizard.py` | Importador CSV (ver [importador](importador.md)). |
 | `engineering_code_wizard.py` | Códigos Teamcenter: plantilla, simulación y aplicación por SQL. |
@@ -73,7 +74,7 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `report/report_cotizacion_planes.xml` | Cotización impresa con hoja de planes de pago. |
 | `data/product_category_data.xml` | Categorías *Máquina* y *Accesorio* (`noupdate`). |
 | `data/product_plan_pago_data.xml` | Un producto de servicio por tipo de plan de pago. |
-| `security/` | Grupo *Administrador del Configurador* y permisos por modelo. |
+| `security/` | Grupo *Administrador del Configurador*, niveles comerciales (*Líder de Concesionario*, *Supervisor de Zona*) con sus reglas, y permisos por modelo. |
 | `tests/` | Tests (Python, HTTP y tours). `common.py` tiene el CSV de ejemplo. |
 | `tools/documentacion.py` | Verificador de documentación y generador de [la referencia](referencia.md). |
 | `tools/complejidad.py` | Mide la complejidad ciclomática de cada función y genera la parte automática de [Mantenibilidad](mantenibilidad.md). No lo carga Odoo. |

@@ -5,7 +5,7 @@
     "summary": "Cotizador de maquinaria agrícola configurable",
     # Sin esto Odoo muestra README.md interpretándolo como reStructuredText
     "description": "Cotizador de maquinaria agrícola configurable. Documentación: README.md y docs/.",
-    "version": '19.0.2.0.0',
+    "version": '19.0.2.1.0',
     "author": "Franco Funes",
     "license": "AGPL-3",
     "depends": [
@@ -40,6 +40,7 @@
         'views/equipo_usado_wizard_view.xml',
         'views/descuento_wizard_view.xml',
         'views/crm_lead_view.xml',
+        'views/crm_team_view.xml',
     ],
     'assets': {
         'web.assets_backend': [

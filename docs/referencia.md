@@ -229,7 +229,13 @@ Sin campos propios.
 | `cotizador_config_id` | many2one | Configuración Solicitada | → `sembradora.config.rel`; Configuración elegida en la tienda online. "Crear Cotización" arma la cotización con esta máquina y su equipamiento estándar. |
 | `cotizador_request_ip` | char | IP de la Solicitud Web | IP desde la que se envió la solicitud de cotización en la tienda (control de abuso). |
 | `equipo_cotizado_id` | many2one | Equipo (Sembradora/Ferti) | → `product.template`; Modelo de máquina cotizada o de interés (categoría Máquina). |
-| `lider_equipo_id` | many2one | Líder de Equipo | → `res.users`; calculado (guardado); Líder o responsable del equipo de ventas. |
+| `lider_equipo_id` | many2one | Concesionario | → `res.users`; calculado (guardado); Líder del equipo de ventas: el usuario del concesionario. Se propone solo a partir del equipo y se actualiza desde la cotización cuando cambia el equipo. |
+
+### `crm.team` — Sales Team
+
+| Campo | Tipo | Etiqueta | Detalle |
+|---|---|---|---|
+| `cotizador_supervisor_id` | many2one | Supervisor de Zona | → `res.users`; Usuario con el nivel Supervisor de Zona que ve, en solo lectura, las cotizaciones y oportunidades de este concesionario. |
 
 ### `product.attribute` — Product Attribute
 
@@ -318,6 +324,7 @@ Sin campos propios.
 | `condiciones_generales` | text | Condiciones Generales | Condiciones comerciales constantes preconfiguradas que se imprimen al pie de la cotización. |
 | `descuento_line_ids` | one2many | Descuentos Aplicados | → `sale.order.line`; calculado |
 | `equipo_cotizado_id` | many2one | Equipo Cotizado | → `product.template`; calculado (guardado); Modelo de máquina cotizada (categoría Máquina). |
+| `lider_equipo_id` | many2one | Concesionario | → `res.users`; related `team_id.user_id`; Líder del equipo de ventas del vendedor: el usuario del concesionario. Odoo calcula el equipo a partir del vendedor, así que cambia solo al cambiar el vendedor. |
 | `plan_pago_line_ids` | many2many | Planes de Pago a Imprimir | → `cotizador.plan.pago.template.line`; Seleccione qué planes de pago se imprimirán en la hoja de planes de pago de esta cotización. |
 | `portal_confirmation_allowed` | boolean | Firma del Cliente Habilitada | Si el modo es "Habilitado por el Vendedor", active esta casilla para que el cliente pueda ver el botón "Aceptar y Firmar" en el portal web. |
 | `portal_confirmation_mode` | selection | Modo de Aceptación Portal | valores: `standard`, `salesman_enables`, `salesman_only`; obligatorio; Determina si el cliente puede firmar/aceptar esta cotización desde el portal web o si requiere habilitación del comercial. |
