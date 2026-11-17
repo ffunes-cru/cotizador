@@ -51,6 +51,18 @@ class TestNivelesUsuario(CotizadorCase):
         """Registros de `registros` que el usuario encuentra al buscar (aplica las reglas)."""
         return registros.with_user(usuario).search([('id', 'in', registros.ids)])
 
+    def test_concesionario_es_el_lider_del_equipo_del_vendedor(self):
+        self.assertEqual(self.cot_vendedor_a.lider_equipo_id, self.lider_a)
+        # Odoo calcula el equipo a partir del vendedor: cambiar el vendedor cambia el concesionario
+        cotizacion = self.env['sale.order'].create({'partner_id': self.partner.id, 'pricelist_id': self.pricelist.id,
+                                                    'user_id': self.vendedor_a.id})
+        self.assertEqual((cotizacion.team_id, cotizacion.lider_equipo_id), (self.conc_a, self.lider_a))
+        cotizacion.user_id = self.vendedor_b
+        self.assertEqual((cotizacion.team_id, cotizacion.lider_equipo_id), (self.conc_b, self.lider_b))
+        concesionario_a = self.env['sale.order'].search([('lider_equipo_id', '=', self.lider_a.id)])
+        self.assertIn(self.cot_vendedor_a, concesionario_a)
+        self.assertNotIn(self.cot_vendedor_b, concesionario_a)
+
     def test_vendedor_solo_lo_suyo(self):
         self.assertEqual(self._ve(self.vendedor_a, self.todas), self.cot_vendedor_a)
         with self.assertRaises(AccessError):
@@ -89,6 +101,7 @@ class TestNivelesUsuario(CotizadorCase):
         propia.write({'user_id': self.lider_a.id})
         self.assertEqual(oportunidad.user_id, self.lider_a)
         self.assertEqual(oportunidad.lider_equipo_id, self.lider_a)
+        self.assertEqual(propia.lider_equipo_id, self.lider_a)  # Concesionario = líder del equipo del vendedor
         self.assertIn(propia, self._ve(self.lider_a, propia))
         # Desde ahí el supervisor solo la ve
         self.assertEqual(propia.with_user(self.supervisor).read(['client_order_ref'])[0]['client_order_ref'], 'MIA')
@@ -102,6 +115,7 @@ class TestNivelesUsuario(CotizadorCase):
         cotizacion.write({'team_id': self.conc_b.id, 'user_id': self.vendedor_b.id})
         self.assertEqual(cotizacion.opportunity_id.team_id, self.conc_b)
         self.assertEqual(cotizacion.opportunity_id.lider_equipo_id, self.lider_b)
+        self.assertEqual(cotizacion.lider_equipo_id, self.lider_b)
 
     def test_gerencia_ve_todo(self):
         self.assertEqual(self._ve(self.gerente, self.todas), self.todas)

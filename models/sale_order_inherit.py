@@ -110,6 +110,14 @@ class SaleOrderInherit(models.Model):
     )
 
     # --- Equipo Cotizado (Categoría Máquina) ---
+    lider_equipo_id = fields.Many2one(
+        'res.users',
+        string='Concesionario',
+        related='team_id.user_id',
+        store=True,
+        help='Líder del equipo de ventas del vendedor: el usuario del concesionario. Odoo calcula el equipo '
+             'a partir del vendedor, así que cambia solo al cambiar el vendedor.',
+    )
     equipo_cotizado_id = fields.Many2one(
         'product.template',
         string='Equipo Cotizado',

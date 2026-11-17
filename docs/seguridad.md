@@ -36,7 +36,9 @@ Pedido en el issue #1. Se apoya en el estándar de Ventas y agrega solo lo que f
 | Supervisor de Zona | `sale.order`, `sale.report`, `crm.lead`, `crm.activity.report` | `team_id.cotizador_supervisor_id = usuario` | Solo lectura |
 | | `sale.order.line` | `order_id.team_id.cotizador_supervisor_id = usuario` | Solo lectura |
 
-El supervisor escribe solo lo suyo por la regla estándar. Al asignar una cotización (cambiar *Vendedor*), Odoo
+En la cotización, *Concesionario* (`sale.order.lider_equipo_id`) es el líder del equipo del vendedor, relacionado y
+guardado (`team_id.user_id`) para filtrar y agrupar; el equipo lo calcula Odoo a partir del vendedor. El supervisor
+escribe solo lo suyo por la regla estándar. Al asignar una cotización (cambiar *Vendedor*), Odoo
 controla el permiso **antes** de escribir, cuando todavía es suya; desde ahí queda en solo lectura. La
 oportunidad la actualiza `sale.order._sync_with_crm()` con `sudo()`, porque en ese momento deja de ser del
 supervisor. No se restringen los contactos (`res.partner`), que comparten todos los módulos, ni las facturas.

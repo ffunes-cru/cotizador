@@ -324,6 +324,7 @@ Sin campos propios.
 | `condiciones_generales` | text | Condiciones Generales | Condiciones comerciales constantes preconfiguradas que se imprimen al pie de la cotización. |
 | `descuento_line_ids` | one2many | Descuentos Aplicados | → `sale.order.line`; calculado |
 | `equipo_cotizado_id` | many2one | Equipo Cotizado | → `product.template`; calculado (guardado); Modelo de máquina cotizada (categoría Máquina). |
+| `lider_equipo_id` | many2one | Concesionario | → `res.users`; related `team_id.user_id`; Líder del equipo de ventas del vendedor: el usuario del concesionario. Odoo calcula el equipo a partir del vendedor, así que cambia solo al cambiar el vendedor. |
 | `plan_pago_line_ids` | many2many | Planes de Pago a Imprimir | → `cotizador.plan.pago.template.line`; Seleccione qué planes de pago se imprimirán en la hoja de planes de pago de esta cotización. |
 | `portal_confirmation_allowed` | boolean | Firma del Cliente Habilitada | Si el modo es "Habilitado por el Vendedor", active esta casilla para que el cliente pueda ver el botón "Aceptar y Firmar" en el portal web. |
 | `portal_confirmation_mode` | selection | Modo de Aceptación Portal | valores: `standard`, `salesman_enables`, `salesman_only`; obligatorio; Determina si el cliente puede firmar/aceptar esta cotización desde el portal web o si requiere habilitación del comercial. |

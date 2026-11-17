@@ -315,8 +315,8 @@ python -m coverage report --show-missing
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | Servidor | 253 | 3155 | 5.5 | 57 | 26 | 175 | 52 | 17 | 7 | 1 | 1 |
 | Navegador | 86 | 946 | 3.3 | 43 | 4 | 76 | 6 | 2 | 1 | 0 | 1 |
-| Tests | 132 | 1109 | 1.5 | 8 | 0 | 130 | 2 | 0 | 0 | 0 | 0 |
-| **Total** | 471 | 5210 | 4.0 | 57 | 30 | 381 | 60 | 19 | 8 | 1 | 2 |
+| Tests | 133 | 1121 | 1.5 | 8 | 0 | 131 | 2 | 0 | 0 | 0 | 0 |
+| **Total** | 472 | 5222 | 4.0 | 57 | 30 | 382 | 60 | 19 | 8 | 1 | 2 |
 
 ## Funciones que requieren atención (CCN > 10)
 
@@ -338,7 +338,7 @@ Ordenadas de mayor a menor complejidad.
 | 20 | C | `action_generate_template` | [models/engineering_code_wizard.py:76](../models/engineering_code_wizard.py#L76) | 85 | 1 |
 | 19 | C | `grids_from_xlsx` | [models/config_sheet.py:347](../models/config_sheet.py#L347) | 29 | 2 |
 | 18 | C | `_compute_name` | [models/plan_pago.py:87](../models/plan_pago.py#L87) | 12 | 1 |
-| 18 | C | `_cotizador_add_configuration` | [models/sale_order_inherit.py:678](../models/sale_order_inherit.py#L678) | 47 | 3 |
+| 18 | C | `_cotizador_add_configuration` | [models/sale_order_inherit.py:686](../models/sale_order_inherit.py#L686) | 47 | 3 |
 | 18 | C | `_parse_line` | [models/sembradora_import_wizard.py:380](../models/sembradora_import_wizard.py#L380) | 40 | 9 |
 | 16 | C | `_column_metadata` | [models/config_sheet.py:219](../models/config_sheet.py#L219) | 24 | 4 |
 | 15 | C | `action_confirm` | [models/descuento_wizard.py:102](../models/descuento_wizard.py#L102) | 47 | 1 |
@@ -352,7 +352,7 @@ Ordenadas de mayor a menor complejidad.
 | 11 | C | `_create_lead` | [controllers/main.py:232](../controllers/main.py#L232) | 29 | 11 |
 | 11 | C | `_parse_deudas` | [models/bcra_service.py:96](../models/bcra_service.py#L96) | 26 | 1 |
 | 11 | C | `grid_files` | [models/config_sheet.py:387](../models/config_sheet.py#L387) | 19 | 4 |
-| 11 | C | `action_ver_bcra_wizard` | [models/sale_order_inherit.py:359](../models/sale_order_inherit.py#L359) | 47 | 1 |
+| 11 | C | `action_ver_bcra_wizard` | [models/sale_order_inherit.py:367](../models/sale_order_inherit.py#L367) | 47 | 1 |
 | 11 | C | `_read_files` | [models/sembradora_import_wizard.py:221](../models/sembradora_import_wizard.py#L221) | 23 | 2 |
 
 ## Por archivo
@@ -388,7 +388,7 @@ Ordenadas de mayor a menor complejidad.
 | [tests/test_documentacion.py](../tests/test_documentacion.py) | 2 | 7 | 1.0 | 1 | A | 0 |
 | [tests/test_import_mirror.py](../tests/test_import_mirror.py) | 11 | 103 | 1.2 | 2 | A | 0 |
 | [tests/test_importer.py](../tests/test_importer.py) | 11 | 123 | 1.5 | 3 | A | 0 |
-| [tests/test_niveles_usuario.py](../tests/test_niveles_usuario.py) | 11 | 81 | 1.0 | 1 | A | 0 |
+| [tests/test_niveles_usuario.py](../tests/test_niveles_usuario.py) | 12 | 93 | 1.0 | 1 | A | 0 |
 | [tests/test_public_quote.py](../tests/test_public_quote.py) | 11 | 80 | 1.4 | 2 | A | 0 |
 | [tests/test_review_fixes.py](../tests/test_review_fixes.py) | 11 | 75 | 1.1 | 2 | A | 0 |
 | [tests/test_teamcenter.py](../tests/test_teamcenter.py) | 19 | 142 | 1.7 | 5 | A | 0 |
@@ -593,49 +593,49 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | [41](../models/sale_order_inherit.py#L41) | `_default_condiciones_generales` | 1 | A | 5 | 1 |
 | [59](../models/sale_order_inherit.py#L59) | `_default_plan_pago_line_ids` | 2 | A | 7 | 1 |
 | [83](../models/sale_order_inherit.py#L83) | `_default_portal_confirmation_mode` | 1 | A | 4 | 1 |
-| [123](../models/sale_order_inherit.py#L123) | `_get_maquina_template` | 1 | A | 3 | 1 |
-| [132](../models/sale_order_inherit.py#L132) | `_compute_equipo_cotizado_id` | 4 | A | 7 | 1 |
-| [223](../models/sale_order_inherit.py#L223) | `_compute_totales_cotizador` | 2 | A | 23 | 1 |
-| [254](../models/sale_order_inherit.py#L254) | `_cotizador_tax_groups` | 5 | A | 10 | 2 |
-| [273](../models/sale_order_inherit.py#L273) | `_cotizador_update_adjustments` | 10 | B | 16 | 1 |
-| [298](../models/sale_order_inherit.py#L298) | `_recompute_prices` | 1 | A | 3 | 1 |
-| [308](../models/sale_order_inherit.py#L308) | `_cotizador_simulate_plan` | 3 | A | 7 | 2 |
-| [326](../models/sale_order_inherit.py#L326) | `_compute_lineas_especiales` | 2 | A | 4 | 1 |
-| [335](../models/sale_order_inherit.py#L335) | `_onchange_partner_id_bcra` | 9 | B | 17 | 1 |
-| [359](../models/sale_order_inherit.py#L359) | `action_ver_bcra_wizard` | 11 | C | 47 | 1 |
-| [419](../models/sale_order_inherit.py#L419) | `_sync_with_crm` | 8 | B | 23 | 1 |
-| [456](../models/sale_order_inherit.py#L456) | `_crm_lead_changes` | 8 | B | 13 | 2 |
-| [476](../models/sale_order_inherit.py#L476) | `_onchange_equipo_cotizado_id_pricelist` | 3 | A | 4 | 1 |
-| [483](../models/sale_order_inherit.py#L483) | `create` | 9 | B | 15 | 2 |
-| [505](../models/sale_order_inherit.py#L505) | `write` | 3 | A | 5 | 2 |
-| [516](../models/sale_order_inherit.py#L516) | `action_enable_portal_confirmation` | 1 | A | 11 | 1 |
-| [529](../models/sale_order_inherit.py#L529) | `action_disable_portal_confirmation` | 1 | A | 10 | 1 |
-| [541](../models/sale_order_inherit.py#L541) | `_has_to_be_signed` | 5 | A | 10 | 1 |
-| [557](../models/sale_order_inherit.py#L557) | `_has_to_be_paid` | 5 | A | 10 | 1 |
-| [573](../models/sale_order_inherit.py#L573) | `_confirmation_error_message` | 9 | B | 15 | 1 |
-| [593](../models/sale_order_inherit.py#L593) | `action_confirm` | 7 | B | 21 | 1 |
-| [625](../models/sale_order_inherit.py#L625) | `_cotizador_print` | 1 | A | 4 | 2 |
-| [637](../models/sale_order_inherit.py#L637) | `print_quotation` | 2 | A | 2 | 1 |
-| [646](../models/sale_order_inherit.py#L646) | `_cotizador_price_date` | 2 | A | 2 | 1 |
-| [653](../models/sale_order_inherit.py#L653) | `_cotizador_machine_price` | 1 | A | 6 | 2 |
-| [665](../models/sale_order_inherit.py#L665) | `_cotizador_accessory_price` | 1 | A | 6 | 2 |
-| [678](../models/sale_order_inherit.py#L678) | `_cotizador_add_configuration` | 18 | C | 47 | 3 |
-| [754](../models/sale_order_inherit.py#L754) | `action_open_config_wizard` | 3 | A | 14 | 1 |
-| [773](../models/sale_order_inherit.py#L773) | `action_open_plan_pago_wizard` | 2 | A | 25 | 1 |
-| [803](../models/sale_order_inherit.py#L803) | `action_open_equipo_usado_wizard` | 5 | A | 12 | 1 |
-| [821](../models/sale_order_inherit.py#L821) | `action_open_descuento_wizard` | 5 | A | 12 | 1 |
-| [839](../models/sale_order_inherit.py#L839) | `action_open_discount_wizard` | 1 | A | 2 | 1 |
-| [886](../models/sale_order_inherit.py#L886) | `_is_cotizador_product_line` | 4 | A | 3 | 1 |
-| [894](../models/sale_order_inherit.py#L894) | `_compute_price_unit` | 3 | A | 3 | 1 |
-| [903](../models/sale_order_inherit.py#L903) | `_get_product_price_context` | 3 | A | 5 | 1 |
-| [917](../models/sale_order_inherit.py#L917) | `create` | 2 | A | 5 | 2 |
-| [928](../models/sale_order_inherit.py#L928) | `write` | 3 | A | 5 | 2 |
-| [939](../models/sale_order_inherit.py#L939) | `unlink` | 2 | A | 6 | 1 |
-| [950](../models/sale_order_inherit.py#L950) | `_get_parent_order` | 7 | B | 14 | 1 |
-| [970](../models/sale_order_inherit.py#L970) | `action_open_config_wizard` | 1 | A | 2 | 1 |
-| [977](../models/sale_order_inherit.py#L977) | `action_open_equipo_usado_wizard` | 1 | A | 2 | 1 |
-| [984](../models/sale_order_inherit.py#L984) | `action_open_descuento_wizard` | 1 | A | 2 | 1 |
-| [991](../models/sale_order_inherit.py#L991) | `action_open_discount_wizard` | 1 | A | 2 | 1 |
+| [131](../models/sale_order_inherit.py#L131) | `_get_maquina_template` | 1 | A | 3 | 1 |
+| [140](../models/sale_order_inherit.py#L140) | `_compute_equipo_cotizado_id` | 4 | A | 7 | 1 |
+| [231](../models/sale_order_inherit.py#L231) | `_compute_totales_cotizador` | 2 | A | 23 | 1 |
+| [262](../models/sale_order_inherit.py#L262) | `_cotizador_tax_groups` | 5 | A | 10 | 2 |
+| [281](../models/sale_order_inherit.py#L281) | `_cotizador_update_adjustments` | 10 | B | 16 | 1 |
+| [306](../models/sale_order_inherit.py#L306) | `_recompute_prices` | 1 | A | 3 | 1 |
+| [316](../models/sale_order_inherit.py#L316) | `_cotizador_simulate_plan` | 3 | A | 7 | 2 |
+| [334](../models/sale_order_inherit.py#L334) | `_compute_lineas_especiales` | 2 | A | 4 | 1 |
+| [343](../models/sale_order_inherit.py#L343) | `_onchange_partner_id_bcra` | 9 | B | 17 | 1 |
+| [367](../models/sale_order_inherit.py#L367) | `action_ver_bcra_wizard` | 11 | C | 47 | 1 |
+| [427](../models/sale_order_inherit.py#L427) | `_sync_with_crm` | 8 | B | 23 | 1 |
+| [464](../models/sale_order_inherit.py#L464) | `_crm_lead_changes` | 8 | B | 13 | 2 |
+| [484](../models/sale_order_inherit.py#L484) | `_onchange_equipo_cotizado_id_pricelist` | 3 | A | 4 | 1 |
+| [491](../models/sale_order_inherit.py#L491) | `create` | 9 | B | 15 | 2 |
+| [513](../models/sale_order_inherit.py#L513) | `write` | 3 | A | 5 | 2 |
+| [524](../models/sale_order_inherit.py#L524) | `action_enable_portal_confirmation` | 1 | A | 11 | 1 |
+| [537](../models/sale_order_inherit.py#L537) | `action_disable_portal_confirmation` | 1 | A | 10 | 1 |
+| [549](../models/sale_order_inherit.py#L549) | `_has_to_be_signed` | 5 | A | 10 | 1 |
+| [565](../models/sale_order_inherit.py#L565) | `_has_to_be_paid` | 5 | A | 10 | 1 |
+| [581](../models/sale_order_inherit.py#L581) | `_confirmation_error_message` | 9 | B | 15 | 1 |
+| [601](../models/sale_order_inherit.py#L601) | `action_confirm` | 7 | B | 21 | 1 |
+| [633](../models/sale_order_inherit.py#L633) | `_cotizador_print` | 1 | A | 4 | 2 |
+| [645](../models/sale_order_inherit.py#L645) | `print_quotation` | 2 | A | 2 | 1 |
+| [654](../models/sale_order_inherit.py#L654) | `_cotizador_price_date` | 2 | A | 2 | 1 |
+| [661](../models/sale_order_inherit.py#L661) | `_cotizador_machine_price` | 1 | A | 6 | 2 |
+| [673](../models/sale_order_inherit.py#L673) | `_cotizador_accessory_price` | 1 | A | 6 | 2 |
+| [686](../models/sale_order_inherit.py#L686) | `_cotizador_add_configuration` | 18 | C | 47 | 3 |
+| [762](../models/sale_order_inherit.py#L762) | `action_open_config_wizard` | 3 | A | 14 | 1 |
+| [781](../models/sale_order_inherit.py#L781) | `action_open_plan_pago_wizard` | 2 | A | 25 | 1 |
+| [811](../models/sale_order_inherit.py#L811) | `action_open_equipo_usado_wizard` | 5 | A | 12 | 1 |
+| [829](../models/sale_order_inherit.py#L829) | `action_open_descuento_wizard` | 5 | A | 12 | 1 |
+| [847](../models/sale_order_inherit.py#L847) | `action_open_discount_wizard` | 1 | A | 2 | 1 |
+| [894](../models/sale_order_inherit.py#L894) | `_is_cotizador_product_line` | 4 | A | 3 | 1 |
+| [902](../models/sale_order_inherit.py#L902) | `_compute_price_unit` | 3 | A | 3 | 1 |
+| [911](../models/sale_order_inherit.py#L911) | `_get_product_price_context` | 3 | A | 5 | 1 |
+| [925](../models/sale_order_inherit.py#L925) | `create` | 2 | A | 5 | 2 |
+| [936](../models/sale_order_inherit.py#L936) | `write` | 3 | A | 5 | 2 |
+| [947](../models/sale_order_inherit.py#L947) | `unlink` | 2 | A | 6 | 1 |
+| [958](../models/sale_order_inherit.py#L958) | `_get_parent_order` | 7 | B | 14 | 1 |
+| [978](../models/sale_order_inherit.py#L978) | `action_open_config_wizard` | 1 | A | 2 | 1 |
+| [985](../models/sale_order_inherit.py#L985) | `action_open_equipo_usado_wizard` | 1 | A | 2 | 1 |
+| [992](../models/sale_order_inherit.py#L992) | `action_open_descuento_wizard` | 1 | A | 2 | 1 |
+| [999](../models/sale_order_inherit.py#L999) | `action_open_discount_wizard` | 1 | A | 2 | 1 |
 
 </details>
 
@@ -986,7 +986,7 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 
 </details>
 
-<details><summary><code>tests/test_niveles_usuario.py</code> — 11 funciones, CCN máxima 1</summary>
+<details><summary><code>tests/test_niveles_usuario.py</code> — 12 funciones, CCN máxima 1</summary>
 
 | Línea | Función | CCN | Rango | Líneas de código | Parámetros |
 |--:|---|--:|:-:|--:|--:|
@@ -995,12 +995,13 @@ Por archivo y en orden de aparición. Las funciones anónimas de JavaScript (cal
 | [34](../tests/test_niveles_usuario.py#L34) | `setUpClass.cotizacion` | 1 | A | 3 | 2 |
 | [43](../tests/test_niveles_usuario.py#L43) | `setUpClass.oportunidad` | 1 | A | 3 | 2 |
 | [50](../tests/test_niveles_usuario.py#L50) | `_ve` | 1 | A | 2 | 3 |
-| [54](../tests/test_niveles_usuario.py#L54) | `test_vendedor_solo_lo_suyo` | 1 | A | 4 | 1 |
-| [59](../tests/test_niveles_usuario.py#L59) | `test_lider_todo_su_concesionario` | 1 | A | 8 | 1 |
-| [69](../tests/test_niveles_usuario.py#L69) | `test_supervisor_lee_su_zona_sin_editar` | 1 | A | 9 | 1 |
-| [79](../tests/test_niveles_usuario.py#L79) | `test_supervisor_crea_y_asigna_a_un_concesionario` | 1 | A | 15 | 1 |
-| [98](../tests/test_niveles_usuario.py#L98) | `test_cambio_de_concesionario_actualiza_la_oportunidad` | 1 | A | 7 | 1 |
-| [106](../tests/test_niveles_usuario.py#L106) | `test_gerencia_ve_todo` | 1 | A | 3 | 1 |
+| [54](../tests/test_niveles_usuario.py#L54) | `test_concesionario_es_el_lider_del_equipo_del_vendedor` | 1 | A | 10 | 1 |
+| [66](../tests/test_niveles_usuario.py#L66) | `test_vendedor_solo_lo_suyo` | 1 | A | 4 | 1 |
+| [71](../tests/test_niveles_usuario.py#L71) | `test_lider_todo_su_concesionario` | 1 | A | 8 | 1 |
+| [81](../tests/test_niveles_usuario.py#L81) | `test_supervisor_lee_su_zona_sin_editar` | 1 | A | 9 | 1 |
+| [91](../tests/test_niveles_usuario.py#L91) | `test_supervisor_crea_y_asigna_a_un_concesionario` | 1 | A | 16 | 1 |
+| [111](../tests/test_niveles_usuario.py#L111) | `test_cambio_de_concesionario_actualiza_la_oportunidad` | 1 | A | 8 | 1 |
+| [120](../tests/test_niveles_usuario.py#L120) | `test_gerencia_ve_todo` | 1 | A | 3 | 1 |
 
 </details>
 

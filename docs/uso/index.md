@@ -41,12 +41,13 @@ edita cada uno en cotizaciones y oportunidades del CRM:
 | Nivel | Ve | Edita |
 |---|---|---|
 | **Gerencia** | Todo | Todo |
-| **Supervisor de zona** | Lo de los concesionarios de su zona, y puede filtrar o agrupar por concesionario | Solo lo que crea él. Cuando asigna una cotización a un concesionario, la sigue viendo pero ya no la edita. |
+| **Supervisor de zona** | Lo de los concesionarios de su zona, y puede filtrar o agrupar por concesionario | Solo lo que crea él. Cuando asigna una cotización a un vendedor de un concesionario, la sigue viendo pero ya no la edita. |
 | **Líder de concesionario** | Todo lo de su concesionario | Todo lo de su concesionario, incluido lo de sus vendedores |
 | **Vendedor** | Solo lo suyo | Solo lo suyo |
 
-Para asignar una cotización, el supervisor completa **Concesionario** y **Vendedor** (el líder o un vendedor del
-concesionario). Los contactos (clientes) no se restringen: los ve cualquier usuario de Ventas.
+Para asignar una cotización, el supervisor elige el **Vendedor** (pestaña *Otra información*): el líder o un
+vendedor del concesionario. El equipo y el **Concesionario** (el líder del equipo, junto al cliente) se completan
+solos. Las listas de cotizaciones se pueden filtrar y agrupar por *Concesionario*. Los contactos (clientes) no se restringen: los ve cualquier usuario de Ventas.
 
 Cómo se configura: [Puesta en marcha y ajustes › Niveles de usuario](administracion.md#niveles-de-usuario).
 
