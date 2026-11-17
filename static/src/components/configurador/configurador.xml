@@ -4,7 +4,7 @@
         <div class="o_cotizador_configurator h-100 d-flex flex-column bg-view overflow-hidden" t-ref="root">
             
             <!-- Barra Superior / Encabezado y Stepper -->
-            <header class="navbar navbar-expand bg-body border-bottom px-3 px-md-4 py-2 shadow-sm flex-shrink-0 z-2">
+            <header class="navbar navbar-expand bg-view border-bottom px-3 px-md-4 py-2 shadow-sm flex-shrink-0 z-2">
                 <div class="d-flex align-items-center gap-2 gap-md-3">
                     <div class="brand-badge bg-primary text-white rounded-3 p-2 d-flex align-items-center justify-content-center shadow-sm">
                         <i class="fa fa-sliders fs-5"/>
@@ -122,7 +122,7 @@
                                          t-on-click="() => this.selectModel(model)">
                                         
                                         <!-- Contenedor de Imagen de la Máquina -->
-                                        <div class="model-image-container bg-body-tertiary p-3 border-bottom">
+                                        <div class="model-image-container bg-100 p-3 border-bottom">
                                             <img t-if="model.has_image"
                                                  t-att-src="model.image_url"
                                                  t-att-alt="model.name"/>
@@ -131,7 +131,7 @@
                                                 <small class="text-muted fw-semibold">Sin imagen cargada</small>
                                             </div>
 
-                                            <span class="badge bg-body text-body border rounded-pill position-absolute top-0 end-0 m-2 shadow-sm px-2 py-1 fs-8">
+                                            <span class="badge bg-view text-body border rounded-pill position-absolute top-0 end-0 m-2 shadow-sm px-2 py-1 fs-8">
                                                 <t t-esc="model.config_count"/> configs
                                             </span>
                                         </div>
@@ -147,7 +147,7 @@
                                                 Cód: <t t-esc="model.default_code"/>
                                             </small>
 
-                                            <p t-if="model.description" class="text-muted small flex-grow-1 text-truncate-2 mb-3">
+                                            <p t-if="model.description" class="text-muted small flex-grow-1 o_cotizador_dos_lineas mb-3">
                                                 <t t-esc="model.description"/>
                                             </p>
                                             <div t-else="" class="flex-grow-1"/>
@@ -169,9 +169,9 @@
                     <div t-elif="state.step === 'configure_attributes'" class="step-container step-container-narrow">
                         
                         <!-- Barra Superior del Modelo Seleccionado con Miniatura -->
-                        <div class="d-flex align-items-center justify-content-between p-3 bg-body rounded-4 shadow-sm border mb-4">
+                        <div class="d-flex align-items-center justify-content-between p-3 bg-view rounded-4 shadow-sm border mb-4">
                             <div class="d-flex align-items-center gap-3 min-w-0 me-2">
-                                <div class="o_cotizador_thumb o_cotizador_thumb_md bg-body-tertiary">
+                                <div class="o_cotizador_thumb o_cotizador_thumb_md bg-100">
                                     <img t-if="state.selectedModel.has_image"
                                          t-att-src="state.selectedModel.image_url"
                                          t-att-alt="state.selectedModel.name"/>
@@ -210,7 +210,7 @@
                                     
                                     <!-- Conector Circular en el Tronco -->
                                     <div class="tree-node-marker position-absolute top-0 rounded-circle d-flex align-items-center justify-content-center shadow-sm"
-                                         t-att-class="isNodeDone ? 'bg-success text-white' : (isNodeActive ? 'bg-primary text-white ring-active' : 'bg-body text-muted border')">
+                                         t-att-class="isNodeDone ? 'bg-success text-white' : (isNodeActive ? 'bg-primary text-white ring-active' : 'bg-view text-muted border')">
                                         <i t-if="isNodeDone" class="fa fa-check fs-8"/>
                                         <span t-elif="isNodeActive" class="fs-8 fw-bold"><t t-esc="attrIndex + 1"/></span>
                                         <span t-else="" class="fs-8"><t t-esc="attrIndex + 1"/></span>
@@ -220,7 +220,7 @@
                                         
                                         <!-- ESTADO 1: Nodo Completado (Tira fina y compacta con auto-scroll) -->
                                         <div t-if="isNodeDone" 
-                                             class="tree-leaf-done d-flex align-items-center justify-content-between p-2 px-3 bg-body rounded-3 border shadow-2xs cursor-pointer"
+                                             class="tree-leaf-done d-flex align-items-center justify-content-between p-2 px-3 bg-view rounded-3 border cursor-pointer"
                                              t-on-click="() => this.editAttributeNode(attrIndex)"
                                              title="Haga clic para cambiar esta especificación">
                                             <div class="d-flex align-items-center gap-2 me-2 overflow-hidden min-w-0">
@@ -238,7 +238,7 @@
 
                                         <!-- ESTADO 2: Nodo Activo (Rama abierta para elegir) -->
                                         <div t-elif="isNodeActive" 
-                                             class="tree-leaf-open card rounded-4 border-primary shadow-sm bg-body p-3 p-md-4">
+                                             class="tree-leaf-open card rounded-4 border-primary shadow-sm bg-view p-3 p-md-4">
                                             <div class="d-flex align-items-center justify-content-between mb-3">
                                                 <div>
                                                     <small class="o_cotizador_seccion text-primary">
@@ -270,7 +270,7 @@
 
                                         <!-- ESTADO 3: Nodo Pendiente (Discreto y compacto) -->
                                         <div t-else="" 
-                                             class="tree-leaf-pending p-2 px-3 rounded-3 bg-body-tertiary border text-muted small d-flex align-items-center justify-content-between opacity-75">
+                                             class="tree-leaf-pending p-2 px-3 rounded-3 bg-100 border text-muted small d-flex align-items-center justify-content-between opacity-75">
                                             <span><t t-esc="attr.name"/></span>
                                             <small class="fs-8">Pendiente de pasos anteriores</small>
                                         </div>
@@ -396,12 +396,12 @@
                             <t t-foreach="filteredAccessories" t-as="acc" t-key="acc.line_id">
                                 <t t-set="isSelected" t-value="state.selectedAccessories[acc.line_id]"/>
                                 <div class="col">
-                                    <div class="card h-100 rounded-4 border p-3 accessory-card transition shadow-2xs position-relative"
-                                         t-att-class="isSelected ? 'border-primary bg-primary-subtle bg-opacity-10' : (acc.is_locked ? 'opacity-75 bg-body-tertiary' : 'bg-body')">
+                                    <div class="card h-100 rounded-4 border p-3 accessory-card transition position-relative"
+                                         t-att-class="isSelected ? 'border-primary bg-primary-subtle bg-opacity-10' : (acc.is_locked ? 'opacity-75 bg-100' : 'bg-view')">
                                         
                                         <div class="d-flex align-items-start gap-3">
                                             <!-- Miniatura de Imagen de Accesorio -->
-                                            <div class="o_cotizador_thumb o_cotizador_thumb_lg bg-body">
+                                            <div class="o_cotizador_thumb o_cotizador_thumb_lg bg-view">
                                                 <img t-if="acc.has_image"
                                                      t-att-src="acc.image_url"
                                                      t-att-alt="acc.product_name"/>
@@ -430,7 +430,7 @@
 
                                                 <small class="text-muted d-block text-truncate mb-2">
                                                     <span t-if="acc.default_code" class="me-2">Cód: <t t-esc="acc.default_code"/></span>
-                                                    <span class="badge bg-body text-body border rounded-pill fs-8"><t t-esc="acc.category_name"/></span>
+                                                    <span class="badge bg-view text-body border rounded-pill fs-8"><t t-esc="acc.category_name"/></span>
                                                     <span t-if="acc.is_standard" class="badge text-bg-success rounded-pill fs-8 ms-1" title="Equipamiento estándar: incluido por defecto">
                                                         <i class="fa fa-check-circle me-1"/>Estándar
                                                     </span>
@@ -469,7 +469,7 @@
                 <!-- ======================================================== -->
                 <!-- COLUMNA DERECHA: PANEL LATERAL DE RESUMEN (DESKTOP)       -->
                 <!-- ======================================================== -->
-                <aside class="cotizador-summary-panel d-none d-lg-flex flex-column border-start bg-body flex-shrink-0 z-1">
+                <aside class="cotizador-summary-panel d-none d-lg-flex flex-column border-start bg-view flex-shrink-0 z-1">
                     
                     <!-- Encabezado del Resumen -->
                     <div class="p-3 border-bottom d-flex align-items-center justify-content-between flex-shrink-0">
@@ -483,7 +483,7 @@
                     </div>
 
                     <!-- Máquina, especificaciones, descripción y accesorios (mismas subplantillas que en móvil) -->
-                    <div class="p-3 border-bottom bg-body-tertiary flex-shrink-0">
+                    <div class="p-3 border-bottom bg-100 flex-shrink-0">
                         <small class="o_cotizador_seccion text-muted d-block mb-2">Máquina Base</small>
                         <t t-call="cotizador.Configurador.Maquina"/>
                     </div>
@@ -511,7 +511,7 @@
                     </div>
 
                     <!-- Totales y Botón de Confirmación -->
-                    <div class="p-3 border-top bg-body flex-shrink-0">
+                    <div class="p-3 border-top bg-view flex-shrink-0">
                         <div class="d-flex justify-content-between small text-muted mb-1 fs-8">
                             <span>Precio Base Máquina:</span>
                             <span class="text-body fw-bold"><t t-esc="formatCurrency(state.basePrice)"/></span>
@@ -562,7 +562,7 @@
                 <!-- ========================================== -->
                 <!-- BARRA INFERIOR FLOTANTE (STICKY MOBILE)    -->
                 <!-- ========================================== -->
-                <div class="mobile-bottom-bar d-lg-none border-top p-2 px-3 shadow-lg flex-shrink-0 bg-body z-3">
+                <div class="mobile-bottom-bar d-lg-none border-top p-2 px-3 shadow-lg flex-shrink-0 bg-view z-3">
                     <div class="d-flex align-items-center justify-content-between gap-2">
                         <div>
                             <small class="text-muted fw-bold fs-8 d-block">Total Cotizado</small>
@@ -615,7 +615,7 @@
             <div t-if="state.showMobileSummary" 
                  class="mobile-summary-backdrop position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-end animate-fade-in"
                  t-on-click.self="closeMobileSummary">
-                <div class="mobile-summary-sheet bg-body rounded-top-4 p-3 p-md-4 shadow-lg border-top w-100 overflow-auto">
+                <div class="mobile-summary-sheet bg-view p-3 p-md-4 shadow-lg border-top w-100 overflow-auto">
                     <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                         <div class="d-flex align-items-center gap-2">
                             <i class="fa fa-file-text-o text-primary"/>
@@ -628,7 +628,7 @@
 
                     <div class="mb-3">
                         <small class="o_cotizador_seccion text-muted d-block mb-1">Máquina</small>
-                        <div class="p-2 bg-body-tertiary rounded border">
+                        <div class="p-2 bg-100 rounded border">
                             <t t-call="cotizador.Configurador.Maquina"/>
                         </div>
                     </div>
@@ -648,7 +648,7 @@
                     </div>
 
                     <!-- Totales Compactos -->
-                    <div class="p-3 bg-body-tertiary border rounded-3 mb-3">
+                    <div class="p-3 bg-100 border rounded-3 mb-3">
                         <div class="d-flex justify-content-between small mb-1 fs-8">
                             <span class="text-muted fw-semibold">Precio Base:</span>
                             <span class="text-body fw-bold"><t t-esc="formatCurrency(state.basePrice)"/></span>
@@ -680,7 +680,7 @@
     <!-- Bloques del resumen, compartidos por el panel de escritorio y la hoja de móvil -->
     <t t-name="cotizador.Configurador.Maquina">
         <div t-if="state.selectedModel" class="d-flex align-items-center gap-2">
-            <div class="o_cotizador_thumb bg-body">
+            <div class="o_cotizador_thumb bg-view">
                 <img t-if="state.selectedModel.has_image"
                      t-att-src="state.selectedModel.image_url"
                      t-att-alt="state.selectedModel.name"/>
@@ -714,7 +714,7 @@
 
     <t t-name="cotizador.Configurador.Descripcion">
         <div t-if="activeDescription" class="mb-3">
-            <div class="border rounded-3 p-2 bg-body-tertiary">
+            <div class="border rounded-3 p-2 bg-100">
                 <div class="d-flex align-items-center justify-content-between cursor-pointer"
                      t-on-click="toggleDescriptionCollapse"
                      title="Ver descripción técnica configurada">

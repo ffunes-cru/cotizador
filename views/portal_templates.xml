@@ -229,7 +229,7 @@
                         Esta propuesta preliminar no requiere firma online. La confirmación oficial es gestionada directamente por su asesor comercial.
                     </p>
                 </div>
-                <div t-elif="p_mode == 'salesman_enables' and not sale_order.portal_confirmation_allowed" class="alert alert-warning-subtle border border-warning-subtle o_cotizador_nota">
+                <div t-elif="p_mode == 'salesman_enables' and not sale_order.portal_confirmation_allowed" class="alert alert-warning border border-warning-subtle o_cotizador_nota">
                     <div class="fw-bold text-dark mb-1">
                         <i class="fa fa-hourglass-half text-warning me-1"/> En Revisión Comercial
                     </div>
@@ -239,7 +239,7 @@
                 </div>
             </t>
             <t t-elif="sale_order.state in ['draft', 'sent'] and sale_order.portal_confirmation_mode == 'salesman_enables' and sale_order.portal_confirmation_allowed">
-                <div class="alert alert-success-subtle border border-success-subtle o_cotizador_nota">
+                <div class="alert alert-success border border-success-subtle o_cotizador_nota">
                     <div class="fw-bold text-success mb-1">
                         <i class="fa fa-check-circle me-1"/> Propuesta Habilitada
                     </div>
