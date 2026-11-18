@@ -492,7 +492,7 @@
                         <!-- ============================================= -->
                         <!-- HOJA COMPLETA DEDICADA: PLANES DE PAGO        -->
                         <!-- ============================================= -->
-                        <t t-set="current_planes_mode" t-value="override_planes_mode or env.context.get('print_planes_mode') or ('filtered' if doc.plan_pago_line_ids else 'all')"/>
+                        <t t-set="current_planes_mode" t-value="override_planes_mode or env.context.get('print_planes_mode') or ('filtered' if doc.plan_pago_line_ids else 'none')"/>
                         <t t-if="current_planes_mode != 'none'">
                             <t t-set="all_plan_templates" t-value="doc.env['cotizador.plan.pago.template'].search([('active', '=', True)])"/>
                             <t t-set="selected_line_ids" t-value="doc.plan_pago_line_ids.ids if current_planes_mode == 'filtered' and doc.plan_pago_line_ids else False"/>

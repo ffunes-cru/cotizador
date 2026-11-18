@@ -17,7 +17,7 @@ depende de esos campos ([Niveles de usuario](index.md#niveles-de-usuario)).
 
 ## 2. Configurar el equipo
 
-Botón **Configurar** (arriba a la derecha) o **Configurar Equipo** (debajo de las líneas). Se abre el
+Botón **Configurar** (arriba a la derecha) o **Cotizar Equipo** (botón verde debajo de las líneas). Se abre el
 configurador en tres pasos:
 
 1. **Modelo**: la máquina.
@@ -40,7 +40,7 @@ El resumen de la derecha muestra el total. **Añadir a la Cotización** carga la
 
 ## 3. Descuentos, usados y plan de pago
 
-Debajo de las líneas:
+Debajo de las líneas (botones verdes):
 
 - **Añadir Descuento**: un **porcentaje** sobre el neto que dejan los descuentos anteriores (se aplican en
   cascada) o un **monto fijo** sin IVA. Se ve la base de cálculo y el descuento resultante antes de aplicarlo.
@@ -77,12 +77,16 @@ Ejemplo: 100.000 de neto con un descuento del 6 % quedan 94.000; con IVA del 10,
 En la pestaña **Condiciones y Planes de Pago**:
 
 - **Planes de Pago a Imprimir**: qué planes van en la hoja de planes del PDF, cada uno con su saldo estimado.
-  Arranca con los planes favoritos del vendedor (ficha del usuario, pestaña *Cotizador - Planes de Pago*) o,
-  si no tiene, con todos. Vacío: todos los del catálogo.
+  Arranca vacío: se tildan solo los que se quieren imprimir. Sin ninguno, el PDF va sin hoja de planes. El
+  menú *Imprimir* tiene además la cotización con todos los planes del catálogo.
 - **Condiciones Generales Constantes**: el texto del pie; viene de los ajustes y se puede cambiar en cada
   cotización.
 
-*Imprimir* o *Enviar por correo* generan el PDF; la cotización pasa a *Enviada*.
+*Imprimir* o *Enviar* generan el PDF; la cotización pasa a *Enviada*. Los botones de arriba van en este orden:
+*Vista previa*, *Enviar*, *Imprimir*, *Generar Factura Proforma*, *Confirmar Pedido* y *Cancelar*.
+
+La columna **Cantidad** de las líneas aparece solo si alguna línea lleva más de una unidad (por ejemplo, un
+sensor por línea), y muestra solo esas cantidades.
 
 ## 5. Aceptación del cliente
 
@@ -91,7 +95,7 @@ El cliente ve la cotización en el portal (`/my`). Si la puede firmar depende de
 
 | Modo | Qué ve el cliente |
 |---|---|
-| **Habilitado por el Vendedor** (el habitual) | Una propuesta preliminar, sin botón de firma, hasta que el vendedor presiona **Habilitar Firma del Cliente**. *Revocar Firma del Cliente* lo vuelve atrás. |
+| **Habilitado por el Vendedor** (el habitual) | Una propuesta preliminar, sin botón de firma, hasta que el vendedor usa **Habilitar Firma del Cliente** en el menú de acciones (⚙, junto al número de la cotización). *Revocar Firma del Cliente*, en el mismo menú, lo vuelve atrás. |
 | **Solo el Vendedor** | Nunca puede firmar: la venta la confirma el vendedor. |
 | **Estándar Odoo** | Firma y pago según la configuración de Ventas. |
 

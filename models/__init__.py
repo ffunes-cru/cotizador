@@ -18,7 +18,6 @@ from . import configurator_service
 from . import engineering_code_wizard
 from . import equipo_usado_wizard
 from . import descuento_wizard
-from . import res_users_inherit
 from . import res_company
 from . import crm_team
 

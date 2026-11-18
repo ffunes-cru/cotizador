@@ -101,7 +101,7 @@ Ajuste *Aceptación de Cotizaciones en el Portal*; cada cotización guarda su mo
 | Modo | Puede firmar y pagar el cliente |
 |---|---|
 | Estándar Odoo | Según la configuración de Ventas (firma / pago en línea). |
-| Habilitado por el vendedor (por defecto) | Solo después de que el vendedor usa *Habilitar firma* (queda una nota en el chatter). |
+| Habilitado por el vendedor (por defecto) | Solo después de que el vendedor usa *Habilitar Firma del Cliente* en el menú de acciones ⚙ (queda una nota en el chatter). |
 | Solo el vendedor | Nunca: el cliente solo ve la propuesta. |
 
 ## Tienda: "Solo cotización" y "eCommerce"

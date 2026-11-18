@@ -18,7 +18,7 @@ Con el usuario *Administrador del Configurador*:
 | Cambiar la moneda de una máquina o accesorio | Ficha del producto, *Moneda del Cotizador* (los precios de matriz se interpretan en la moneda nueva: revisarlos). |
 | Texto técnico según los atributos | Ficha de la máquina, pestaña *Descripción Paramétrica*. |
 | Ocultar un atributo en la descripción de la línea | Ficha del atributo, *Mostrar en Descripción*. |
-| Planes de pago | *Plantillas Planes de Pago*; los favoritos de cada vendedor en su ficha de usuario. |
+| Planes de pago | *Plantillas Planes de Pago*; los que se imprimen se tildan en cada cotización. |
 | Condiciones generales, modo de la tienda, aceptación en el portal, límites | *Ajustes › Ventas › Cotizador de Sembradoras*. |
 
 ## Agregar un accesorio a mano

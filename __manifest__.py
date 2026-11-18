@@ -45,6 +45,7 @@
     'assets': {
         'web.assets_backend': [
             'cotizador/static/src/components/configurador/**/*',
+            'cotizador/static/src/scss/cotizador_backend.scss',
         ],
         'web.assets_tests': [
             'cotizador/static/tests/tours/**/*',
