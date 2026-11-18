@@ -1,0 +1,14 @@
+// Backend: estilos propios de las vistas del cotizador (formulario de la cotización).
+
+// Botones verdes debajo de las líneas de la cotización (Cotizar Equipo, Añadir Equipo Usado,
+// Añadir Descuento). Odoo les quita el padding a los botones de esa fila, que son links, y en
+// foco les pone color de link (.o_list_renderer .o_list_table .o_field_x2many_list_row_add button):
+// el selector repite ese prefijo para ganarle en especificidad.
+.o_list_renderer .o_list_table .o_field_x2many_list_row_add .btn.o_cotizador_accion {
+    padding: var(--btn-padding-y) var(--btn-padding-x);
+
+    &:focus,
+    &:active {
+        color: var(--btn-color);
+    }
+}

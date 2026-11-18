@@ -12,18 +12,32 @@
                 <attribute name="type">object</attribute>
             </xpath>
 
-            <!-- Botones de Habilitación de Firma en Portal -->
-            <xpath expr="//header" position="inside">
-                <button name="action_enable_portal_confirmation" 
-                        type="object" 
-                        string="Habilitar Firma del Cliente" 
-                        class="btn-success"
-                        invisible="state not in ('draft', 'sent') or portal_confirmation_mode != 'salesman_enables' or portal_confirmation_allowed"/>
-                <button name="action_disable_portal_confirmation" 
-                        type="object" 
-                        string="Revocar Firma del Cliente" 
-                        class="btn-outline-secondary"
-                        invisible="state not in ('draft', 'sent') or portal_confirmation_mode != 'salesman_enables' or not portal_confirmation_allowed"/>
+            <!-- Orden de la cabecera (issue #3): Vista previa, Enviar, Imprimir, Generar Factura Proforma,
+                 Confirmar Pedido, Cancelar. Odoo duplica Enviar, Proforma y Confirmar según el estado
+                 (uno resaltado en borrador y otro en enviada): se ordenan los dos de cada par.
+                 Habilitar / Revocar Firma del Cliente están en el menú de acciones (⚙). -->
+            <xpath expr="//header/button[@id='quotation_send_primary']" position="before">
+                <xpath expr="//header/button[@name='action_preview_sale_order']" position="move"/>
+            </xpath>
+            <xpath expr="//header/button[@id='quotation_send_primary']" position="after">
+                <xpath expr="//header/button[@id='quotation_send']" position="move"/>
+                <xpath expr="//header/button[@name='print_quotation']" position="move"/>
+                <xpath expr="//header/button[@id='send_proforma_primary']" position="move"/>
+                <xpath expr="//header/button[@id='send_proforma']" position="move"/>
+                <xpath expr="//header/button[@id='action_confirm']" position="move"/>
+                <xpath expr="//header/button[@name='action_confirm'][not(@id)]" position="move"/>
+            </xpath>
+            <xpath expr="//header/button[@id='send_proforma_primary']" position="attributes">
+                <attribute name="string">Generar Factura Proforma</attribute>
+            </xpath>
+            <xpath expr="//header/button[@id='send_proforma']" position="attributes">
+                <attribute name="string">Generar Factura Proforma</attribute>
+            </xpath>
+            <xpath expr="//header/button[@id='action_confirm']" position="attributes">
+                <attribute name="string">Confirmar Pedido</attribute>
+            </xpath>
+            <xpath expr="//header/button[@name='action_confirm'][not(@id)]" position="attributes">
+                <attribute name="string">Confirmar Pedido</attribute>
             </xpath>
 
             <!-- Botón Configurar en button_box -->
@@ -68,28 +82,35 @@
                 <attribute name="column_invisible">1</attribute>
             </xpath>
 
+            <!-- Cantidad (issue #3): la columna confunde cuando todo va de a 1. Se ve solo si alguna línea
+                 tiene otra cantidad (p. ej. un sensor por línea), y en esa columna solo esas líneas. -->
+            <xpath expr="//field[@name='order_line']//list//field[@name='product_uom_qty']" position="attributes">
+                <attribute name="column_invisible">not parent.cotizador_muestra_cantidad</attribute>
+                <attribute name="invisible">product_uom_qty == 1</attribute>
+            </xpath>
+
             <!-- Ocultar botón nativo de Descuento flotante debajo de las líneas para unificar en 'Añadir Descuento' -->
             <xpath expr="//div[@name='so_button_below_order_lines']" position="attributes">
                 <attribute name="invisible">1</attribute>
             </xpath>
 
-            <!-- Interceptar "Add a product" en order_line para mostrar Configurar Equipo, Añadir Equipo Usado y Añadir Descuento (Desktop) -->
+            <!-- Interceptar "Add a product" en order_line para mostrar Cotizar Equipo, Añadir Equipo Usado y Añadir Descuento, resaltados en verde (Desktop) -->
             <xpath expr="//field[@name='order_line']//list//control" position="replace">
                 <control>
                     <button name="action_open_config_wizard" 
                             type="object"
-                            string="Configurar Equipo"
-                            class="px-4 btn-link"
+                            string="Cotizar Equipo"
+                            class="btn-success o_cotizador_accion"
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                     <button name="action_open_equipo_usado_wizard" 
                             type="object"
                             string="Añadir Equipo Usado"
-                            class="px-4 btn-link"
+                            class="btn-success o_cotizador_accion"
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                     <button name="action_open_descuento_wizard" 
                             type="object"
                             string="Añadir Descuento"
-                            class="px-4 btn-link"
+                            class="btn-success o_cotizador_accion"
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                 </control>
             </xpath>
@@ -99,18 +120,18 @@
                 <control>
                     <button name="action_open_config_wizard" 
                             type="object" 
-                            string="Configurar Equipo" 
-                            class="btn-primary" 
+                            string="Cotizar Equipo" 
+                            class="btn-success" 
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                     <button name="action_open_equipo_usado_wizard" 
                             type="object" 
                             string="Añadir Equipo Usado" 
-                            class="btn-secondary" 
+                            class="btn-success" 
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                     <button name="action_open_descuento_wizard" 
                             type="object" 
                             string="Añadir Descuento" 
-                            class="btn-secondary" 
+                            class="btn-success" 
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                 </control>
             </xpath>
@@ -121,7 +142,7 @@
                     <group>
                         <group string="Planes de Pago a Imprimir">
                             <p class="text-muted">
-                                Seleccione qué planes de pago específicos se incluirán en la hoja de planes de pago de esta cotización. Si deja el campo vacío, se imprimirán todos los del catálogo.
+                                Tilde los planes de pago que van en la hoja de planes del PDF. Sin ninguno, el PDF no lleva esa hoja.
                             </p>
                             <field name="plan_pago_line_ids" widget="many2many_tags" options="{'no_create': True}" nolabel="1"/>
                         </group>
@@ -139,7 +160,7 @@
                         <group invisible="portal_confirmation_mode != 'salesman_enables'">
                             <field name="portal_confirmation_allowed" widget="boolean_toggle"/>
                             <div class="text-muted small mt-2">
-                                <i class="fa fa-info-circle me-1"/> Mientras este interruptor esté apagado, el cliente verá la cotización como una <strong>propuesta preliminar en revisión</strong> sin botón de firma. Al encenderlo (o presionar <em>Habilitar Firma del Cliente</em> en la cabecera), el cliente podrá firmar y aceptar en la web.
+                                <i class="fa fa-info-circle me-1"/> Mientras este interruptor esté apagado, el cliente verá la cotización como una <strong>propuesta preliminar en revisión</strong> sin botón de firma. Al encenderlo (o usar <em>Habilitar Firma del Cliente</em> en el menú de acciones ⚙), el cliente podrá firmar y aceptar en la web.
                             </div>
                         </group>
                         <group invisible="portal_confirmation_mode != 'salesman_only'">
@@ -168,6 +189,27 @@
                 </group>
             </xpath>
         </field>
+    </record>
+
+    <!-- Firma online del cliente (modo «Habilitado por el vendedor»): en el menú de acciones (⚙) del
+         formulario, no en la cabecera (issue #3). El método valida estado y modo. -->
+    <record id="action_server_enable_portal_confirmation" model="ir.actions.server">
+        <field name="name">Habilitar Firma del Cliente</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_view_types">form</field>
+        <field name="group_ids" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+        <field name="state">code</field>
+        <field name="code">record.action_enable_portal_confirmation()</field>
+    </record>
+    <record id="action_server_disable_portal_confirmation" model="ir.actions.server">
+        <field name="name">Revocar Firma del Cliente</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_view_types">form</field>
+        <field name="group_ids" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+        <field name="state">code</field>
+        <field name="code">record.action_disable_portal_confirmation()</field>
     </record>
 
     <!-- Buscar, filtrar y agrupar cotizaciones por concesionario (líder del equipo del vendedor) -->

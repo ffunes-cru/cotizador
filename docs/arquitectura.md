@@ -56,7 +56,7 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `plan_pago.py` | Plantillas de planes de pago y su asistente de selección. |
 | `descuento_wizard.py`, `equipo_usado_wizard.py` | Asistentes de descuento comercial y toma de usado. |
 | `bcra_service.py`, `bcra_wizard.py` | Cliente de la API del BCRA (funciones puras) y el informe. |
-| `res_company.py`, `res_config_settings.py`, `res_users_inherit.py` | Ajustes (compañía y parámetros) y planes favoritos del vendedor. |
+| `res_company.py`, `res_config_settings.py` | Ajustes (compañía y parámetros). |
 
 ### Web, vistas y datos
 
@@ -66,6 +66,7 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `static/src/js/cotizador_sequential_configurator.js` | Configurador paso a paso de la ficha de la máquina en la tienda. |
 | `static/src/js/cotizador_quote_form.js` | Completa el token firmado del formulario *Solicitar Cotización*. |
 | `static/src/components/configurador/` | Configurador del vendedor (OWL + plantilla + estilos). |
+| `static/src/scss/cotizador_backend.scss` | Estilos propios del formulario de la cotización (botones verdes debajo de las líneas). |
 | `static/tests/tours/` | Tours de navegador de los tests. |
 | `views/website_sale_templates.xml` | Ficha de producto de la tienda: configurador, modal *Solicitar Cotización*, errores, página de confirmación. |
 | `views/portal_templates.xml` | Cotización en el portal con la cascada de totales y los modos de aceptación. |

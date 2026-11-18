@@ -54,28 +54,17 @@ class SaleOrderInherit(models.Model):
         help='Condiciones comerciales constantes preconfiguradas que se imprimen al pie de la cotización.',
     )
 
-    # --- Planes de Pago Filtrados ---
+    # --- Planes de Pago a Imprimir ---
 
-    def _default_plan_pago_line_ids(self):
-        """Planes a imprimir por defecto: los favoritos del vendedor o, si no tiene, todos los activos.
-
-        @return Lista de ids de cotizador.plan.pago.template.line.
-        """
-        user_lines = self.env.user.plan_pago_template_line_ids
-        if user_lines:
-            return user_lines.ids
-        return self.env['cotizador.plan.pago.template.line'].search([
-            ('template_id.active', '=', True)
-        ]).ids
-
+    # Arranca vacío: el vendedor tilda los que quiere imprimir (issue #3). Sin ninguno, el PDF va sin
+    # hoja de planes.
     plan_pago_line_ids = fields.Many2many(
         'cotizador.plan.pago.template.line',
         'sale_order_cotizador_plan_pago_rel',
         'order_id',
         'plan_line_id',
         string='Planes de Pago a Imprimir',
-        default=_default_plan_pago_line_ids,
-        help='Seleccione qué planes de pago se imprimirán en la hoja de planes de pago de esta cotización.',
+        help='Planes que van en la hoja de planes de pago del PDF. Sin ninguno, el PDF no lleva esa hoja.',
     )
 
     # --- Modalidad de Aceptación y Firma en Portal ---
@@ -330,6 +319,20 @@ class SaleOrderInherit(models.Model):
             total += taxes.compute_all(net_with_plan, currency=self.currency_id, handle_price_include=False)['total_included'] if taxes else net_with_plan
         return max(0.0, self.currency_id.round(total + self.amount_usados))
 
+    cotizador_muestra_cantidad = fields.Boolean(
+        string='Mostrar Cantidad',
+        compute='_compute_cotizador_muestra_cantidad',
+        help='Alguna línea tiene una cantidad distinta de 1 (p. ej. un accesorio por línea): solo '
+             'entonces la lista de líneas muestra la columna Cantidad.',
+    )
+
+    @api.depends('order_line.product_uom_qty', 'order_line.display_type')
+    def _compute_cotizador_muestra_cantidad(self):
+        """La columna *Cantidad* se ve solo si alguna línea de producto no tiene cantidad 1."""
+        for order in self:
+            order.cotizador_muestra_cantidad = any(
+                not line.display_type and line.product_uom_qty != 1 for line in order.order_line)
+
     @api.depends('order_line.is_descuento', 'order_line.is_equipo_usado')
     def _compute_lineas_especiales(self):
         """Listas de las líneas de descuento y de usados (para las pestañas de la vista)."""
@@ -521,9 +524,28 @@ class SaleOrderInherit(models.Model):
             self._sync_with_crm()
         return res
 
+    def _check_portal_confirmation_editable(self):
+        """La firma online solo se habilita o revoca en cotizaciones en modo *Habilitado por el vendedor*.
+
+        La acción está en el menú de acciones del formulario, que se ve en cualquier estado.
+
+        @throws UserError Si la cotización ya es pedido o cancelada, o su modo es otro.
+        """
+        if self.state not in ('draft', 'sent'):
+            raise UserError(_("La firma del cliente solo se habilita o revoca en cotizaciones (borrador o enviada)."))
+        if self.portal_confirmation_mode != 'salesman_enables':
+            raise UserError(_("Esta cotización no está en modo «Habilitado por el vendedor» "
+                              "(pestaña Condiciones y Planes de Pago)."))
+
     def action_enable_portal_confirmation(self):
-        """Botón del vendedor: habilita la aceptación y firma del cliente en el portal (con nota en el chatter)."""
+        """Acción del vendedor: habilita la aceptación y firma del cliente en el portal (con nota en el chatter).
+
+        @throws UserError Ver _check_portal_confirmation_editable(), o si ya estaba habilitada.
+        """
         self.ensure_one()
+        self._check_portal_confirmation_editable()
+        if self.portal_confirmation_allowed:
+            raise UserError(_("La firma del cliente ya está habilitada."))
         self.write({
             'portal_confirmation_allowed': True,
             'require_signature': True,
@@ -535,8 +557,14 @@ class SaleOrderInherit(models.Model):
         )
 
     def action_disable_portal_confirmation(self):
-        """Botón del vendedor: deshabilita la aceptación y firma del cliente en el portal (con nota en el chatter)."""
+        """Acción del vendedor: deshabilita la aceptación y firma del cliente en el portal (con nota en el chatter).
+
+        @throws UserError Ver _check_portal_confirmation_editable(), o si no estaba habilitada.
+        """
         self.ensure_one()
+        self._check_portal_confirmation_editable()
+        if not self.portal_confirmation_allowed:
+            raise UserError(_("La firma del cliente no está habilitada."))
         self.write({
             'portal_confirmation_allowed': False,
         })
@@ -633,8 +661,8 @@ class SaleOrderInherit(models.Model):
     def _cotizador_print(self, mode):
         """Imprime el reporte del cotizador y pasa los borradores a *Enviada*.
 
-        @param mode Hoja de planes de pago: `all` (todo el catálogo) o `filtered` (los elegidos
-               en la cotización). El reporte lo lee del contexto `print_planes_mode`; el menú
+        @param mode Hoja de planes de pago: `all` (todo el catálogo), `filtered` (los elegidos
+               en la cotización) o `none` (sin hoja). El reporte lo lee del contexto `print_planes_mode`; el menú
                *Imprimir* tiene además un reporte por modo (report/report_cotizacion_planes.xml).
         @return Acción del reporte `cotizador.action_report_cotizacion_planes`.
         """
@@ -643,11 +671,11 @@ class SaleOrderInherit(models.Model):
         return report.with_context(print_planes_mode=mode).report_action(self)
 
     def print_quotation(self):
-        """Botón estándar *Imprimir*: los planes elegidos o, si no hay, todos.
+        """Botón estándar *Imprimir*: los planes elegidos o, si no hay, sin hoja de planes.
 
         @return Acción del reporte.
         """
-        return self._cotizador_print('filtered' if self.plan_pago_line_ids else 'all')
+        return self._cotizador_print('filtered' if self.plan_pago_line_ids else 'none')
 
     # --- Alta de una configuración de sembradora en la cotización ---
 

@@ -303,12 +303,6 @@ Sin campos propios.
 | `cotizador_quote_rate_limit_ip` | integer | Solicitudes web por IP (por hora) | parámetro `cotizador.quote_rate_limit_ip`; Máximo de solicitudes de cotización anónimas desde una misma IP por hora. 0 = sin límite. |
 | `cotizador_tax_id` | many2one | Impuesto de Maquinaria | → `account.tax`; related `company_id.cotizador_tax_id`; Impuesto que se aplica a máquinas y accesorios cotizados con el configurador. Si se deja vacío se usan los impuestos de cada producto. |
 
-### `res.users` — User
-
-| Campo | Tipo | Etiqueta | Detalle |
-|---|---|---|---|
-| `plan_pago_template_line_ids` | many2many | Planes de Pago Favoritos / Visibles | → `cotizador.plan.pago.template.line`; Seleccione qué planes de pago estarán visibles por defecto en las cotizaciones que genere este usuario. |
-
 ### `sale.order` — Sales Order
 
 | Campo | Tipo | Etiqueta | Detalle |
@@ -322,10 +316,11 @@ Sin campos propios.
 | `amount_total_base` | monetary | TOTAL | calculado (guardado); SUB TOTAL NETO + IVA. |
 | `amount_usados` | monetary | Medios de pago (Usados) | calculado (guardado); Equipos usados tomados como parte de pago (importe negativo, sin IVA). |
 | `condiciones_generales` | text | Condiciones Generales | Condiciones comerciales constantes preconfiguradas que se imprimen al pie de la cotización. |
+| `cotizador_muestra_cantidad` | boolean | Mostrar Cantidad | calculado; Alguna línea tiene una cantidad distinta de 1 (p. ej. un accesorio por línea): solo entonces la lista de líneas muestra la columna Cantidad. |
 | `descuento_line_ids` | one2many | Descuentos Aplicados | → `sale.order.line`; calculado |
 | `equipo_cotizado_id` | many2one | Equipo Cotizado | → `product.template`; calculado (guardado); Modelo de máquina cotizada (categoría Máquina). |
 | `lider_equipo_id` | many2one | Concesionario | → `res.users`; related `team_id.user_id`; Líder del equipo de ventas del vendedor: el usuario del concesionario. Odoo calcula el equipo a partir del vendedor, así que cambia solo al cambiar el vendedor. |
-| `plan_pago_line_ids` | many2many | Planes de Pago a Imprimir | → `cotizador.plan.pago.template.line`; Seleccione qué planes de pago se imprimirán en la hoja de planes de pago de esta cotización. |
+| `plan_pago_line_ids` | many2many | Planes de Pago a Imprimir | → `cotizador.plan.pago.template.line`; Planes que van en la hoja de planes de pago del PDF. Sin ninguno, el PDF no lleva esa hoja. |
 | `portal_confirmation_allowed` | boolean | Firma del Cliente Habilitada | Si el modo es "Habilitado por el Vendedor", active esta casilla para que el cliente pueda ver el botón "Aceptar y Firmar" en el portal web. |
 | `portal_confirmation_mode` | selection | Modo de Aceptación Portal | valores: `standard`, `salesman_enables`, `salesman_only`; obligatorio; Determina si el cliente puede firmar/aceptar esta cotización desde el portal web o si requiere habilitación del comercial. |
 | `usado_line_ids` | one2many | Equipos Usados Tomados | → `sale.order.line`; calculado |
@@ -370,15 +365,15 @@ Métodos públicos (invocables por RPC) y quién los llama: botones de vistas, J
 | `res.config.settings` | `get_values` | Lee además las condiciones generales (texto por defecto si no se configuraron). | `models/res_config_settings.py` |
 | `res.config.settings` | `set_values` | Guarda además las condiciones generales: un campo Text no admite `config_parameter`. | `models/res_config_settings.py` |
 | `sale.order` | `action_confirm` | Confirma exigiendo plan de pago si está configurado, y marca ganada la oportunidad. | `models/sale_order_inherit.py` |
-| `sale.order` | `action_disable_portal_confirmation` | Botón del vendedor: deshabilita la aceptación y firma del cliente en el portal (con nota en el chatter). | botón en `sale.order.form.inherit.cotizador` |
-| `sale.order` | `action_enable_portal_confirmation` | Botón del vendedor: habilita la aceptación y firma del cliente en el portal (con nota en el chatter). | botón en `sale.order.form.inherit.cotizador` |
+| `sale.order` | `action_disable_portal_confirmation` | Acción del vendedor: deshabilita la aceptación y firma del cliente en el portal (con nota en el chatter). | QWeb `views/views.xml` |
+| `sale.order` | `action_enable_portal_confirmation` | Acción del vendedor: habilita la aceptación y firma del cliente en el portal (con nota en el chatter). | QWeb `views/views.xml` |
 | `sale.order` | `action_open_config_wizard` | Botón *Configurar*: abre el configurador visual sobre esta cotización. | `models/sale_order_inherit.py`; botón en `sale.order.form.inherit.cotizador` |
 | `sale.order` | `action_open_descuento_wizard` | Abre el asistente de descuento comercial. | `models/sale_order_inherit.py`; botón en `sale.order.form.inherit.cotizador` |
 | `sale.order` | `action_open_discount_wizard` | El botón nativo de descuento de Odoo abre el descuento del cotizador. | — |
 | `sale.order` | `action_open_equipo_usado_wizard` | Abre el asistente para tomar un equipo usado como parte de pago. | `models/sale_order_inherit.py`; botón en `sale.order.form.inherit.cotizador` |
 | `sale.order` | `action_open_plan_pago_wizard` | Botón de plan de pago: abre la selección con todas las opciones activas. | `models/plan_pago.py`; botón en `sale.order.form.inherit.cotizador` |
 | `sale.order` | `action_ver_bcra_wizard` | Botón *Situación BCRA*: consulta el BCRA y abre el informe. | `models/bcra_wizard.py`; botón en `sale.order.form.inherit.cotizador` |
-| `sale.order` | `print_quotation` | Botón estándar *Imprimir*: los planes elegidos o, si no hay, todos. | — |
+| `sale.order` | `print_quotation` | Botón estándar *Imprimir*: los planes elegidos o, si no hay, sin hoja de planes. | — |
 | `sale.order.line` | `action_open_config_wizard` | Botón de la lista de líneas: delega en la orden. | `models/sale_order_inherit.py` |
 | `sale.order.line` | `action_open_descuento_wizard` | Botón de la lista de líneas: delega en la orden. | `models/sale_order_inherit.py` |
 | `sale.order.line` | `action_open_discount_wizard` | Botón nativo de descuento en la lista de líneas: descuento del cotizador. | — |
