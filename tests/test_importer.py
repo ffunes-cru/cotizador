@@ -2,11 +2,11 @@ from markupsafe import escape
 
 from odoo import Command
 from odoo.exceptions import UserError, ValidationError
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from odoo.addons.cotizador.models.sembradora_import_wizard import parse_price
 
-from .common import HEADER, MATRIX_CSV, CotizadorCase
+from .common import HEADER, MATRIX_CSV, CotizadorCase, analyze_matrix, import_matrix
 
 # Segundo modelo con accesorios del mismo nombre que Pionera
 DRILLA_CSV = """\
@@ -78,6 +78,22 @@ class TestImporter(CotizadorCase):
         eur = self.env.ref('base.EUR')
         eur.active = True
         self.assertAnalysisError(MATRIX_CSV, "está en USD, pero la moneda de los precios elegida es EUR", eur)
+
+    def test_manager_without_settings_rights_can_import(self):
+        """El Administrador del Configurador importa sin ser administrador de Ajustes.
+
+        Los identificadores del importador viven en ir.model.data, que en Odoo solo lee quien
+        administra los permisos: el asistente los lee y escribe con sudo.
+        """
+        manager = new_test_user(self.env, login='admin_configurador',
+                                groups='base.group_user,cotizador.group_cotizador_manager')
+        self.assertFalse(manager.has_group('base.group_erp_manager'))
+        env = self.env(user=manager)
+        import_matrix(env, MATRIX_CSV)
+        # Reimportar sin una regla: el análisis busca las reglas del importador que sobran
+        wizard = import_matrix(env, MATRIX_CSV.replace('Monitor:it', '').replace('Monitor:i', ''))
+        self.assertFalse(self.env.ref('cotizador_import.rule_inclusion_monitor', raise_if_not_found=False))
+        self.assertTrue(wizard.analysis_summary)
 
     def test_reimport_uses_xmlids_not_names(self):
         self._import(MATRIX_CSV)

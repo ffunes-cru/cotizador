@@ -574,7 +574,7 @@ class SembradoraImportWizard(models.TransientModel):
         @param xmlid_name Nombre del xmlid en IMPORT_MODULE.
         @param record Registro recién creado.
         """
-        IrModelData = self.env['ir.model.data']
+        IrModelData = self.env['ir.model.data'].sudo()
         vals = {'model': model, 'res_id': record.id, 'noupdate': True}
         orphan = IrModelData.search([('module', '=', IMPORT_MODULE), ('name', '=', xmlid_name)], limit=1)
         if orphan:
@@ -828,7 +828,8 @@ class SembradoraImportWizard(models.TransientModel):
         """
         Rule = self.env['sembradora.accessory.rule']
         csv_names = {self._xmlid_name('rule', rtype, name) for name, rtype in data['rules']}
-        imported = self.env['ir.model.data'].search([('module', '=', IMPORT_MODULE), ('model', '=', Rule._name)])
+        # ir.model.data solo lo lee quien administra permisos (Ajustes); el análisis corre sin sudo
+        imported = self.env['ir.model.data'].sudo().search([('module', '=', IMPORT_MODULE), ('model', '=', Rule._name)])
         candidates = Rule.browse([x.res_id for x in imported if x.name not in csv_names]).exists()
         machine_ids = [tmpl.id for tmpl in templates.values()]
         in_use = self.env['sembradora.config.accessory.line'].search([
