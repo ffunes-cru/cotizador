@@ -89,6 +89,11 @@
                 <attribute name="invisible">product_uom_qty == 1</attribute>
             </xpath>
 
+            <!-- Celular: la tarjeta de cada línea muestra "Cantidad" solo si no va de a 1 -->
+            <xpath expr="//field[@name='order_line']//kanban//field[@name='product_uom_qty']/.." position="attributes">
+                <attribute name="t-if">record.product_uom_qty.raw_value !== 1</attribute>
+            </xpath>
+
             <!-- Ocultar botón nativo de Descuento flotante debajo de las líneas para unificar en 'Añadir Descuento' -->
             <xpath expr="//div[@name='so_button_below_order_lines']" position="attributes">
                 <attribute name="invisible">1</attribute>
