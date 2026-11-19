@@ -144,7 +144,10 @@
                             <p class="text-muted">
                                 Tilde los planes de pago que van en la hoja de planes del PDF. Sin ninguno, el PDF no lleva esa hoja.
                             </p>
-                            <field name="plan_pago_line_ids" widget="many2many_tags" options="{'no_create': True}" nolabel="1"/>
+                            <!-- "Buscar más..." abre las opciones agrupadas por plantilla (issue #9); solo de plantillas activas -->
+                            <field name="plan_pago_line_ids" widget="many2many_tags" options="{'no_create': True}" nolabel="1"
+                                   domain="[('template_id.active', '=', True)]"
+                                   context="{'search_default_agrupar_plantilla': 1}"/>
                         </group>
                         <group string="Condiciones Generales Constantes">
                             <p class="text-muted">

@@ -111,6 +111,40 @@
         </field>
     </record>
 
+    <!-- ============================================= -->
+    <!-- OPCIONES DE PLAN: "Buscar más..." de la cotización (issue #9) -->
+    <!-- ============================================= -->
+    <!-- Lista y búsqueda de las opciones sueltas: las usa el diálogo "Buscar más..." de Planes de Pago a
+         Imprimir, que las abre agrupadas por plantilla (contexto del campo en views/views.xml). -->
+    <record id="view_plan_pago_template_line_list" model="ir.ui.view">
+        <field name="name">cotizador.plan.pago.template.line.list</field>
+        <field name="model">cotizador.plan.pago.template.line</field>
+        <field name="arch" type="xml">
+            <list expand="1">
+                <field name="sequence" column_invisible="1"/>
+                <!-- Agrupada por plantilla ya se ve en el grupo; se puede mostrar si se quita el agrupado -->
+                <field name="template_id" optional="hide"/>
+                <field name="name"/>
+                <field name="descuento" string="Desc./Rec. %"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_plan_pago_template_line_search" model="ir.ui.view">
+        <field name="name">cotizador.plan.pago.template.line.search</field>
+        <field name="model">cotizador.plan.pago.template.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="template_id"/>
+                <group>
+                    <filter name="agrupar_plantilla" string="Plantilla" context="{'group_by': 'template_id'}"/>
+                    <filter name="agrupar_tipo" string="Tipo de Plan" context="{'group_by': 'tipo'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
     <record id="action_plan_pago_template" model="ir.actions.act_window">
         <field name="name">Plantillas de Planes de Pago</field>
         <field name="res_model">cotizador.plan.pago.template</field>
