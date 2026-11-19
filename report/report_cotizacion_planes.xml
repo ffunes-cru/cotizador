@@ -253,7 +253,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Columna 2: Fecha y Líder Equipo -->
+                                <!-- Columna 2: Fecha y Concesionario -->
                                 <div style="float: left; width: 48%; padding-right: 10px;">
                                     <div style="margin-bottom: 8px;">
                                         <div class="meta-label">Fecha de cotización</div>
@@ -263,10 +263,11 @@
                                         </div>
                                     </div>
                                     <div>
-                                        <div class="meta-label">LIDER EQUIPO</div>
+                                        <!-- El mismo campo que el formulario: líder del equipo de ventas (issue #10) -->
+                                        <div class="meta-label">Concesionario</div>
                                         <div class="meta-val">
-                                            <span t-if="doc.team_id and doc.team_id.user_id" t-field="doc.team_id.user_id.name"/>
-                                            <span t-else="" t-field="doc.user_id.name"/>
+                                            <span t-if="doc.lider_equipo_id" t-field="doc.lider_equipo_id.name"/>
+                                            <span t-else="">-</span>
                                         </div>
                                     </div>
                                 </div>
@@ -292,11 +293,15 @@
 
                         <!-- TABLA DE LÍNEAS DE LA COTIZACIÓN (CON TAMAÑO DE FUENTE MÁS GRANDE) -->
                         <t t-set="lines_to_report" t-value="doc.order_line.filtered(lambda l: not l.is_plan_pago)"/>
+                        <!-- Cantidad (issue #10), como en el formulario: la columna aparece solo si alguna línea no va
+                             de a 1 (p. ej. un sensor por línea), y en ella solo esas cantidades. -->
+                        <t t-set="mostrar_cantidad" t-value="any(not l.display_type and l.product_uom_qty != 1 for l in lines_to_report)"/>
+                        <t t-set="columnas" t-value="4 if mostrar_cantidad else 3"/>
                         <table class="table o_main_table table-borderless mt-2 mb-2" style="font-size: 15px; width: 100%;">
                             <thead style="border-bottom: 2px solid #212529;">
                                 <tr>
-                                    <th class="text-start" style="font-weight: 700; color: #212529; padding: 6px 8px; font-size: 15px; width: 48%;">Descripción</th>
-                                    <th class="text-center" style="font-weight: 700; color: #212529; padding: 6px 8px; font-size: 15px; width: 14%;">Cantidad</th>
+                                    <th class="text-start" t-attf-style="font-weight: 700; color: #212529; padding: 6px 8px; font-size: 15px; width: {{ '48%' if mostrar_cantidad else '62%' }};">Descripción</th>
+                                    <th t-if="mostrar_cantidad" class="text-center" style="font-weight: 700; color: #212529; padding: 6px 8px; font-size: 15px; width: 14%;">Cantidad</th>
                                     <th class="text-end" style="font-weight: 700; color: #212529; padding: 6px 8px; font-size: 15px; width: 19%;">Precio Unitario</th>
                                     <th class="text-end" style="font-weight: 700; color: #212529; padding: 6px 8px; font-size: 15px; width: 19%;">Subtotal</th>
                                 </tr>
@@ -304,12 +309,12 @@
                             <tbody>
                                 <t t-foreach="lines_to_report" t-as="line">
                                     <tr t-if="line.display_type == 'line_section'" class="o_line_section">
-                                        <td colspan="4" class="fw-bold py-2 px-2" style="background-color: #f1f3f5 !important; color: #111111 !important; font-size: 15px;">
+                                        <td t-att-colspan="columnas" class="fw-bold py-2 px-2" style="background-color: #f1f3f5 !important; color: #111111 !important; font-size: 15px;">
                                             <span t-field="line.name"/>
                                         </td>
                                     </tr>
                                     <tr t-if="line.display_type == 'line_note'">
-                                        <td colspan="4" class="fst-italic text-muted py-1 px-2" style="font-size: 14px;">
+                                        <td t-att-colspan="columnas" class="fst-italic text-muted py-1 px-2" style="font-size: 14px;">
                                             <span t-field="line.name"/>
                                         </td>
                                     </tr>
@@ -330,8 +335,8 @@
                                                 </div>
                                             </t>
                                         </td>
-                                        <td class="text-center py-2 px-2" style="color: #212529; vertical-align: top; font-size: 15px;">
-                                            <span t-options='{"widget": "float", "precision": 2}' t-field="line.product_uom_qty"/>
+                                        <td t-if="mostrar_cantidad" class="text-center py-2 px-2" style="color: #212529; vertical-align: top; font-size: 15px;">
+                                            <span t-if="line.product_uom_qty != 1" t-options='{"widget": "float", "precision": 2}' t-field="line.product_uom_qty"/>
                                         </td>
                                         <td class="text-end py-2 px-2" style="color: #212529; vertical-align: top; font-size: 15px;">
                                             <span t-field="line.price_unit" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
