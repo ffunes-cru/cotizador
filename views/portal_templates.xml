@@ -90,11 +90,13 @@
         <xpath expr="//th[@id='product_qty_header']" position="attributes">
             <attribute name="t-if">mostrar_cantidad</attribute>
         </xpath>
+        <!-- Se condiciona la celda entera, no su contenido: sale_management (la app Ventas) reemplaza el
+             div#quote_qty de adentro por un t-call. Con cantidad 1 va una celda vacía en su lugar. -->
         <xpath expr="//td[@name='td_product_quantity']" position="attributes">
-            <attribute name="t-if">mostrar_cantidad</attribute>
+            <attribute name="t-if">mostrar_cantidad and line.product_uom_qty != 1</attribute>
         </xpath>
-        <xpath expr="//td[@name='td_product_quantity']/div[@id='quote_qty']" position="attributes">
-            <attribute name="t-if">line.product_uom_qty != 1</attribute>
+        <xpath expr="//td[@name='td_product_quantity']" position="before">
+            <td t-if="mostrar_cantidad and line.product_uom_qty == 1" name="td_product_quantity_vacia"/>
         </xpath>
         <xpath expr="//td[@name='td_combo_quantity']" position="attributes">
             <attribute name="t-if">mostrar_cantidad</attribute>
