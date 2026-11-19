@@ -77,8 +77,9 @@ Ejemplo: 100.000 de neto con un descuento del 6 % quedan 94.000; con IVA del 10,
 En la pestaña **Condiciones y Planes de Pago**:
 
 - **Planes de Pago a Imprimir**: qué planes van en la hoja de planes del PDF, cada uno con su saldo estimado.
-  Arranca vacío: se tildan solo los que se quieren imprimir. Sin ninguno, el PDF va sin hoja de planes. El
-  menú *Imprimir* tiene además la cotización con todos los planes del catálogo.
+  Arranca vacío: se tildan solo los que se quieren imprimir; *Buscar más…* los muestra agrupados por plantilla.
+  Sin ninguno, el PDF va sin hoja de planes. El menú *Imprimir* tiene además la cotización con todos los planes
+  del catálogo.
 - **Condiciones Generales Constantes**: el texto del pie; viene de los ajustes y se puede cambiar en cada
   cotización.
 

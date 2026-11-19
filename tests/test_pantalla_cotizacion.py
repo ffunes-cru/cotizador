@@ -115,3 +115,22 @@ class TestPantallaCotizacion(CotizadorCase):
         html = str(Report._render_qweb_html('cotizador.action_report_cotizacion_planes', order.ids)[0])
         self.assertIn('Planes de Pago Disponibles', html)
         self.assertIn('30-60-90', html)
+
+    def test_buscar_mas_planes_agrupados_por_plantilla(self):
+        """Issue #9: "Buscar más..." de Planes de Pago a Imprimir abre las opciones agrupadas por plantilla."""
+        arch = self.env.ref('sale.view_order_form')._get_combined_arch()
+        campo = arch.xpath("//field[@name='plan_pago_line_ids']")[0]
+        self.assertIn("'search_default_agrupar_plantilla': 1", campo.get('context'))
+        self.assertIn("('template_id.active', '=', True)", campo.get('domain'))
+
+        views = self.env['cotizador.plan.pago.template.line'].get_views([(False, 'list'), (False, 'search')])['views']
+        self.assertIn('name="agrupar_plantilla"', views['search']['arch'])
+        self.assertIn('expand="1"', views['list']['arch'])
+        # Las plantillas archivadas no se ofrecen
+        archivada = self.env['cotizador.plan.pago.template'].create({
+            'name': 'Vieja', 'tipo': 'cheques', 'active': False,
+            'line_ids': [Command.create({'plan_cheques': 'vieja', 'descuento': 1})],
+        })
+        ofrecidas = self.env['cotizador.plan.pago.template.line'].search([('template_id.active', '=', True)])
+        self.assertIn(self.plan.line_ids, ofrecidas)
+        self.assertNotIn(archivada.with_context(active_test=False).line_ids, ofrecidas)

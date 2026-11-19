@@ -76,7 +76,8 @@ class PlanPagoTemplateLine(models.Model):
     financiacion = fields.Char(string='Financiación')
 
     # === Campo común: Descuento/Recargo ===
-    descuento = fields.Float(string='Descuento o Recargo (%)', default=0,
+    # Sin suma al agrupar: sumar porcentajes de opciones distintas no significa nada
+    descuento = fields.Float(string='Descuento o Recargo (%)', default=0, aggregator=False,
                              help='Valor negativo = descuento, valor positivo = recargo. Ej: -10 para 10% descuento, 11 para 11% recargo')
 
     name = fields.Char(string='Descripción', compute='_compute_name', store=True)
