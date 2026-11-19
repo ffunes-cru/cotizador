@@ -82,6 +82,27 @@
         </xpath>
 
         <!-- Reemplazo del bloque de Totales por la Cascada Financiera -->
+        <!-- Cantidad (issue #10), como en el formulario y el PDF: la columna aparece solo si alguna línea no va
+             de a 1, y en ella solo esas cantidades. Las secciones cuentan una columna menos sin ella. -->
+        <xpath expr="//t[@t-set='display_taxes']" position="after">
+            <t t-set="mostrar_cantidad" t-value="any(not l.display_type and l.product_uom_qty != 1 for l in lines_to_report)"/>
+        </xpath>
+        <xpath expr="//th[@id='product_qty_header']" position="attributes">
+            <attribute name="t-if">mostrar_cantidad</attribute>
+        </xpath>
+        <xpath expr="//td[@name='td_product_quantity']" position="attributes">
+            <attribute name="t-if">mostrar_cantidad</attribute>
+        </xpath>
+        <xpath expr="//td[@name='td_product_quantity']/div[@id='quote_qty']" position="attributes">
+            <attribute name="t-if">line.product_uom_qty != 1</attribute>
+        </xpath>
+        <xpath expr="//td[@name='td_combo_quantity']" position="attributes">
+            <attribute name="t-if">mostrar_cantidad</attribute>
+        </xpath>
+        <xpath expr="//t[@t-set='section_name_colspan'][contains(@t-value, '3 +')]" position="attributes">
+            <attribute name="t-value">(3 if mostrar_cantidad else 2) + (1 if display_discount else 0) + (1 if display_taxes else 0)</attribute>
+        </xpath>
+
         <xpath expr="//div[@id='total']" position="replace">
             <div id="total" class="row justify-content-end my-4">
                 <div class="col-12 col-md-7 col-lg-6 col-xl-5">

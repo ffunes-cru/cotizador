@@ -85,8 +85,8 @@ En la pestaña **Condiciones y Planes de Pago**:
 *Imprimir* o *Enviar* generan el PDF; la cotización pasa a *Enviada*. Los botones de arriba van en este orden:
 *Vista previa*, *Enviar*, *Imprimir*, *Generar Factura Proforma*, *Confirmar Pedido* y *Cancelar*.
 
-La columna **Cantidad** de las líneas, en pantalla y en el PDF, aparece solo si alguna línea lleva más de una
-unidad (por ejemplo, un sensor por línea), y muestra solo esas cantidades.
+La **Cantidad** de las líneas (en pantalla, en el celular, en el PDF y en el portal del cliente) aparece solo si
+alguna línea lleva más de una unidad (por ejemplo, un sensor por línea), y solo en esas líneas.
 
 ## 5. Aceptación del cliente
 

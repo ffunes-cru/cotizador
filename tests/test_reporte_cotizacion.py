@@ -1,10 +1,11 @@
 """@file
-PDF de la cotización (issue #10): columna Cantidad solo si hace falta, y el Concesionario como en el formulario."""
+Cantidad y Concesionario fuera del formulario (issue #10): PDF, portal y tarjeta del celular. La columna Cantidad
+aparece solo si alguna línea no va de a 1, y el Concesionario es el mismo campo que en el formulario."""
 from lxml import html as lxml_html
 
-from odoo.tests import new_test_user, tagged
+from odoo.tests import HttpCase, new_test_user, tagged
 
-from .common import MATRIX_CSV, CotizadorCase
+from .common import MATRIX_CSV, CotizadorCase, find_config, import_matrix
 
 
 @tagged('post_install', '-at_install')
@@ -74,3 +75,48 @@ class TestReporteCotizacion(CotizadorCase):
         meta = self._pdf(sin_equipo).xpath("//div[@class='meta-label'][normalize-space()='Concesionario']"
                                            "/following-sibling::div[@class='meta-val']")[0]
         self.assertEqual(meta.text_content().strip(), '-')
+
+    def test_tarjeta_del_celular_muestra_cantidad_solo_si_no_va_de_a_uno(self):
+        arch = self.env.ref('sale.view_order_form')._get_combined_arch()
+        bloque = arch.xpath("//field[@name='order_line']//kanban//field[@name='product_uom_qty']/..")[0]
+        self.assertEqual(bloque.get('t-if'), 'record.product_uom_qty.raw_value !== 1')
+
+
+@tagged('post_install', '-at_install')
+class TestPortalCantidad(HttpCase):
+    """La cotización en el portal (/my/orders/<id>): Cantidad con la misma regla que el formulario y el PDF."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        import_matrix(cls.env, MATRIX_CSV)
+        cls.config = find_config(cls.env, 'Pionera', '16 Lineas', '52 cm')
+        cls.partner = cls.env['res.partner'].create({'name': 'Cliente Portal'})
+
+    def _tabla(self, *accesorios):
+        order = self.env['sale.order'].create({'partner_id': self.partner.id})
+        lineas = {line.product_id.name: line for line in self.config.accessory_line_ids}
+        elegidas = self.env['sembradora.config.accessory.line'].union(*(lineas[n] for n in accesorios))
+        self.env['cotizador.configurator.service'].confirm_configuration(order.id, self.config.id, elegidas.ids)
+        respuesta = self.url_open(order.get_portal_url())
+        self.assertEqual(respuesta.status_code, 200)
+        return lxml_html.fromstring(respuesta.content).xpath("//table[@id='sales_order_table']")[0]
+
+    def assertSeccionesAlineadas(self, tabla):
+        """El nombre de cada sección ocupa todas las columnas menos la del total, haya o no columna Cantidad."""
+        columnas = len(tabla.xpath('.//thead//th'))
+        self.assertEqual({td.get('colspan') for td in tabla.xpath(".//td[@name='td_section_name']")},
+                         {str(columnas - 1)})
+
+    def test_sin_columna_cantidad_si_todo_va_de_a_uno(self):
+        tabla = self._tabla('Monitor', 'Kit Fino')
+        self.assertFalse(tabla.xpath(".//th[@id='product_qty_header']"))
+        self.assertFalse(tabla.xpath(".//td[@name='td_product_quantity']"))
+        self.assertSeccionesAlineadas(tabla)
+
+    def test_cantidad_solo_en_las_lineas_que_no_van_de_a_uno(self):
+        tabla = self._tabla('Monitor', 'Sensor', 'Kit Fino')
+        self.assertTrue(tabla.xpath(".//th[@id='product_qty_header']"))
+        cantidades = [td.text_content().split() for td in tabla.xpath(".//td[@name='td_product_quantity']")]
+        self.assertEqual([c for c in cantidades if c], [['16.00', 'Units']])
+        self.assertSeccionesAlineadas(tabla)
