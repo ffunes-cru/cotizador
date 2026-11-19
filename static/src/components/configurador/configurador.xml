@@ -437,7 +437,7 @@
                                                 </small>
 
                                                 <!-- Detalle de Cantidad y Precio (Modo Silencioso oculta precio unitario).
-                                                     La cantidad solo si no va de a 1 (issue #10; legacy, ver #13). -->
+                                                     La cantidad solo si no va de a 1 (issue #10; hoy no se usa, ver #13). -->
                                                 <div class="d-flex align-items-center justify-content-between pt-2 border-top">
                                                     <span t-if="acc.quantity !== 1" class="badge bg-secondary-subtle text-body border rounded-pill px-2 py-1 fs-8">
                                                         Cant: <strong class="text-body"><t t-esc="acc.quantity"/></strong>
