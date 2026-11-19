@@ -436,12 +436,13 @@
                                                     </span>
                                                 </small>
 
-                                                <!-- Detalle de Cantidad y Precio (Modo Silencioso oculta precio unitario) -->
+                                                <!-- Detalle de Cantidad y Precio (Modo Silencioso oculta precio unitario).
+                                                     La cantidad solo si no va de a 1 (issue #10; legacy, ver #13). -->
                                                 <div class="d-flex align-items-center justify-content-between pt-2 border-top">
-                                                    <span class="badge bg-secondary-subtle text-body border rounded-pill px-2 py-1 fs-8">
+                                                    <span t-if="acc.quantity !== 1" class="badge bg-secondary-subtle text-body border rounded-pill px-2 py-1 fs-8">
                                                         Cant: <strong class="text-body"><t t-esc="acc.quantity"/></strong>
                                                     </span>
-                                                    <div class="text-end">
+                                                    <div class="text-end ms-auto">
                                                         <div class="fw-bold text-body">
                                                             <t t-esc="formatCurrency(acc.subtotal)"/>
                                                         </div>
@@ -737,7 +738,7 @@
                 <div class="o_cotizador_fila">
                     <div class="o-scroll-text min-w-0 me-2">
                         <span class="o-scroll-text-content text-body fw-semibold">• <t t-esc="acc.product_name"/></span>
-                        <small class="text-muted ms-1">(x<t t-esc="acc.quantity"/>)</small>
+                        <small t-if="acc.quantity !== 1" class="text-muted ms-1">(x<t t-esc="acc.quantity"/>)</small>
                     </div>
                     <span class="text-body fw-bold flex-shrink-0"><t t-esc="formatCurrency(acc.subtotal)"/></span>
                 </div>
