@@ -1,5 +1,9 @@
 /* ========================================================= */
-/* ESTILOS DE LAYOUT Y COMPONENTES (NATIVO ODOO / BOOTSTRAP) */
+/* Configurador de la cotización (web.assets_backend)        */
+/*                                                           */
+/* Estructura repetida en clases propias; los colores        */
+/* sueltos quedan como utilidades del tema en el markup.     */
+/* Ver docs/mantenibilidad.md, "Estilos".                    */
 /* ========================================================= */
 
 .o_cotizador_configurator {
@@ -16,15 +20,133 @@
         height: 38px;
     }
 
+    .o_cotizador_titulo {
+        max-width: 190px;
+    }
+
+    .o_cotizador_cliente {
+        max-width: 220px;
+    }
+
+    .o_cotizador_spinner {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    /* Contenedor de cada paso (el de configuración es más angosto) */
+    .step-container {
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+
+        &.step-container-narrow {
+            max-width: 860px;
+        }
+    }
+
+    /* Buscador con lupa (modelos y accesorios) */
+    .search-box {
+        position: relative;
+        min-width: 280px;
+
+        .fa-search {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            margin-left: map-get($spacers, 3);
+        }
+
+        .form-control {
+            border-radius: var(--border-radius-pill);
+            padding-left: map-get($spacers, 5);
+            box-shadow: var(--box-shadow-sm);
+        }
+    }
+
+    /* Títulos de sección: MÁQUINA BASE, ESPECIFICACIONES... */
+    .o_cotizador_seccion {
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: $font-weight-bold;
+        font-size: 0.75rem;
+    }
+
+    /* Renglón etiqueta / valor del resumen */
+    .o_cotizador_fila {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: map-get($spacers, 1) 0;
+        border-bottom: var(--border-width) var(--border-style) var(--border-color);
+        font-size: 0.75rem;
+    }
+
+    /* Miniatura de máquina o accesorio: 48px, _md 54px, _lg 60px */
+    .o_cotizador_thumb {
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border: var(--border-width) var(--border-style) var(--border-color);
+        border-radius: var(--border-radius-lg);
+
+        &.o_cotizador_thumb_md {
+            width: 54px;
+            height: 54px;
+        }
+
+        &.o_cotizador_thumb_lg {
+            width: 60px;
+            height: 60px;
+        }
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+    }
+
+    /* Descripción del modelo cortada a dos líneas */
+    .o_cotizador_dos_lineas {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Ícono redondo de "configuración completa" */
+    .o_cotizador_ok {
+        width: 42px;
+        height: 42px;
+        padding: map-get($spacers, 2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     /* Stepper Desktop */
     .stepper-nav {
         .step-btn {
+            display: flex;
+            align-items: center;
+            gap: map-get($spacers, 2);
+            text-decoration: none;
             border: none;
             padding: 4px 12px;
             font-size: 0.88rem;
             transition: all 0.2s ease;
 
             .step-num {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
                 width: 26px;
                 height: 26px;
                 font-size: 0.78rem;
@@ -99,6 +221,7 @@
 
             /* Nodo Completado (Hoja cerrada / compacta) */
             .tree-leaf-done {
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
                 transition: all 0.15s ease-in-out;
                 border-color: var(--bs-border-color) !important;
 
@@ -139,7 +262,16 @@
         transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 
         .model-image-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 160px;
+
             img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
                 transition: transform 0.25s ease;
             }
         }
@@ -162,11 +294,17 @@
 
     /* Tarjetas de Accesorios (Paso 3) */
     .accessory-card {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
         transition: border-color 0.18s ease, box-shadow 0.18s ease;
 
-        .form-switch .form-check-input {
-            width: 2.2em;
-            height: 1.2em;
+        .form-switch {
+            min-width: 44px;
+            text-align: right;
+
+            .form-check-input {
+                width: 2.2em;
+                height: 1.2em;
+            }
         }
 
         &:hover:not(.opacity-75) {
@@ -222,6 +360,9 @@
     }
 
     .mobile-summary-sheet {
+        max-height: 82vh;
+        border-top-left-radius: var(--border-radius-xl);
+        border-top-right-radius: var(--border-radius-xl);
         position: relative;
         z-index: 100000 !important;
         animation: slideUpSheet 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -308,6 +449,7 @@
     /* ========================================================= */
 
     .config-rich-description {
+        max-height: 250px;
         font-size: 0.82rem;
         line-height: 1.45;
         color: inherit;

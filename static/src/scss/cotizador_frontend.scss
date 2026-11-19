@@ -1,5 +1,10 @@
 /* ============================================================== */
-/* Configurador Secuencial Guiado Crucianelli - Diseño Espacioso */
+/* Tienda y portal del cotizador (web.assets_frontend)            */
+/*                                                                */
+/* Estructura repetida (espaciado, tamaños, tipografía, bordes)   */
+/* en clases propias; los colores sueltos quedan como utilidades  */
+/* del tema en el markup (text-muted, bg-light...), que se adaptan */
+/* al contexto. Ver docs/mantenibilidad.md, "Estilos".             */
 /* ============================================================== */
 
 .cotizador-wizard-wrapper {
@@ -204,6 +209,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 1.25rem 1.5rem;
+    max-height: calc(100vh - 230px);
 }
 
 /* Scrollbar estilizada y limpia para el cuerpo del modal */
@@ -231,3 +237,90 @@
     box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
 }
 
+/* Etiquetas y campos con ícono del formulario de solicitud */
+#modal_solicitar_cotizacion {
+    .form-label {
+        font-weight: $font-weight-semibold;
+        font-size: $small-font-size;
+        margin-bottom: map-get($spacers, 1);
+    }
+
+    .input-group > .input-group-text {
+        border-right: 0;
+    }
+
+    .input-group > .input-group-text + .form-control {
+        border-left: 0;
+        padding-left: 0;
+    }
+}
+
+/* Campo trampa para bots: invisible pero presente en el formulario */
+.o_cotizador_honeypot {
+    display: none !important;
+}
+
+/* Etiqueta de marca: rojo suave con borde */
+.badge.o_cotizador_badge {
+    background-color: var(--danger-bg-subtle);
+    color: var(--danger);
+    border: var(--border-width) solid var(--danger-border-subtle);
+}
+
+/* Página "solicitud recibida" */
+.o_cotizador_recibida {
+    max-width: 720px;
+}
+
+/* Resumen de la cotización en el portal: cascada de totales.
+   Renglón normal con borde suave; .o_cotizador_resta sin borde (descuentos, usados);
+   .o_cotizador_separa con borde marcado (cierra un tramo); colores en el markup. */
+.o_cotizador_resumen {
+    tr {
+        border-bottom: var(--border-width) solid var(--light);
+    }
+
+    tr.o_cotizador_resta {
+        border-bottom-width: 0;
+    }
+
+    tr.o_cotizador_separa {
+        border-bottom: var(--border-width) solid var(--border-color);
+    }
+
+    td {
+        padding: map-get($spacers, 2) map-get($spacers, 4);
+
+        &:first-child {
+            text-align: start;
+            font-weight: $font-weight-medium;
+        }
+
+        &:last-child {
+            text-align: end;
+            font-weight: $font-weight-bold;
+        }
+    }
+}
+
+/* Condiciones generales: respeta los saltos de línea del texto */
+.o_cotizador_condiciones {
+    white-space: pre-line;
+    line-height: 1.65;
+}
+
+/* Notas de estado en la barra lateral de la cotización del portal */
+.alert.o_cotizador_nota {
+    border-radius: var(--border-radius-lg);
+    padding: map-get($spacers, 2) map-get($spacers, 3);
+    font-size: $small-font-size;
+    margin-bottom: 0;
+    text-align: start;
+    box-shadow: $box-shadow-sm;
+
+    p {
+        margin-bottom: 0;
+        font-size: 0.8rem;
+        line-height: 1.35;
+    }
+}

@@ -65,6 +65,7 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `controllers/main.py` | Token del formulario, solicitud de cotización (lead u oportunidad + cotización) y bloqueo de checkout, express checkout y transacción de pago en modo "Solo cotización". |
 | `static/src/js/cotizador_sequential_configurator.js` | Configurador paso a paso de la ficha de la máquina en la tienda. |
 | `static/src/js/cotizador_quote_form.js` | Completa el token firmado del formulario *Solicitar Cotización*. |
+| `static/src/scss/cotizador_frontend.scss` | Estilos de la tienda y el portal (ver [Mantenibilidad › Estilos](mantenibilidad.md#estilos)). |
 | `static/src/components/configurador/` | Configurador del vendedor (OWL + plantilla + estilos). |
 | `static/src/scss/cotizador_backend.scss` | Estilos propios del formulario de la cotización (botones verdes debajo de las líneas). |
 | `static/tests/tours/` | Tours de navegador de los tests. |

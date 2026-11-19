@@ -90,66 +90,66 @@
                             <span class="fw-bold text-dark fs-6 d-flex align-items-center">
                                 <i class="fa fa-calculator text-danger me-2"/>Resumen de Cotización
                             </span>
-                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 small">
+                            <span class="badge o_cotizador_badge px-2 py-1 small">
                                 Crucianelli Oficial
                             </span>
                         </div>
                         <div class="card-body p-0">
-                            <table class="table table-borderless table-sm mb-0">
+                            <table class="table table-borderless table-sm mb-0 o_cotizador_resumen">
                                 <tbody>
                                     <!-- Cascada: ver sale.order._compute_totales_cotizador -->
-                                    <tr class="border-bottom border-light">
-                                        <td class="text-start text-muted py-2 px-4 fw-medium">Subtotal (neto)</td>
-                                        <td class="text-end fw-bold text-dark py-2 px-4">
+                                    <tr>
+                                        <td class="text-muted">Subtotal (neto)</td>
+                                        <td class="text-dark">
                                             <span t-field="sale_order.amount_subtotal_productos"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
                                     <t t-if="sale_order.amount_descuentos">
-                                    <tr class="bg-danger-subtle bg-opacity-25">
-                                        <td class="text-start text-danger py-2 px-4 fw-medium"><i class="fa fa-tag me-1"/> Descuentos</td>
-                                        <td class="text-end fw-bold text-danger py-2 px-4">
+                                    <tr class="o_cotizador_resta bg-danger-subtle">
+                                        <td class="text-danger"><i class="fa fa-tag me-1"/> Descuentos</td>
+                                        <td class="text-danger">
                                             <span t-field="sale_order.amount_descuentos"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
                                     </t>
                                     <t t-if="sale_order.amount_plan_pago">
-                                    <tr class="border-bottom border-light">
-                                        <td class="text-start text-muted py-2 px-4 fw-medium"><i class="fa fa-credit-card me-1"/> Plan de Pago</td>
-                                        <td class="text-end fw-bold text-dark py-2 px-4">
+                                    <tr>
+                                        <td class="text-muted"><i class="fa fa-credit-card me-1"/> Plan de Pago</td>
+                                        <td class="text-dark">
                                             <span t-field="sale_order.amount_plan_pago"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
                                     </t>
                                     <t t-if="sale_order.amount_descuentos or sale_order.amount_plan_pago">
-                                    <tr class="border-bottom">
-                                        <td class="text-start fw-bold text-dark py-2 px-4 fw-medium">Subtotal neto</td>
-                                        <td class="text-end fw-bold text-dark py-2 px-4">
+                                    <tr class="o_cotizador_separa">
+                                        <td class="fw-bold text-dark">Subtotal neto</td>
+                                        <td class="text-dark">
                                             <span t-field="sale_order.amount_subtotal_neto"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
                                     </t>
-                                    <tr class="border-bottom border-light">
-                                        <td class="text-start text-muted py-2 px-4 fw-medium">IVA</td>
-                                        <td class="text-end fw-bold text-dark py-2 px-4">
+                                    <tr>
+                                        <td class="text-muted">IVA</td>
+                                        <td class="text-dark">
                                             <span t-field="sale_order.amount_iva_productos"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
-                                    <tr class="border-bottom">
-                                        <td class="text-start fw-bold text-dark py-2 px-4 fw-medium">Total con IVA</td>
-                                        <td class="text-end fw-bold text-dark fs-6 py-2 px-4">
+                                    <tr class="o_cotizador_separa">
+                                        <td class="fw-bold text-dark">Total con IVA</td>
+                                        <td class="text-dark fs-6">
                                             <span t-field="sale_order.amount_total_base"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
                                     </tr>
                                     <t t-if="sale_order.amount_usados">
-                                    <tr class="bg-danger-subtle bg-opacity-25 border-bottom">
-                                        <td class="text-start text-danger py-2 px-4 fw-medium"><i class="fa fa-truck me-1"/> Toma de Usados / Canje</td>
-                                        <td class="text-end fw-bold text-danger py-2 px-4">
+                                    <tr class="o_cotizador_resta o_cotizador_separa bg-danger-subtle">
+                                        <td class="text-danger"><i class="fa fa-truck me-1"/> Toma de Usados / Canje</td>
+                                        <td class="text-danger">
                                             <span t-field="sale_order.amount_usados"
                                                   t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
                                         </td>
@@ -187,8 +187,7 @@
                             <small class="text-muted">Pautas comerciales aplicables a la presente cotización</small>
                         </div>
                     </div>
-                    <div class="p-3 bg-white rounded-3 border border-light-subtle text-secondary small"
-                         style="white-space: pre-line; line-height: 1.65;"
+                    <div class="p-3 bg-white rounded-3 border border-light-subtle text-secondary small o_cotizador_condiciones"
                          t-field="sale_order.condiciones_generales"/>
                 </div>
             </div>
@@ -222,29 +221,29 @@
         <xpath expr="//div[@id='sale_order_sidebar_button']" position="inside">
             <t t-if="sale_order.state in ['draft', 'sent'] and not sale_order._has_to_be_signed() and not sale_order._has_to_be_paid()">
                 <t t-set="p_mode" t-value="sale_order.portal_confirmation_mode or 'salesman_enables'"/>
-                <div t-if="p_mode == 'salesman_only'" class="alert alert-light border shadow-sm rounded-3 py-2 px-3 small mb-0 text-start">
+                <div t-if="p_mode == 'salesman_only'" class="alert alert-light border o_cotizador_nota">
                     <div class="fw-bold text-dark mb-1">
                         <i class="fa fa-lock text-muted me-1"/> Presupuesto Informativo
                     </div>
-                    <p class="mb-0 text-muted" style="font-size: 0.8rem; line-height: 1.35;">
+                    <p class="mb-0 text-muted">
                         Esta propuesta preliminar no requiere firma online. La confirmación oficial es gestionada directamente por su asesor comercial.
                     </p>
                 </div>
-                <div t-elif="p_mode == 'salesman_enables' and not sale_order.portal_confirmation_allowed" class="alert alert-warning-subtle border border-warning-subtle shadow-sm rounded-3 py-2 px-3 small mb-0 text-start">
+                <div t-elif="p_mode == 'salesman_enables' and not sale_order.portal_confirmation_allowed" class="alert alert-warning border border-warning-subtle o_cotizador_nota">
                     <div class="fw-bold text-dark mb-1">
                         <i class="fa fa-hourglass-half text-warning me-1"/> En Revisión Comercial
                     </div>
-                    <p class="mb-0 text-dark-emphasis" style="font-size: 0.8rem; line-height: 1.35;">
+                    <p class="mb-0 text-dark-emphasis">
                         Esta cotización es una estimación inicial. Su asesor comercial analizará sus requerimientos y habilitará el botón de firma una vez acordada la propuesta definitiva.
                     </p>
                 </div>
             </t>
             <t t-elif="sale_order.state in ['draft', 'sent'] and sale_order.portal_confirmation_mode == 'salesman_enables' and sale_order.portal_confirmation_allowed">
-                <div class="alert alert-success-subtle border border-success-subtle shadow-sm rounded-3 py-2 px-3 small mb-0 text-start">
+                <div class="alert alert-success border border-success-subtle o_cotizador_nota">
                     <div class="fw-bold text-success mb-1">
                         <i class="fa fa-check-circle me-1"/> Propuesta Habilitada
                     </div>
-                    <p class="mb-0 text-dark" style="font-size: 0.8rem; line-height: 1.35;">
+                    <p class="mb-0 text-dark">
                         Su asesor ha validado esta cotización. Ya puede aceptarla y firmarla online mediante el botón superior.
                     </p>
                 </div>
