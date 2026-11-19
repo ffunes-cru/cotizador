@@ -11,3 +11,4 @@ from . import test_config_sheet
 from . import test_niveles_usuario
 from . import test_pantalla_cotizacion
 from . import test_reporte_cotizacion
+from . import test_visibilidad_externos

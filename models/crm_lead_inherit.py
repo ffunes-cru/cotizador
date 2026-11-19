@@ -95,6 +95,7 @@ class CrmLeadInherit(models.Model):
         for lead in leads:
             if lead.order_ids:
                 lead._sync_expected_revenue_from_orders()
+        leads._cotizador_compartir_cliente()
         return leads
 
     def write(self, vals):
@@ -106,7 +107,14 @@ class CrmLeadInherit(models.Model):
         res = super().write(vals)
         if 'order_ids' in vals:
             self._sync_expected_revenue_from_orders()
+        if any(f in vals for f in ('partner_id', 'user_id', 'team_id')):
+            self._cotizador_compartir_cliente()
         return res
+
+    def _cotizador_compartir_cliente(self):
+        """El cliente de cada oportunidad pasa a ser visible para su concesionario (models/res_partner.py)."""
+        for lead in self:
+            lead.partner_id._cotizador_compartir_con(lead.team_id)
 
     def action_cotizador_create_quotation(self):
         """Botón *Crear Cotización*: cotización de la configuración pedida en la web.

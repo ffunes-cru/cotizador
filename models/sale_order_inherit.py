@@ -511,6 +511,7 @@ class SaleOrderInherit(models.Model):
         orders = super().create(vals_list)
         for order in orders:
             order._sync_with_crm()
+        orders._cotizador_compartir_cliente()
         return orders
 
     def write(self, vals):
@@ -522,7 +523,14 @@ class SaleOrderInherit(models.Model):
         res = super().write(vals)
         if any(f in vals for f in ('order_line', 'state', 'partner_id', 'user_id', 'team_id')):
             self._sync_with_crm()
+        if any(f in vals for f in ('partner_id', 'user_id', 'team_id')):
+            self._cotizador_compartir_cliente()
         return res
+
+    def _cotizador_compartir_cliente(self):
+        """El cliente de cada cotización pasa a ser visible para su concesionario (models/res_partner.py)."""
+        for order in self:
+            order.partner_id._cotizador_compartir_con(order.team_id)
 
     def _check_portal_confirmation_editable(self):
         """La firma online solo se habilita o revoca en cotizaciones en modo *Habilitado por el vendedor*.

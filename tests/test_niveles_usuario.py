@@ -21,8 +21,9 @@ class TestNivelesUsuario(CotizadorCase):
         cls.vendedor_b = usuario('vendedor_b', 'sales_team.group_sale_salesman')
         cls.lider_a = usuario('lider_a', 'cotizador.group_lider_concesionario')
         cls.lider_b = usuario('lider_b', 'cotizador.group_lider_concesionario')
-        cls.supervisor = usuario('supervisor', 'cotizador.group_supervisor_zona')
-        cls.gerente = usuario('gerente', 'sales_team.group_sale_salesman_all_leads')
+        # Supervisor y gerencia son personal de Crucianelli; vendedores y líderes, de los concesionarios (externos)
+        cls.supervisor = usuario('supervisor@crucianelli.com', 'cotizador.group_supervisor_zona')
+        cls.gerente = usuario('gerente@crucianelli.com', 'sales_team.group_sale_salesman_all_leads')
 
         Team = cls.env['crm.team']
         cls.conc_a = Team.create({'name': 'Concesionario A', 'user_id': cls.lider_a.id,

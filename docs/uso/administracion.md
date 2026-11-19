@@ -37,6 +37,18 @@ Qué ve y edita cada nivel: [Guía de uso › Niveles de usuario](index.md#nivel
 Un líder ve lo de todos los equipos que lidera, y un supervisor, lo de todos los que supervisa: no hace falta
 un usuario por zona.
 
+3. **Concesionarios (usuarios externos):** al invitar a alguien con un correo que no es de Crucianelli, su usuario
+   queda como *Usuario externo (concesionario)* (*Ajustes › Usuarios*, *Origen del Usuario*). Un externo ve:
+   - solo los clientes de su concesionario (los que cargan él o sus compañeros, y los de las cotizaciones de su
+     concesionario), no la base de clientes de Crucianelli ni los de otros concesionarios;
+   - ninguna cuenta bancaria;
+   - nada sin vendedor que no sea de su concesionario (por ejemplo, las solicitudes de la tienda web).
+
+   Para que un concesionario vea un cliente de la base: cotizarle con ese cliente y ese concesionario, o agregar el
+   concesionario en el cliente (pestaña *Ventas y compras*, *Concesionarios*). Los dominios del personal se
+   configuran en el parámetro del sistema `cotizador.dominios_internos` (por defecto `crucianelli.com`, separados por
+   coma). Detalle: [Seguridad › Usuarios externos](../seguridad.md#usuarios-externos-concesionarios).
+
 ## Ajustes
 
 *Ajustes › Ventas › Cotizador de Sembradoras*.

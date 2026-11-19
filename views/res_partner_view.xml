@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Concesionarios que ven el cliente (models/res_partner.py). Solo para el personal de Crucianelli: los
+         usuarios externos no lo ven ni lo pueden cambiar. -->
+    <record id="view_partner_form_cotizador_concesionarios" model="ir.ui.view">
+        <field name="name">res.partner.form.cotizador.concesionarios</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='sales_purchases']//group[@name='sale']" position="inside">
+                <field name="cotizador_concesionario_ids" widget="many2many_tags" options="{'no_create': True}"
+                       groups="!cotizador.group_usuario_externo" invisible="parent_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
