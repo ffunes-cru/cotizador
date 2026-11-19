@@ -55,9 +55,11 @@ jobs:
               # Sin Chrome y websocket-client, Odoo saltea los tests de navegador sin avisar
               apt-get install -y -qq /tmp/chrome.deb python3-websocket > /dev/null
               mkdir -p /ws/addons && cp -r /src /ws/addons/cotizador && chown -R odoo /ws
+              # sale_management (la app Ventas) está en staging y producción y cambia vistas que cotizador
+              # hereda (p. ej. la cantidad en el portal): se instala para que CI vea las mismas vistas
               runuser -u odoo -- odoo --addons-path=/ws/addons \
                 --db_host=localhost --db_port="$DB_PORT" --db_user=odoo --db_password=odoo \
-                --http-port="$HTTP_PORT" -d cotizador_ci -i cotizador \
+                --http-port="$HTTP_PORT" -d cotizador_ci -i cotizador,sale_management \
                 --test-tags=/cotizador --stop-after-init --log-level=test
             '
 
