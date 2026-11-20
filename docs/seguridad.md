@@ -41,8 +41,41 @@ guardado (`team_id.user_id`) para filtrar y agrupar; el equipo lo calcula Odoo a
 escribe solo lo suyo por la regla estándar. Al asignar una cotización (cambiar *Vendedor*), Odoo
 controla el permiso **antes** de escribir, cuando todavía es suya; desde ahí queda en solo lectura. La
 oportunidad la actualiza `sale.order._sync_with_crm()` con `sudo()`, porque en ese momento deja de ser del
-supervisor. No se restringen los contactos (`res.partner`), que comparten todos los módulos, ni las facturas.
+supervisor. Los contactos y las facturas los restringe la sección siguiente, solo para usuarios externos.
 Tests: `tests/test_niveles_usuario.py`.
+
+## Usuarios externos (concesionarios)
+
+Auditoría de seguridad de 11/2026. Los concesionarios y sus vendedores son usuarios **internos** que no son de
+Crucianelli: sin esto veían todos los contactos (la base copiada de SAP y los clientes de otros concesionarios),
+sus cuentas bancarias y las cotizaciones sin vendedor, como las de la tienda web.
+
+- **Quién es externo:** el grupo *Usuario externo (concesionario)* (`cotizador.group_usuario_externo`, privilegio
+  *Origen del Usuario (Cotizador)*). Se asigna solo al crear un usuario interno, al cambiarle el correo o al pasarlo
+  de portal a interno, si su correo (el login, o el email si el login no es un correo) no es de un dominio de
+  `cotizador.dominios_internos` (por defecto `crucianelli.com`). Nunca a un administrador (Ajustes) ni al
+  superusuario. Se puede quitar a mano y se respeta; nunca se quita solo (`models/res_users.py`).
+- **De quién es cada cliente:** `res.partner.cotizador_concesionario_ids` (*Concesionarios*, pestaña *Ventas y
+  compras*, solo visible para el personal). Va en el contacto comercial; sus contactos hijos lo heredan. Se completa
+  solo: con los concesionarios de un externo que crea el cliente, y con el equipo de cada cotización u oportunidad
+  en la que aparece (`models/res_partner.py`). Un externo no lo puede cambiar, y solo comparte clientes que ya ve:
+  Odoo no verifica la lectura al escribir un many2one (por ejemplo, el cliente de una cotización por RPC).
+- **Reglas** (`rule_externo_*`): son **globales**, porque las de grupo se suman con OR a las estándar y no podrían
+  restringir. Su dominio es `[(1, '=', 1)]` para quien no es externo.
+
+| Modelo | Un externo ve |
+|---|---|
+| `res.partner` | Los clientes de sus concesionarios (como líder o miembro del equipo) y sus contactos; los que creó; los usuarios internos (aparecen como vendedor o seguidor), la empresa y su propia empresa. **No** ve la base de Crucianelli ni los clientes de otros concesionarios. |
+| `res.partner.bank` | Ninguna cuenta bancaria. |
+| `sale.order`, `sale.order.line`, `sale.report`, `crm.lead` | Lo que ya le permiten sus grupos, salvo lo que **no tiene vendedor** y no es de sus concesionarios. |
+| `account.move`, `account.move.line` | Lo que ya le permiten sus grupos, salvo las facturas sin vendedor. |
+
+Lo que queda visible y es aceptado: los nombres y correos de trabajo de los usuarios internos, incluidos los de
+otros concesionarios, y el directorio público de empleados (`hr.employee.public`: nombre, puesto, departamento).
+
+Datos anteriores (migración 19.0.2.2.0): marca a los externos y asigna cada cliente a los concesionarios de sus
+cotizaciones y oportunidades; el resto de los contactos queda solo para el personal. Tests:
+`tests/test_visibilidad_externos.py`.
 
 ## Las tres capas
 
@@ -97,6 +130,8 @@ una cotización desde el portal lo decide el modo de aceptación (`_has_to_be_pa
 | Un líder no ve las cotizaciones de un vendedor suyo | La cotización no tiene ese concesionario (equipo), o el usuario no es el *Líder del equipo*, o no tiene el nivel *Líder de Concesionario*. | Revisar el campo *Concesionario* de la cotización y el equipo de ventas. |
 | Un supervisor no ve un concesionario | El equipo no tiene a ese usuario como *Supervisor de Zona*, o el usuario no tiene ese nivel. | Completar el supervisor en el equipo de ventas. |
 | El supervisor no puede editar una cotización que creó | La asignó a otro vendedor: desde ahí la ve en solo lectura. | Lo esperado (issue #1). La edita el concesionario o gerencia. |
+| Un concesionario no encuentra un cliente que existe | Es de la base de Crucianelli o de otro concesionario: los externos ven solo los suyos. | Si corresponde que lo atienda, crear la cotización con ese cliente y su concesionario (el cliente pasa a ser visible para él), o agregar el concesionario en el campo *Concesionarios* del cliente. |
+| Un empleado de Crucianelli ve solo algunos clientes | Su usuario quedó marcado como *Usuario externo* (correo de otro dominio). | Quitarle el grupo en *Ajustes › Usuarios* (*Origen del Usuario*), o agregar su dominio a `cotizador.dominios_internos`. |
 
 ## Ver también
 

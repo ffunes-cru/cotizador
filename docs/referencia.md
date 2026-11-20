@@ -303,6 +303,18 @@ Sin campos propios.
 | `cotizador_quote_rate_limit_ip` | integer | Solicitudes web por IP (por hora) | parámetro `cotizador.quote_rate_limit_ip`; Máximo de solicitudes de cotización anónimas desde una misma IP por hora. 0 = sin límite. |
 | `cotizador_tax_id` | many2one | Impuesto de Maquinaria | → `account.tax`; related `company_id.cotizador_tax_id`; Impuesto que se aplica a máquinas y accesorios cotizados con el configurador. Si se deja vacío se usan los impuestos de cada producto. |
 
+### `res.partner` — Contact
+
+| Campo | Tipo | Etiqueta | Detalle |
+|---|---|---|---|
+| `cotizador_concesionario_ids` | many2many | Concesionarios | → `crm.team`; Concesionarios (equipos de ventas) cuyos usuarios externos ven este cliente y sus contactos. Se completa solo: con el concesionario de quien lo crea, si es externo, y con el de cada cotización u oportunidad en la que aparece. El personal de Crucianelli ve todos los contactos. |
+
+### `res.users` — User
+
+| Campo | Tipo | Etiqueta | Detalle |
+|---|---|---|---|
+| `cotizador_concesionario_ids` | many2many | Concesionarios | → `crm.team`; related `partner_id.cotizador_concesionario_ids`; Concesionarios (equipos de ventas) cuyos usuarios externos ven este cliente y sus contactos. Se completa solo: con el concesionario de quien lo crea, si es externo, y con el de cada cotización u oportunidad en la que aparece. El personal de Crucianelli ve todos los contactos. |
+
 ### `sale.order` — Sales Order
 
 | Campo | Tipo | Etiqueta | Detalle |

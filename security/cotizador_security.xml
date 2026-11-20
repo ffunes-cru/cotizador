@@ -123,4 +123,85 @@
         <field name="perm_create" eval="False"/>
         <field name="perm_unlink" eval="False"/>
     </record>
+
+    <!-- ================================================================================================
+         Usuarios externos (concesionarios y sus vendedores): usuarios internos que no son de Crucianelli.
+         Ven solo los clientes de su concesionario, nada sin vendedor y ninguna cuenta bancaria (auditoría de
+         seguridad 11/2026; models/res_partner.py y models/res_users.py).
+
+         Las reglas son GLOBALES (sin grupo): las reglas por grupo se suman (OR) a las estándar de Odoo y no podrían
+         restringir. Para los demás usuarios su dominio es [(1, '=', 1)]: no cambian nada.
+         ================================================================================================ -->
+    <record id="res_groups_privilege_origen_usuario" model="res.groups.privilege">
+        <field name="name">Origen del Usuario (Cotizador)</field>
+        <field name="sequence">52</field>
+        <field name="category_id" ref="base.module_category_sales"/>
+        <field name="placeholder">Personal de Crucianelli</field>
+    </record>
+
+    <record id="group_usuario_externo" model="res.groups">
+        <field name="name">Usuario externo (concesionario)</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_origen_usuario"/>
+        <field name="comment">Ve solo los clientes de su concesionario y las cotizaciones con vendedor. Se asigna solo a los usuarios internos cuyo correo no es de Crucianelli (parámetro cotizador.dominios_internos).</field>
+    </record>
+
+    <record id="rule_externo_res_partner" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo ve los clientes de su concesionario</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <!-- Además: personal y usuarios internos (aparecen como vendedor o seguidor), la empresa, su propia empresa
+             y lo que él creó. El concesionario va en el contacto comercial: los contactos hijos lo heredan. -->
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [
+            '|', '|', '|', '|', '|',
+            ('partner_share', '=', False),
+            ('id', 'in', user.company_ids.partner_id.ids),
+            ('id', 'child_of', user.partner_id.commercial_partner_id.id),
+            ('create_uid', '=', user.id),
+            ('commercial_partner_id.cotizador_concesionario_ids.user_id', '=', user.id),
+            ('commercial_partner_id.cotizador_concesionario_ids.crm_team_member_ids.user_id', '=', user.id)]</field>
+    </record>
+
+    <record id="rule_externo_res_partner_bank" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo no ve cuentas bancarias</field>
+        <field name="model_id" ref="base.model_res_partner_bank"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [(0, '=', 1)]</field>
+    </record>
+
+    <!-- La regla estándar de vendedor ("lo suyo o sin vendedor") le mostraría a cualquier concesionario las
+         cotizaciones sin vendedor, como las que llegan de la tienda web. Para un externo: con vendedor, o de sus
+         concesionarios. -->
+    <record id="rule_externo_sale_order" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo no ve cotizaciones sin vendedor de otros equipos</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [
+            '|', '|', ('user_id', '!=', False), ('team_id.user_id', '=', user.id), ('team_id.crm_team_member_ids.user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_externo_sale_order_line" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo no ve líneas de cotizaciones sin vendedor de otros equipos</field>
+        <field name="model_id" ref="sale.model_sale_order_line"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [
+            '|', '|', ('order_id.user_id', '!=', False), ('order_id.team_id.user_id', '=', user.id), ('order_id.team_id.crm_team_member_ids.user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_externo_sale_report" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo no ve en el análisis ventas sin vendedor de otros equipos</field>
+        <field name="model_id" ref="sale.model_sale_report"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [
+            '|', '|', ('user_id', '!=', False), ('team_id.user_id', '=', user.id), ('team_id.crm_team_member_ids.user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_externo_crm_lead" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo no ve oportunidades sin vendedor de otros equipos</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [
+            '|', '|', ('user_id', '!=', False), ('team_id.user_id', '=', user.id), ('team_id.crm_team_member_ids.user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_externo_account_move" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo no ve facturas sin vendedor</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [('invoice_user_id', '!=', False)]</field>
+    </record>
+    <record id="rule_externo_account_move_line" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo no ve apuntes de facturas sin vendedor</field>
+        <field name="model_id" ref="account.model_account_move_line"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [('move_id.invoice_user_id', '!=', False)]</field>
+    </record>
 </odoo>
