@@ -77,16 +77,31 @@ sus cuentas bancarias y las cotizaciones sin vendedor, como las de la tienda web
 | `res.partner.bank` | Ninguna cuenta bancaria. |
 | `sale.order`, `sale.order.line`, `sale.report`, `crm.lead` | Lo que ya le permiten sus grupos, salvo lo que **no tiene vendedor** y no es de sus concesionarios. |
 | `account.move`, `account.move.line` | Lo que ya le permiten sus grupos, salvo las facturas sin vendedor. |
+| `discuss.channel` | Solo los canales y chats de los que es miembro: puede chatear con el personal, pero no lee los canales públicos (issue #23). |
+| `calendar.event` | Solo las reuniones que organiza o a las que lo invitan. |
+| Ausencias (`hr.leave`, `hr.leave.allocation`, `hr.leave.report`, `hr.leave.report.calendar`) | Nada. Ausencias no es dependencia del cotizador: el bloqueo se aplica por nombre de modelo en `models/ir_rule.py` y tiene efecto solo si está instalada. |
 
-Lo que queda visible y es aceptado: los nombres y correos de trabajo de los usuarios internos, incluidos los de
-otros concesionarios, y el directorio público de empleados (`hr.employee.public`: nombre, puesto, departamento).
+**Menú de apps** (`models/ir_ui_menu.py`): a un externo no se le cargan Empleados, Ausencias, Sitio web, Tableros
+ni Aplicaciones; al personal de Crucianelli, Ausencias solo si la gestiona (*Ausencias / Encargado* o más). Es solo
+orden en pantalla: la protección son las reglas.
+
+Lo que queda visible: los nombres y correos de trabajo de los usuarios internos, incluidos los de otros
+concesionarios, y el directorio de empleados (`hr.employee.public`: nombre, puesto, departamento, jefe, celular de
+trabajo), aunque sin la app en el menú. Odoo lo lee para la tarjeta del vendedor y el autor de los mensajes, así que
+bloquearlo puede romper esas pantallas; se resuelve con la base comercial aparte, sin Recursos Humanos.
+
+Efecto conocido de la regla de reuniones: una búsqueda de mensajes **sin documento** (todos los mensajes que puede
+leer) da error de acceso a un externo si hay mensajes en reuniones ajenas, porque Calendario las lee sin `sudo` al
+filtrar. Falla cerrado (error, no datos) y las pantallas no la usan: el chatter, la bandeja de entrada y los
+destacados buscan por documento o por destinatario.
 
 Datos anteriores (migración 19.0.2.2.0): marca a los externos y asigna cada cliente a los concesionarios de sus
 cotizaciones y oportunidades; el resto de los contactos queda solo para el personal. Tests:
 `tests/test_visibilidad_externos.py` (reglas, CUIT, formulario, análisis por CUIT) y `tests/test_externos_rpc.py`: entra
 como cada concesionario con usuario y contraseña, llama por JSON-RPC a las vías del navegador (listas, autocompletar,
 agrupar, abrir por id, chatter, análisis de ventas) y verifica que no aparezca nada del otro. No depende de cómo
-estén escritas las reglas: si un cambio deja un hueco en alguna de esas vías, falla.
+estén escritas las reglas: si un cambio deja un hueco en alguna de esas vías, falla. También prueba canales, reuniones,
+ausencias (si está instalada) y el menú de apps, con control del lado del personal.
 
 ## Las tres capas
 

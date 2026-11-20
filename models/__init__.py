@@ -23,3 +23,5 @@ from . import crm_team
 from . import res_partner
 from . import res_users
 from . import sale_report
+from . import ir_rule
+from . import ir_ui_menu
