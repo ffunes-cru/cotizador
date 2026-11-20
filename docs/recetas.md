@@ -62,7 +62,8 @@ Con el usuario *Administrador del Configurador*:
 Las reglas viven en tres lugares que tienen que decir lo mismo (ver [Flujos](flujos.md#reglas-de-accesorios)):
 
 1. `validate_rule_set()` (`models/sembradora_config.py`): coherencia del estándar; la usan la restricción y el importador.
-2. `_check_accessory_selection()` (mismo archivo): validación de una selección al confirmar.
+2. `_check_accessory_selection()` (mismo archivo): validación de una selección al confirmar, y de las líneas de la
+   cotización al guardarla (`sale.order._cotizador_check_configuraciones()`).
 3. `_evaluateAccessoryRules()` / `selectChoice()` (`static/src/components/configurador/configurador.js`): guía en el navegador.
 
 Editar una línea suelta también revalida su configuración (`_check_config_rules` en la línea).
