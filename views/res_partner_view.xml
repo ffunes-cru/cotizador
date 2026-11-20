@@ -13,4 +13,37 @@
             </xpath>
         </field>
     </record>
+    <!-- Alta de clientes por un usuario externo: solo razón social, CUIT, correo, teléfono, localidad y provincia
+         (minimización de datos, auditoría de seguridad 11/2026). El resto del formulario no se le muestra. -->
+    <record id="view_partner_form_cotizador_externo" model="ir.ui.view">
+        <field name="name">res.partner.form.cotizador.externo</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet//field[@name='street']" position="attributes">
+                <attribute name="groups">!cotizador.group_usuario_externo</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='street2']" position="attributes">
+                <attribute name="groups">!cotizador.group_usuario_externo</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='zip']" position="attributes">
+                <attribute name="groups">!cotizador.group_usuario_externo</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='function']" position="attributes">
+                <attribute name="groups">!cotizador.group_usuario_externo</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='website']" position="attributes">
+                <attribute name="groups">!cotizador.group_usuario_externo</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='category_id']" position="attributes">
+                <attribute name="groups">!cotizador.group_usuario_externo</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='properties']" position="attributes">
+                <attribute name="groups">!cotizador.group_usuario_externo</attribute>
+            </xpath>
+            <xpath expr="//sheet/notebook" position="attributes">
+                <attribute name="groups">!cotizador.group_usuario_externo</attribute>
+            </xpath>
+        </field>
+    </record>
 </odoo>

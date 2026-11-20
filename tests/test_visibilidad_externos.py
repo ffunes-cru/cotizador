@@ -1,8 +1,10 @@
 """@file
 Usuarios externos (concesionarios): ven solo los clientes de su concesionario, nada sin vendedor de otros equipos y
 ninguna cuenta bancaria (auditoría de seguridad 11/2026, security/cotizador_security.xml `rule_externo_*`)."""
+from lxml import etree
+
 from odoo import Command
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 
@@ -126,6 +128,57 @@ class TestVisibilidadExternos(TransactionCase):
         })[0]
         self.assertEqual(datos['partner_id']['display_name'], 'Cliente de A')
         self.assertEqual(datos['team_id']['id'], self.equipo_a.id)
+
+    # --- Alta de clientes: CUIT y datos mínimos ------------------------------------------------------------------
+
+    def test_cuit_repetido_en_su_concesionario(self):
+        Partner = self.env['res.partner']
+        Partner.with_user(self.vendedor_a).create({'name': 'Agro SA', 'is_company': True, 'vat': '30-71234567-1'})
+        with self.assertRaisesRegex(ValidationError, 'Agro SA'):
+            Partner.with_user(self.lider_a).create({'name': 'Agro', 'is_company': True, 'vat': '30712345671'})
+        otro = Partner.with_user(self.lider_a).create({'name': 'Otro', 'is_company': True, 'vat': '30-99999999-1'})
+        with self.assertRaisesRegex(ValidationError, 'Agro SA'):
+            otro.with_user(self.lider_a).write({'vat': '30 71234567 1'})
+        with self.assertRaises(ValidationError, msg='dos iguales en el mismo alta'):
+            Partner.with_user(self.lider_a).create([{'name': 'X', 'vat': '20111111112'}, {'name': 'Y', 'vat': '20111111112'}])
+        # Un contacto de la empresa copia su CUIT: no cuenta como repetido
+        Partner.with_user(self.lider_a).create({'name': 'Encargado', 'parent_id': otro.id})
+
+    def test_cuit_de_otro_concesionario_o_de_crucianelli_no_se_avisa(self):
+        """Avisar sería revelar que el cliente existe en otro lado: cada concesionario carga su ficha."""
+        Partner = self.env['res.partner']
+        de_a = Partner.with_user(self.lider_a).create({'name': 'Agro SA', 'is_company': True, 'vat': '30712345671'})
+        de_b = Partner.with_user(self.lider_b).create({'name': 'Agro', 'is_company': True, 'vat': '30712345671'})
+        de_b_sap = Partner.with_user(self.lider_b).create({'name': 'Igual a SAP', 'vat': self.cliente_sap.vat})
+        self.assertFalse(self._ve(self.lider_b, de_a))
+        self.assertTrue(de_b and de_b_sap)
+        # El personal de Crucianelli no tiene el control
+        Partner.with_user(self.interno).create({'name': 'Agro (interno)', 'vat': '30712345671'})
+
+    def test_formulario_de_alta_reducido(self):
+        def campos(usuario):
+            """Campos que se ven en el formulario (Odoo deja algunos ocultos porque otros campos los usan)."""
+            arch = self.env['res.partner'].with_user(usuario).get_views([(False, 'form')])['views']['form']['arch']
+            return {f.get('name') for f in etree.fromstring(arch).iter('field') if f.get('invisible') not in ('1', 'True')}
+
+        externo, interno = campos(self.vendedor_a), campos(self.interno)
+        for campo in ('name', 'vat', 'email', 'phone', 'city', 'state_id'):
+            self.assertIn(campo, externo)
+        for campo in ('street', 'zip', 'website', 'comment', 'category_id', 'child_ids', 'cotizador_concesionario_ids'):
+            self.assertNotIn(campo, externo)
+            self.assertIn(campo, interno)
+
+    def test_analisis_de_ventas_por_cuit(self):
+        """Dos fichas del mismo cliente (una por concesionario) suman juntas agrupando por CUIT."""
+        producto = self.env['product.product'].create({'name': 'Sembradora', 'list_price': 100})
+        for usuario, cuit in ((self.lider_a, '30-71234567-1'), (self.lider_b, '30712345671')):
+            cliente = self.env['res.partner'].with_user(usuario).create({'name': 'Agro', 'vat': cuit})
+            self.env['sale.order'].with_user(usuario).create({
+                'partner_id': cliente.id, 'order_line': [Command.create({'product_id': producto.id})]})
+        self.env.flush_all()
+        grupos = self.env['sale.report']._read_group(
+            [('product_id', '=', producto.id)], ['cotizador_cuit'], ['price_subtotal:sum', 'partner_id:count_distinct'])
+        self.assertEqual(grupos, [('30712345671', 200.0, 2)])
 
     # --- Cuentas bancarias, cotizaciones y oportunidades sin vendedor -------------------------------------------------
 

@@ -349,6 +349,12 @@ Sin campos propios.
 | `is_equipo_usado` | boolean | Es Equipo Usado |  |
 | `is_plan_pago` | boolean | Es Plan de Pago |  |
 
+### `sale.report` — Sales Analysis Report
+
+| Campo | Tipo | Etiqueta | Detalle |
+|---|---|---|---|
+| `cotizador_cuit` | char | CUIT |  |
+
 ## Puntos de entrada
 
 Métodos públicos (invocables por RPC) y quién los llama: botones de vistas, JavaScript (`orm.call`), Python y plantillas QWeb. Las llamadas desde código se buscan por nombre, así que un nombre repetido en otro modelo puede aparecer de más.

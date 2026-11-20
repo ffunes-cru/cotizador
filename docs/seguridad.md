@@ -60,6 +60,14 @@ sus cuentas bancarias y las cotizaciones sin vendedor, como las de la tienda web
   solo: con los concesionarios de un externo que crea el cliente, y con el equipo de cada cotización u oportunidad
   en la que aparece (`models/res_partner.py`). Un externo no lo puede cambiar, y solo comparte clientes que ya ve:
   Odoo no verifica la lectura al escribir un many2one (por ejemplo, el cliente de una cotización por RPC).
+- **Alta de clientes:** el formulario de contacto le muestra a un externo solo razón social, CUIT, correo, teléfono,
+  localidad y provincia (`view_partner_form_cotizador_externo`; minimización de datos). Es solo la vista: el servidor
+  no rechaza otros campos, porque flujos estándar como convertir una oportunidad copian la dirección al cliente.
+- **CUIT repetido:** un externo no puede cargar (ni cambiar a) un CUIT que ya tiene un cliente de sus concesionarios;
+  el error dice cuál es (`_cotizador_check_cuit_repetido()`). Si el CUIT es de otro concesionario o de la base de
+  Crucianelli, **no se le avisa**, porque sería revelar que ese cliente existe: carga su propia ficha. Por eso un
+  cliente puede tener varias fichas; el *Análisis de ventas* agrupa por **CUIT** (`sale.report.cotizador_cuit`, sin
+  guiones) para verlo unificado (`models/sale_report.py`).
 - **Reglas** (`rule_externo_*`): son **globales**, porque las de grupo se suman con OR a las estándar y no podrían
   restringir. Su dominio es `[(1, '=', 1)]` para quien no es externo.
 
@@ -75,7 +83,10 @@ otros concesionarios, y el directorio público de empleados (`hr.employee.public
 
 Datos anteriores (migración 19.0.2.2.0): marca a los externos y asigna cada cliente a los concesionarios de sus
 cotizaciones y oportunidades; el resto de los contactos queda solo para el personal. Tests:
-`tests/test_visibilidad_externos.py`.
+`tests/test_visibilidad_externos.py` (reglas, CUIT, formulario, análisis por CUIT) y `tests/test_externos_rpc.py`: entra
+como cada concesionario con usuario y contraseña, llama por JSON-RPC a las vías del navegador (listas, autocompletar,
+agrupar, abrir por id, chatter, análisis de ventas) y verifica que no aparezca nada del otro. No depende de cómo
+estén escritas las reglas: si un cambio deja un hueco en alguna de esas vías, falla.
 
 ## Las tres capas
 

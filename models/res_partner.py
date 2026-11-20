@@ -8,9 +8,24 @@ La visibilidad la deciden las reglas `rule_externo_*` (security/cotizador_securi
 - aparece en una cotización u oportunidad de ese concesionario (sale.order / crm.lead: _cotizador_compartir_cliente()).
 
 Los usuarios internos de Crucianelli ven todos los contactos, como antes.
+
+Un usuario externo no puede cargar dos veces el mismo CUIT en su concesionario (_cotizador_check_cuit_repetido()). Si
+el CUIT es de un cliente de otro concesionario o de la base de Crucianelli, no se le avisa: carga su propia ficha, y
+los reportes de Crucianelli agrupan por CUIT (models/sale_report.py).
 """
+import re
+
 from odoo import Command, api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
+
+
+def _solo_digitos(cuit):
+    """CUIT sin guiones, espacios ni prefijo de país, para comparar.
+
+    @param cuit Texto del CUIT (`vat`), o False.
+    @return str con los dígitos ('' si no hay).
+    """
+    return re.sub(r'\D', '', cuit or '')
 
 
 class ResPartner(models.Model):
@@ -49,6 +64,7 @@ class ResPartner(models.Model):
         partners = super().create(vals_list)
         if externo:
             partners._cotizador_compartir_con(self.env.user._cotizador_concesionarios())
+            partners._cotizador_check_cuit_repetido()
         return partners
 
     def write(self, vals):
@@ -57,10 +73,39 @@ class ResPartner(models.Model):
         @param vals Valores a escribir.
         @return True.
         @throws AccessError Si un usuario externo cambia los concesionarios.
+        @throws ValidationError Si un usuario externo pone un CUIT que su concesionario ya tiene cargado.
         """
-        if 'cotizador_concesionario_ids' in vals and self._cotizador_es_externo():
+        externo = self._cotizador_es_externo()
+        if 'cotizador_concesionario_ids' in vals and externo:
             raise AccessError(self.env._('Solo el personal de Crucianelli asigna los concesionarios de un cliente.'))
-        return super().write(vals)
+        res = super().write(vals)
+        if 'vat' in vals and externo:
+            self._cotizador_check_cuit_repetido()
+        return res
+
+    def _cotizador_check_cuit_repetido(self):
+        """Un usuario externo no carga dos veces el mismo CUIT en su concesionario.
+
+        Solo compara con los clientes de sus concesionarios, que ya puede ver: no revela si el CUIT existe en otro
+        concesionario o en la base de Crucianelli. Los contactos hijos no cuentan (copian el CUIT de su empresa).
+
+        @throws ValidationError Con el cliente que ya tiene ese CUIT.
+        """
+        equipos = self.env.user._cotizador_concesionarios()
+        nuevos = self.filtered(lambda p: not p.parent_id and _solo_digitos(p.vat))
+        if not equipos or not nuevos:
+            return
+        existentes = self.sudo().search_fetch([
+            ('id', 'not in', nuevos.ids), ('parent_id', '=', False), ('vat', '!=', False),
+            ('cotizador_concesionario_ids', 'in', equipos.ids)], ['name', 'vat'])
+        por_cuit = {_solo_digitos(p.vat): p for p in existentes}
+        for partner in nuevos:
+            repetido = por_cuit.get(_solo_digitos(partner.vat))
+            if repetido:
+                raise ValidationError(self.env._(
+                    'Tu concesionario ya tiene un cliente con el CUIT %(cuit)s: «%(cliente)s». Buscalo y usá ese.',
+                    cuit=partner.vat, cliente=repetido.name))
+            por_cuit[_solo_digitos(partner.vat)] = partner
 
     def _cotizador_compartir_con(self, equipos):
         """Agrega concesionarios al contacto comercial de cada contacto (sus contactos hijos los heredan).

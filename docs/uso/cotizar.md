@@ -11,6 +11,10 @@ Hay dos caminos:
   todavía es un *lead* sin cliente, primero hay que convertirla con el botón estándar del CRM.
 - **Desde cero**: *Ventas › Pedidos › Cotizaciones › Nuevo*, elegir el cliente y seguir con el paso 2.
 
+**Cliente nuevo (concesionarios):** se carga desde el mismo campo *Cliente* (*Crear y editar…*). El formulario pide
+solo razón social, CUIT, correo, teléfono, localidad y provincia. Si el concesionario ya tiene un cliente con ese
+CUIT, Odoo avisa cuál es: hay que buscarlo y usar ese.
+
 Quien lleva la cotización es el **Vendedor** (pestaña *Otra información*). Con él, Odoo completa solo el equipo de
 ventas y, junto al cliente, el **Concesionario**: el líder de ese equipo. Quién ve y quién edita cada cotización
 depende de esos campos ([Niveles de usuario](index.md#niveles-de-usuario)).
