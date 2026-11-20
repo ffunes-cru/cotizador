@@ -44,6 +44,10 @@ un usuario por zona.
    - ninguna cuenta bancaria;
    - nada sin vendedor que no sea de su concesionario (por ejemplo, las solicitudes de la tienda web).
 
+   Al cargar un cliente, el formulario le pide solo razón social, CUIT, correo, teléfono, localidad y provincia, y no
+   lo deja repetir un CUIT de su concesionario. Si el mismo cliente trabaja con dos concesionarios, cada uno tiene su
+   ficha: para verlo unificado, agrupar el *Análisis de ventas* por **CUIT**.
+
    Para que un concesionario vea un cliente de la base: cotizarle con ese cliente y ese concesionario, o agregar el
    concesionario en el cliente (pestaña *Ventas y compras*, *Concesionarios*). Los dominios del personal se
    configuran en el parámetro del sistema `cotizador.dominios_internos` (por defecto `crucianelli.com`, separados por

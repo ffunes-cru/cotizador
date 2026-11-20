@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Análisis de ventas agrupado por CUIT: une las fichas que cada concesionario tiene del mismo cliente
+         (models/sale_report.py). -->
+    <record id="view_order_product_search_cotizador_cuit" model="ir.ui.view">
+        <field name="name">sale.report.search.cotizador.cuit</field>
+        <field name="model">sale.report</field>
+        <field name="inherit_id" ref="sale.view_order_product_search"/>
+        <field name="arch" type="xml">
+            <filter name="Customer" position="after">
+                <filter string="CUIT" name="cotizador_cuit" context="{'group_by': 'cotizador_cuit'}"/>
+            </filter>
+            <field name="categ_id" position="before">
+                <field name="cotizador_cuit"/>
+            </field>
+        </field>
+    </record>
+</odoo>
