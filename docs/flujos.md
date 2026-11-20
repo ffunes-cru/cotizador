@@ -66,16 +66,17 @@ grupo vacío.
 ## Cascada de totales
 
 Calculada en `sale.order._compute_totales_cotizador()`; la muestran el formulario, el portal y el PDF.
-**Los descuentos y el plan de pago se aplican sobre el neto; el IVA se calcula después**, sobre el neto
-con descuentos.
+**Los descuentos, los recargos y el plan de pago se aplican sobre el neto; el IVA se calcula después**,
+sobre el neto ajustado.
 
 | Total | Cálculo |
 |---|---|
 | SUB TOTAL | Neto de las líneas de producto (máquina, accesorios y otros productos), sin IVA. |
 | Total Descuentos | Descuentos comerciales sobre el neto (negativo). |
-| Plan de Pago | Recargo (+) o descuento (−) del plan sobre el neto con descuentos. |
-| SUB TOTAL NETO | SUB TOTAL + descuentos ± plan: la base del IVA. |
-| IVA | Impuestos de productos, descuentos y plan (el total de impuestos de Odoo). |
+| Total Recargos | Recargos comerciales sobre el neto (positivo). |
+| Plan de Pago | Recargo (+) o descuento (−) del plan sobre el neto con descuentos y recargos. |
+| SUB TOTAL NETO | SUB TOTAL + descuentos + recargos ± plan: la base del IVA. |
+| IVA | Impuestos de productos, descuentos, recargos y plan (el total de impuestos de Odoo). |
 | TOTAL | SUB TOTAL NETO + IVA. |
 | Medios de pago (Usados) | Equipos usados tomados como pago (negativo, sin IVA). |
 | **SALDO A CANCELAR** | TOTAL − usados (nunca menor a 0). Coincide con el total de la orden de Odoo. |
@@ -85,11 +86,14 @@ Ejemplo: 100.000 neto, descuento 6 % → 94.000 neto; IVA 10,5 % → 9.870; TOTA
 - **Descuento comercial** (asistente *Añadir Descuento*): en porcentaje se calcula sobre el neto que dejan
   los descuentos anteriores (cascada); también puede ser un monto fijo neto. Se crea una línea por grupo
   de impuestos de la cotización, con esos impuestos, así cada alícuota baja su propia base de IVA.
+- **Recargo comercial** (asistente *Añadir Recargo*, issue #21): el mismo asistente con `tipo_ajuste = 'recargo'`.
+  Precio positivo, línea `is_recargo` en la sección *Recargos*. Descuentos y recargos forman una sola cascada,
+  por orden de carga (secuencia). A diferencia del descuento, un recargo puede superar el neto.
 - **Plan de pago**: una línea por grupo de impuestos con el producto del tipo de plan, sus impuestos y el
   porcentaje de la opción, sobre el neto con descuentos. Uno por cotización.
-- **Siempre al día**: los descuentos en porcentaje y el plan guardan su porcentaje
+- **Siempre al día**: los descuentos y recargos en porcentaje y el plan guardan su porcentaje
   (`cotizador_pct`) y se **recalculan solos** cada vez que cambian las líneas o se usa *Actualizar
-  precios* (`_cotizador_update_adjustments`). Los descuentos de monto fijo no cambian.
+  precios* (`_cotizador_update_adjustments`). Los de monto fijo no cambian.
 - **Usado**: monto acordado, línea sin producto ni impuestos.
 - **Hoja de planes del PDF**: el total estimado de cada opción es el saldo que quedaría con ese plan
   (`_cotizador_simulate_plan`), con el mismo cálculo.

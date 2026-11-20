@@ -69,14 +69,15 @@ Sin campos propios.
 
 | Campo | Tipo | Etiqueta | Detalle |
 |---|---|---|---|
-| `base_neto` | monetary | Base de Cálculo (Neto) | calculado; Neto de los productos menos los descuentos ya cargados, sin IVA. |
+| `base_neto` | monetary | Base de Cálculo (Neto) | calculado; Neto de los productos con los descuentos y recargos ya cargados, sin IVA. |
 | `currency_id` | many2one | Moneda | → `res.currency`; related `sale_order_id.currency_id` |
-| `monto_descuento` | monetary | Descuento Neto Resultante | calculado (guardado) |
-| `monto_fijo` | monetary | Monto Fijo ($) | Importe neto (sin IVA) a descontar. |
-| `nombre` | char | Descripción del Descuento | obligatorio |
-| `porcentaje` | float | Porcentaje (%) | Porcentaje sobre el neto vigente (después de los descuentos anteriores). |
+| `monto_descuento` | monetary | Importe Neto Resultante | calculado (guardado) |
+| `monto_fijo` | monetary | Monto Fijo ($) | Importe neto (sin IVA) a descontar o recargar. |
+| `nombre` | char | Descripción | obligatorio |
+| `porcentaje` | float | Porcentaje (%) | Porcentaje sobre el neto vigente (después de los descuentos y recargos anteriores). |
 | `sale_order_id` | many2one | Cotización / Pedido | → `sale.order`; obligatorio |
-| `tipo_calculo` | selection | Tipo de Descuento | valores: `porcentaje`, `monto`; obligatorio |
+| `tipo_ajuste` | selection | Ajuste | valores: `descuento`, `recargo`; obligatorio |
+| `tipo_calculo` | selection | Tipo de Cálculo | valores: `porcentaje`, `monto`; obligatorio |
 
 ### `cotizador.plan.pago.template` — Plantilla de Plan de Pago
 
@@ -320,10 +321,11 @@ Sin campos propios.
 | Campo | Tipo | Etiqueta | Detalle |
 |---|---|---|---|
 | `amount_descuentos` | monetary | Total Descuentos | calculado (guardado); Descuentos comerciales sobre el neto (importe negativo). |
-| `amount_iva_productos` | monetary | IVA | calculado (guardado); Impuestos de productos, descuentos y plan de pago. |
+| `amount_iva_productos` | monetary | IVA | calculado (guardado); Impuestos de productos, descuentos, recargos y plan de pago. |
 | `amount_plan_pago` | monetary | Plan de Pago | calculado (guardado); Recargo (positivo) o descuento (negativo) del plan de pago, sobre el neto con descuentos. |
+| `amount_recargos` | monetary | Total Recargos | calculado (guardado); Recargos comerciales sobre el neto (importe positivo). |
 | `amount_saldo_cancelar` | monetary | SALDO A CANCELAR | calculado (guardado); TOTAL − usados (nunca menor a 0). |
-| `amount_subtotal_neto` | monetary | SUB TOTAL NETO | calculado (guardado); SUB TOTAL con descuentos y plan de pago: la base del IVA. |
+| `amount_subtotal_neto` | monetary | SUB TOTAL NETO | calculado (guardado); SUB TOTAL con descuentos, recargos y plan de pago: la base del IVA. |
 | `amount_subtotal_productos` | monetary | SUB TOTAL | calculado (guardado); Neto de las líneas de producto (máquina, accesorios y otros productos), sin impuestos. |
 | `amount_total_base` | monetary | TOTAL | calculado (guardado); SUB TOTAL NETO + IVA. |
 | `amount_usados` | monetary | Medios de pago (Usados) | calculado (guardado); Equipos usados tomados como parte de pago (importe negativo, sin IVA). |
@@ -344,10 +346,11 @@ Sin campos propios.
 | `cotizador_matrix_price` | float | Precio de Matriz | Precio de matriz (en la Moneda del Cotizador del producto) con que se cotizó la máquina o el accesorio. Si Odoo recalcula el precio de la línea (cambio de cantidad, Actualizar precios), parte de este valor y le aplica la lista de precios y la moneda de la cotización. |
 | `cotizador_matrix_priced` | boolean | Con Precio de Matriz | La línea la creó el cotizador con un precio de matriz (también cuando es 0, sin cargo). |
 | `cotizador_pct` | float | Porcentaje (Cotizador) | Descuento comercial: porcentaje sobre el neto (0 = monto fijo). Plan de pago: recargo (+) o descuento (−) sobre el neto con descuentos. El importe se recalcula al cambiar las líneas. |
-| `cotizador_section` | selection | Sección del Cotizador | valores: `maquina`, `equipamiento`, `accesorios`, `descuentos`, `usados`; Identifica las secciones que genera el cotizador (independiente del texto de la sección). |
+| `cotizador_section` | selection | Sección del Cotizador | valores: `maquina`, `equipamiento`, `accesorios`, `descuentos`, `recargos`, `usados`; Identifica las secciones que genera el cotizador (independiente del texto de la sección). |
 | `is_descuento` | boolean | Es Descuento Comercial |  |
 | `is_equipo_usado` | boolean | Es Equipo Usado |  |
 | `is_plan_pago` | boolean | Es Plan de Pago |  |
+| `is_recargo` | boolean | Es Recargo Comercial |  |
 
 ### `sale.report` — Sales Analysis Report
 
@@ -365,7 +368,7 @@ Métodos públicos (invocables por RPC) y quién los llama: botones de vistas, J
 | `cotizador.configurator.service` | `get_config_accessories` | Accesorios de una configuración, con cantidad y precio como quedarán en la orden. | JS `static/src/components/configurador/configurador.js` |
 | `cotizador.configurator.service` | `get_initial_data` | Datos iniciales: la cotización y el catálogo de máquinas. | JS `static/src/components/configurador/configurador.js` |
 | `cotizador.configurator.service` | `get_model_matrix` | Matriz completa de una máquina, para filtrarla en el navegador sin más llamadas. | JS `static/src/components/configurador/configurador.js` |
-| `cotizador.descuento.wizard` | `action_confirm` | Crea las líneas de descuento (y la sección si falta) y actualiza la oportunidad. | `models/sale_order_inherit.py`; botón en `cotizador.descuento.wizard.form` |
+| `cotizador.descuento.wizard` | `action_confirm` | Crea las líneas de descuento o recargo (y su sección si falta) y actualiza la oportunidad. | `models/sale_order_inherit.py`; botón en `cotizador.descuento.wizard.form` |
 | `cotizador.plan.pago.template.line` | `action_select_line` | Agrega esta opción a la cotización del contexto (`default_sale_order_id` o `active_id`). | `models/plan_pago.py` |
 | `cotizador.plan.pago.wizard.line` | `action_select_line` | Elige esta opción: delega en cotizador.plan.pago.template.line.action_select_line(). | `models/plan_pago.py`; botón en `cotizador.plan.pago.wizard.form` |
 | `engineering.code.wizard` | `action_analyze_file` | Paso 2: cruza las filas del archivo con las variantes y configuraciones del modelo. | botón en `engineering.code.wizard.form` |
@@ -390,12 +393,14 @@ Métodos públicos (invocables por RPC) y quién los llama: botones de vistas, J
 | `sale.order` | `action_open_discount_wizard` | El botón nativo de descuento de Odoo abre el descuento del cotizador. | — |
 | `sale.order` | `action_open_equipo_usado_wizard` | Abre el asistente para tomar un equipo usado como parte de pago. | `models/sale_order_inherit.py`; botón en `sale.order.form.inherit.cotizador` |
 | `sale.order` | `action_open_plan_pago_wizard` | Botón de plan de pago: abre la selección con todas las opciones activas. | `models/plan_pago.py`; botón en `sale.order.form.inherit.cotizador` |
+| `sale.order` | `action_open_recargo_wizard` | Abre el asistente de descuento en modo recargo (issue #21). | `models/sale_order_inherit.py`; botón en `sale.order.form.inherit.cotizador` |
 | `sale.order` | `action_ver_bcra_wizard` | Botón *Situación BCRA*: consulta el BCRA y abre el informe. | `models/bcra_wizard.py`; botón en `sale.order.form.inherit.cotizador` |
 | `sale.order` | `print_quotation` | Botón estándar *Imprimir*: los planes elegidos o, si no hay, sin hoja de planes. | — |
 | `sale.order.line` | `action_open_config_wizard` | Botón de la lista de líneas: delega en la orden. | `models/sale_order_inherit.py` |
 | `sale.order.line` | `action_open_descuento_wizard` | Botón de la lista de líneas: delega en la orden. | `models/sale_order_inherit.py` |
 | `sale.order.line` | `action_open_discount_wizard` | Botón nativo de descuento en la lista de líneas: descuento del cotizador. | — |
 | `sale.order.line` | `action_open_equipo_usado_wizard` | Botón de la lista de líneas: delega en la orden. | `models/sale_order_inherit.py` |
+| `sale.order.line` | `action_open_recargo_wizard` | Botón de la lista de líneas: delega en la orden. | `models/sale_order_inherit.py` |
 
 ## Permisos por modelo
 

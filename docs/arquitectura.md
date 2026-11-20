@@ -55,7 +55,7 @@ tres caminos para cotizar una máquina —configurador, CRM y tienda— terminan
 | `sembradora_import_wizard.py` | Importador CSV (ver [importador](importador.md)). |
 | `engineering_code_wizard.py` | Códigos Teamcenter: plantilla, simulación y aplicación por SQL. |
 | `plan_pago.py` | Plantillas de planes de pago y su asistente de selección. |
-| `descuento_wizard.py`, `equipo_usado_wizard.py` | Asistentes de descuento comercial y toma de usado. |
+| `descuento_wizard.py`, `equipo_usado_wizard.py` | Asistentes de descuento o recargo comercial y toma de usado. |
 | `bcra_service.py`, `bcra_wizard.py` | Cliente de la API del BCRA (funciones puras) y el informe. |
 | `res_company.py`, `res_config_settings.py` | Ajustes (compañía y parámetros). |
 

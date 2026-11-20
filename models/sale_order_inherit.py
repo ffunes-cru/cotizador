@@ -138,8 +138,8 @@ class SaleOrderInherit(models.Model):
     # --- Cascada de totales del cotizador ---
     #
     #   SUB TOTAL (productos, neto)
-    #   − descuentos comerciales (sobre el neto, en cascada)
-    #   ± plan de pago (sobre el neto con descuentos)
+    #   − descuentos y + recargos comerciales (sobre el neto, en cascada, en el orden en que se cargaron)
+    #   ± plan de pago (sobre el neto con descuentos y recargos)
     #   = SUB TOTAL NETO
     #   + IVA (de productos, descuentos y plan: el IVA se calcula sobre el neto con descuentos)
     #   = TOTAL
@@ -160,6 +160,13 @@ class SaleOrderInherit(models.Model):
         store=True,
         help='Descuentos comerciales sobre el neto (importe negativo).',
     )
+    amount_recargos = fields.Monetary(
+        string='Total Recargos',
+        compute='_compute_totales_cotizador',
+        currency_field='currency_id',
+        store=True,
+        help='Recargos comerciales sobre el neto (importe positivo).',
+    )
     amount_plan_pago = fields.Monetary(
         string='Plan de Pago',
         compute='_compute_totales_cotizador',
@@ -172,14 +179,14 @@ class SaleOrderInherit(models.Model):
         compute='_compute_totales_cotizador',
         currency_field='currency_id',
         store=True,
-        help='SUB TOTAL con descuentos y plan de pago: la base del IVA.',
+        help='SUB TOTAL con descuentos, recargos y plan de pago: la base del IVA.',
     )
     amount_iva_productos = fields.Monetary(
         string='IVA',
         compute='_compute_totales_cotizador',
         currency_field='currency_id',
         store=True,
-        help='Impuestos de productos, descuentos y plan de pago.',
+        help='Impuestos de productos, descuentos, recargos y plan de pago.',
     )
     amount_total_base = fields.Monetary(
         string='TOTAL',
@@ -215,7 +222,7 @@ class SaleOrderInherit(models.Model):
 
     @api.depends(
         'order_line.price_subtotal', 'order_line.display_type', 'amount_tax',
-        'order_line.is_descuento', 'order_line.is_equipo_usado', 'order_line.is_plan_pago',
+        'order_line.is_descuento', 'order_line.is_recargo', 'order_line.is_equipo_usado', 'order_line.is_plan_pago',
     )
     def _compute_totales_cotizador(self):
         """Cascada de totales del cotizador (la del formulario, el portal y el reporte).
@@ -229,18 +236,21 @@ class SaleOrderInherit(models.Model):
             lines = order.order_line.filtered(lambda l: not l.display_type)
             products = lines.filtered(lambda l: l._is_cotizador_product_line())
             discounts = lines.filtered('is_descuento')
+            surcharges = lines.filtered('is_recargo')
             plans = lines.filtered('is_plan_pago')
             used = lines.filtered('is_equipo_usado')
             subtotal = sum(products.mapped('price_subtotal'))
             descuentos = sum(discounts.mapped('price_subtotal'))
+            recargos = sum(surcharges.mapped('price_subtotal'))
             plan = sum(plans.mapped('price_subtotal'))
-            neto = subtotal + descuentos + plan
+            neto = subtotal + descuentos + recargos + plan
             iva = order.amount_tax
             usados = sum(used.mapped('price_subtotal'))
             total = neto + iva
             round_ = order.currency_id.round
             order.amount_subtotal_productos = round_(subtotal)
             order.amount_descuentos = round_(descuentos)
+            order.amount_recargos = round_(recargos)
             order.amount_plan_pago = round_(plan)
             order.amount_subtotal_neto = round_(neto)
             order.amount_iva_productos = round_(iva)
@@ -249,12 +259,12 @@ class SaleOrderInherit(models.Model):
             order.amount_saldo_cancelar = max(0.0, round_(total + usados))
 
     def _cotizador_tax_groups(self, include_discounts=True):
-        """Neto de la cotización agrupado por impuestos: la base de descuentos y planes.
+        """Neto de la cotización agrupado por impuestos: la base de descuentos, recargos y planes.
 
-        Un descuento o un plan se reparte en una línea por grupo de impuestos, así el IVA de
-        cada alícuota se calcula sobre su propio neto con descuento.
+        Un descuento, un recargo o un plan se reparte en una línea por grupo de impuestos, así el
+        IVA de cada alícuota se calcula sobre su propio neto ajustado.
 
-        @param include_discounts Si True, resta del neto de cada grupo los descuentos ya cargados.
+        @param include_discounts Si True, suma al neto de cada grupo los descuentos y recargos ya cargados.
         @return dict {account.tax (recordset del grupo): neto}, solo grupos con neto distinto de 0.
         """
         self.ensure_one()
@@ -262,18 +272,18 @@ class SaleOrderInherit(models.Model):
         lines = self.order_line.filtered(lambda l: not l.display_type)
         relevant = lines.filtered(lambda l: l._is_cotizador_product_line())
         if include_discounts:
-            relevant |= lines.filtered('is_descuento')
+            relevant |= lines.filtered(lambda l: l.is_descuento or l.is_recargo)
         for line in relevant:
             groups[line.tax_ids] = groups.get(line.tax_ids, 0.0) + line.price_subtotal
         return {taxes: net for taxes, net in groups.items() if not self.currency_id.is_zero(net)}
 
     def _cotizador_update_adjustments(self):
-        """Recalcula los descuentos en porcentaje y el plan de pago sobre el neto actual.
+        """Recalcula los descuentos y recargos en porcentaje y el plan de pago sobre el neto actual.
 
         Se llama cada vez que cambian las líneas (sale.order.line create / write / unlink), así
-        nunca quedan importes viejos. Orden: los descuentos en cascada (por secuencia), cada uno
-        sobre el neto de su grupo de impuestos después de los anteriores; al final el plan de
-        pago, sobre el neto con todos los descuentos. Los descuentos de monto fijo no cambian.
+        nunca quedan importes viejos. Orden: descuentos y recargos en cascada (por secuencia), cada
+        uno sobre el neto de su grupo de impuestos después de los anteriores; al final el plan de
+        pago, sobre el neto con todos ellos. Los de monto fijo no cambian.
         Solo en cotizaciones (borrador o enviada).
         """
         for order in self.filtered(lambda o: o.state in ('draft', 'sent')):
@@ -281,12 +291,12 @@ class SaleOrderInherit(models.Model):
             for line in order.order_line.filtered(lambda l: not l.display_type and l._is_cotizador_product_line()):
                 bases[line.tax_ids] = bases.get(line.tax_ids, 0.0) + line.price_subtotal
             adjustments = order.order_line.filtered(
-                lambda l: not l.display_type and (l.is_descuento or l.is_plan_pago)
+                lambda l: not l.display_type and (l.is_descuento or l.is_recargo or l.is_plan_pago)
             ).sorted(lambda l: (l.is_plan_pago, l.sequence, l.id))
             for line in adjustments:
                 base = bases.get(line.tax_ids, 0.0)
                 if line.cotizador_pct:
-                    sign = 1 if line.is_plan_pago else -1
+                    sign = -1 if line.is_descuento else 1
                     price = order.currency_id.round(base * sign * line.cotizador_pct / 100)
                     if order.currency_id.compare_amounts(price, line.price_unit):
                         line.with_context(cotizador_skip_adjustments=True).price_unit = price
@@ -615,7 +625,7 @@ class SaleOrderInherit(models.Model):
         return super()._has_to_be_paid()
 
     def _confirmation_error_message(self):
-        """Permite confirmar con las líneas sin producto del cotizador (descuentos, usados, planes).
+        """Permite confirmar con las líneas sin producto del cotizador (descuentos, recargos, usados, planes).
 
         @return Mensaje de error, o False si se puede confirmar.
         """
@@ -627,6 +637,7 @@ class SaleOrderInherit(models.Model):
             and not line.is_downpayment
             and not line.product_id
             and not line.is_descuento
+            and not line.is_recargo
             and not line.is_equipo_usado
             and not line.is_plan_pago
             for line in self.order_line
@@ -887,12 +898,23 @@ class SaleOrderInherit(models.Model):
         """
         return self.action_open_descuento_wizard()
 
+    def action_open_recargo_wizard(self):
+        """Abre el asistente de descuento en modo recargo (issue #21).
+
+        @return Acción que abre cotizador.descuento.wizard con `tipo_ajuste = 'recargo'`.
+        @throws ValidationError Si la cotización todavía no se guardó.
+        """
+        action = self.action_open_descuento_wizard()
+        action['name'] = 'Añadir Recargo Comercial'
+        action['context'] = {**action['context'], 'default_tipo_ajuste': 'recargo'}
+        return action
+
 
 class SaleOrderLineInherit(models.Model):
     """Línea de cotización (`sale.order.line`) con las marcas del cotizador.
 
     `cotizador_section` identifica las secciones que crea el cotizador (nunca se identifican
-    por su texto); `is_descuento`, `is_equipo_usado` e `is_plan_pago` marcan las líneas
+    por su texto); `is_descuento`, `is_recargo`, `is_equipo_usado` e `is_plan_pago` marcan las líneas
     especiales que la cascada de totales trata aparte.
     """
     _inherit = 'sale.order.line'
@@ -900,11 +922,13 @@ class SaleOrderLineInherit(models.Model):
     is_plan_pago = fields.Boolean(default=False, string='Es Plan de Pago')
     is_equipo_usado = fields.Boolean(default=False, string='Es Equipo Usado')
     is_descuento = fields.Boolean(default=False, string='Es Descuento Comercial')
+    is_recargo = fields.Boolean(default=False, string='Es Recargo Comercial')
     cotizador_section = fields.Selection([
         ('maquina', 'Máquina'),
         ('equipamiento', 'Equipamiento'),
         ('accesorios', 'Accesorios'),
         ('descuentos', 'Descuentos'),
+        ('recargos', 'Recargos'),
         ('usados', 'Equipo Usado'),
     ], string='Sección del Cotizador', copy=True,
         help='Identifica las secciones que genera el cotizador (independiente del texto de la sección).')
@@ -928,20 +952,21 @@ class SaleOrderLineInherit(models.Model):
     )
 
     def _is_cotizador_product_line(self):
-        """Línea de producto para la cascada: todo lo que no es sección, descuento, usado ni plan.
+        """Línea de producto para la cascada: todo lo que no es sección, descuento, recargo, usado ni plan.
 
         @return True si es una línea de producto.
         """
         self.ensure_one()
-        return not (self.display_type or self.is_descuento or self.is_equipo_usado or self.is_plan_pago)
+        return not (self.display_type or self.is_descuento or self.is_recargo or self.is_equipo_usado
+                    or self.is_plan_pago)
 
     def _compute_price_unit(self):
         """Odoo no recalcula el precio de las líneas especiales del cotizador.
 
-        Descuentos, usados y plan de pago no tienen precio de producto: su importe lo fija el
-        asistente o sale.order._cotizador_update_adjustments().
+        Descuentos, recargos, usados y plan de pago no tienen precio de producto: su importe lo fija
+        el asistente o sale.order._cotizador_update_adjustments().
         """
-        special = self.filtered(lambda l: l.is_descuento or l.is_equipo_usado or l.is_plan_pago)
+        special = self.filtered(lambda l: l.is_descuento or l.is_recargo or l.is_equipo_usado or l.is_plan_pago)
         super(SaleOrderLineInherit, self - special)._compute_price_unit()
 
     def _get_product_price_context(self):
@@ -1038,3 +1063,10 @@ class SaleOrderLineInherit(models.Model):
         @return Acción del asistente de descuento.
         """
         return self.action_open_descuento_wizard()
+
+    def action_open_recargo_wizard(self):
+        """Botón de la lista de líneas: delega en la orden.
+
+        @return Acción del asistente de recargo.
+        """
+        return self._get_parent_order().action_open_recargo_wizard()

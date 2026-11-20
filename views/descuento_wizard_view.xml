@@ -6,7 +6,7 @@
         <field name="arch" type="xml">
             <form string="Añadir Descuento Comercial">
                 <sheet>
-                    <div class="alert alert-info d-flex align-items-center mb-3" role="status">
+                    <div class="alert alert-info d-flex align-items-center mb-3" role="status" invisible="tipo_ajuste != 'descuento'">
                         <i class="fa fa-percent fa-2x me-3 text-primary" title="Descuento"/>
                         <div>
                             <strong>Bonificación Comercial en Cascada</strong>
@@ -15,7 +15,17 @@
                             </p>
                         </div>
                     </div>
+                    <div class="alert alert-info d-flex align-items-center mb-3" role="status" invisible="tipo_ajuste != 'recargo'">
+                        <i class="fa fa-plus-circle fa-2x me-3 text-primary" title="Recargo"/>
+                        <div>
+                            <strong>Recargo Comercial en Cascada</strong>
+                            <p class="mb-0 small text-muted">
+                                Porcentaje sobre el neto vigente (sin IVA, después de los descuentos y recargos anteriores) o monto fijo neto. El IVA se calcula después sobre el neto con recargo. Se agrega bajo la sección <b>Recargos</b>.
+                            </p>
+                        </div>
+                    </div>
                     <group>
+                        <field name="tipo_ajuste" invisible="1"/>
                         <field name="sale_order_id" invisible="1"/>
                         <field name="currency_id" invisible="1"/>
                         <field name="tipo_calculo" widget="radio" options="{'horizontal': true}"/>
@@ -33,11 +43,18 @@
                     </group>
                 </sheet>
                 <footer>
-                    <button name="action_confirm" 
-                            string="Aplicar Descuento" 
-                            type="object" 
-                            class="btn-primary" 
-                            icon="fa-check-circle"/>
+                    <button name="action_confirm"
+                            string="Aplicar Descuento"
+                            type="object"
+                            class="btn-primary"
+                            icon="fa-check-circle"
+                            invisible="tipo_ajuste != 'descuento'"/>
+                    <button name="action_confirm"
+                            string="Aplicar Recargo"
+                            type="object"
+                            class="btn-primary"
+                            icon="fa-check-circle"
+                            invisible="tipo_ajuste != 'recargo'"/>
                     <button string="Cancelar" class="btn-secondary" special="cancel"/>
                 </footer>
             </form>

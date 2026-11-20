@@ -56,12 +56,12 @@ class TestPantallaCotizacion(CotizadorCase):
         self.assertFalse(arch.xpath("//header/button[@name='action_enable_portal_confirmation']"))
 
     def test_controles_de_lineas(self):
-        """Cotizar Equipo, Añadir Equipo Usado y Añadir Descuento, resaltados en verde."""
+        """Cotizar Equipo, Añadir Equipo Usado, Añadir Descuento y Añadir Recargo, resaltados en verde."""
         arch = self.env.ref('sale.view_order_form')._get_combined_arch()
         for control in arch.xpath("//field[@name='order_line']//control"):
             botones = control.xpath('button')
             self.assertEqual([b.get('string') for b in botones],
-                             ['Cotizar Equipo', 'Añadir Equipo Usado', 'Añadir Descuento'])
+                             ['Cotizar Equipo', 'Añadir Equipo Usado', 'Añadir Descuento', 'Añadir Recargo'])
             self.assertTrue(all("btn-success" in b.get("class") for b in botones))
 
     def _firma(self, order, accion):
