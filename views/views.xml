@@ -117,6 +117,11 @@
                             string="Añadir Descuento"
                             class="btn-success o_cotizador_accion"
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
+                    <button name="action_open_recargo_wizard"
+                            type="object"
+                            string="Añadir Recargo"
+                            class="btn-success o_cotizador_accion"
+                            context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                 </control>
             </xpath>
 
@@ -137,6 +142,11 @@
                             type="object" 
                             string="Añadir Descuento" 
                             class="btn-success" 
+                            context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
+                    <button name="action_open_recargo_wizard"
+                            type="object"
+                            string="Añadir Recargo"
+                            class="btn-success"
                             context="{'default_sale_order_id': parent.id, 'order_id': parent.id}"/>
                 </control>
             </xpath>
@@ -185,8 +195,9 @@
                 <group class="oe_subtotal_footer oe_right" colspan="2" name="sale_total">
                     <field name="amount_subtotal_productos" widget="monetary" string="SUB TOTAL" options="{'currency_field': 'currency_id'}"/>
                     <field name="amount_descuentos" widget="monetary" string="Descuentos" class="text-danger fw-semibold" options="{'currency_field': 'currency_id'}" invisible="amount_descuentos == 0"/>
+                    <field name="amount_recargos" widget="monetary" string="Recargos" class="fw-semibold" options="{'currency_field': 'currency_id'}" invisible="amount_recargos == 0"/>
                     <field name="amount_plan_pago" widget="monetary" string="Plan de Pago" options="{'currency_field': 'currency_id'}" invisible="amount_plan_pago == 0"/>
-                    <field name="amount_subtotal_neto" widget="monetary" string="SUB TOTAL NETO" class="fw-bold" options="{'currency_field': 'currency_id'}" invisible="amount_descuentos == 0 and amount_plan_pago == 0"/>
+                    <field name="amount_subtotal_neto" widget="monetary" string="SUB TOTAL NETO" class="fw-bold" options="{'currency_field': 'currency_id'}" invisible="amount_descuentos == 0 and amount_recargos == 0 and amount_plan_pago == 0"/>
                     <field name="amount_iva_productos" widget="monetary" string="IVA" options="{'currency_field': 'currency_id'}"/>
                     <field name="amount_total_base" widget="monetary" string="TOTAL" class="fw-bold" options="{'currency_field': 'currency_id'}"/>
                     <field name="amount_usados" widget="monetary" string="Medios de pago (Usados)" class="text-danger fw-semibold" options="{'currency_field': 'currency_id'}" invisible="amount_usados == 0"/>

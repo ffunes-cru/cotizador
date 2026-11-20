@@ -42,13 +42,16 @@ El resumen de la derecha muestra el total. **Añadir a la Cotización** carga la
 - **Configurar otra vez agrega otra máquina**, no reemplaza la anterior. Para cambiar la configuración, borrar
   las líneas de la máquina anterior (sus tres secciones) y volver a configurar.
 
-## 3. Descuentos, usados y plan de pago
+## 3. Descuentos, recargos, usados y plan de pago
 
 Debajo de las líneas (botones verdes):
 
 - **Añadir Descuento**: un **porcentaje** sobre el neto que dejan los descuentos anteriores (se aplican en
   cascada) o un **monto fijo** sin IVA. Se ve la base de cálculo y el descuento resultante antes de aplicarlo.
   Los descuentos en porcentaje se recalculan solos si después cambian las líneas.
+- **Añadir Recargo**: lo mismo que el descuento, pero suma (por ejemplo, un flete o una entrega especial). Va en la
+  sección *Recargos* y lleva IVA. Descuentos y recargos se aplican en el orden en que se cargan: un recargo de 5 %
+  cargado después de un descuento de 10 % se calcula sobre el neto ya descontado.
 - **Añadir Equipo Usado**: el equipo que el cliente entrega como parte de pago, con su descripción (marca,
   modelo, año, estado) y el monto acordado. Se resta al final, después del IVA.
 
@@ -66,9 +69,10 @@ Arriba a la derecha:
 |---|---|
 | SUB TOTAL | Máquina, equipamiento, accesorios y otros productos, sin IVA. |
 | Descuentos | Descuentos comerciales. |
-| Plan de Pago | Recargo (+) o descuento (−) del plan, sobre el neto con descuentos. |
+| Recargos | Recargos comerciales. |
+| Plan de Pago | Recargo (+) o descuento (−) del plan, sobre el neto con descuentos y recargos. |
 | SUB TOTAL NETO | La base del IVA. |
-| IVA | Calculado después de descuentos y plan. |
+| IVA | Calculado después de descuentos, recargos y plan. |
 | TOTAL | SUB TOTAL NETO + IVA. |
 | Medios de pago (Usados) | Los usados tomados como pago. |
 | **SALDO A CANCELAR** | Lo que paga el cliente. |

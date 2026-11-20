@@ -48,6 +48,7 @@ flowchart LR
 | **Código de ingeniería (Teamcenter)** | Código de la variante en el sistema de ingeniería. | Referencia interna (`default_code`) de la variante. |
 | **Cascada de totales** | SUB TOTAL → descuentos → plan de pago → SUB TOTAL NETO → IVA → TOTAL → usados → SALDO A CANCELAR. | Campos `amount_*` de `sale.order`. |
 | **Descuento comercial** | Bonificación sobre el **neto** (sin IVA), en porcentaje (en cascada) o monto fijo; el IVA se calcula después. | Línea `is_descuento`, sección *Descuentos*. |
+| **Recargo comercial** | Lo mismo con el signo contrario: suma al neto y lleva IVA. Comparte la cascada con los descuentos, en el orden en que se cargan. | Línea `is_recargo`, sección *Recargos*. |
 | **Toma de usado** | Equipo usado que el cliente entrega como parte de pago. | Línea `is_equipo_usado`, sección *Equipo Usado*. |
 | **Plan de pago** | Forma de pago (canje de cereal, cheques, documentos, crédito bancario) con su recargo o descuento sobre el neto con descuentos. | Plantillas `cotizador.plan.pago.template`; línea `is_plan_pago`. |
 | **BCRA** | Central de Deudores del Banco Central: deudas y cheques rechazados del CUIT del cliente. | `models/bcra_service.py`. |

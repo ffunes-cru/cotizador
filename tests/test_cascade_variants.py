@@ -1,5 +1,5 @@
 """@file
-Tests de la cascada de totales (descuentos sobre el neto, plan de pago), del precio de matriz
+Tests de la cascada de totales (descuentos y recargos sobre el neto, plan de pago), del precio de matriz
 guardado en la línea y de las variantes creadas con la matriz."""
 import base64
 
@@ -75,6 +75,44 @@ class TestCascade(CotizadorCase):
         self.assertAlmostEqual(order.amount_saldo_cancelar, expected, delta=0.02)
         order.order_line.filtered(lambda l: l.product_id.is_maquina).price_unit = 2000.0
         self.assertAlmostEqual(order.amount_plan_pago, -96.75)  # 5 % de 1935
+
+    def test_recargo_suma_al_neto_y_lleva_iva(self):
+        """Issue #21: el recargo es el descuento con el signo contrario, en su propia sección."""
+        order = self._discount(self._quote(), tipo_ajuste='recargo', tipo_calculo='porcentaje', porcentaje=6)
+        recargo = order.order_line.filtered('is_recargo')
+        self.assertEqual(recargo.tax_ids, self.tax)
+        self.assertFalse(recargo.is_descuento)
+        self.assertEqual(order.order_line.filtered('display_type').mapped('cotizador_section')[-1], 'recargos')
+        self.assertAlmostEqual(order.amount_recargos, 69.0)
+        self.assertAlmostEqual(order.amount_descuentos, 0.0)
+        self.assertAlmostEqual(order.amount_subtotal_neto, 1219.0)
+        self.assertAlmostEqual(order.amount_saldo_cancelar, order.amount_total)  # coincide con Odoo
+        # Un recargo de monto fijo puede superar el neto (un descuento no)
+        self._discount(order, tipo_ajuste='recargo', tipo_calculo='monto', monto_fijo=5000)
+        self.assertAlmostEqual(order.amount_recargos, 5069.0)
+        self.assertFalse(order._confirmation_error_message())
+
+    def test_descuentos_y_recargos_en_cascada_por_orden_de_carga(self):
+        """Cada porcentaje se aplica sobre lo que dejaron los anteriores; el plan va al final."""
+        order = self._discount(self._quote(), tipo_calculo='porcentaje', porcentaje=10)
+        self._discount(order, tipo_ajuste='recargo', tipo_calculo='porcentaje', porcentaje=5)
+        # 1150 − 115 = 1035; + 5 % = 51,75
+        self.assertAlmostEqual(order.amount_descuentos, -115.0)
+        self.assertAlmostEqual(order.amount_recargos, 51.75)
+        self.assertAlmostEqual(order.amount_subtotal_neto, 1086.75)
+        order.order_line.filtered(lambda l: l.product_id.is_maquina).price_unit = 2000.0  # neto 2150
+        self.assertAlmostEqual(order.amount_descuentos, -215.0)
+        self.assertAlmostEqual(order.amount_recargos, 96.75)
+        self.assertAlmostEqual(order._cotizador_simulate_plan(0), order.amount_total, delta=0.02)
+
+    def test_recargo_desde_la_cotizacion(self):
+        """El botón Añadir Recargo abre el asistente en modo recargo."""
+        order = self._quote()
+        action = order.action_open_recargo_wizard()
+        wizard = self.env['cotizador.descuento.wizard'].with_context(action['context']).create({})
+        self.assertEqual(wizard.tipo_ajuste, 'recargo')
+        self.assertEqual(wizard.nombre, 'Recargo 8%')
+        self.assertEqual(order.order_line[:1].action_open_recargo_wizard()['context']['default_tipo_ajuste'], 'recargo')
 
     def test_update_prices_keeps_special_lines(self):
         """*Actualizar precios* no pone en 0 descuentos ni usados."""

@@ -137,6 +137,15 @@
                                         </td>
                                     </tr>
                                     </t>
+                                    <t t-if="sale_order.amount_recargos">
+                                    <tr class="border-bottom border-light">
+                                        <td class="text-start text-muted py-2 px-4 fw-medium"><i class="fa fa-plus-circle me-1"/> Recargos</td>
+                                        <td class="text-end fw-bold text-dark py-2 px-4">
+                                            <span t-field="sale_order.amount_recargos"
+                                                  t-options='{"widget": "monetary", "display_currency": sale_order.currency_id}'/>
+                                        </td>
+                                    </tr>
+                                    </t>
                                     <t t-if="sale_order.amount_plan_pago">
                                     <tr class="border-bottom border-light">
                                         <td class="text-start text-muted py-2 px-4 fw-medium"><i class="fa fa-credit-card me-1"/> Plan de Pago</td>
@@ -146,7 +155,7 @@
                                         </td>
                                     </tr>
                                     </t>
-                                    <t t-if="sale_order.amount_descuentos or sale_order.amount_plan_pago">
+                                    <t t-if="sale_order.amount_descuentos or sale_order.amount_recargos or sale_order.amount_plan_pago">
                                     <tr class="border-bottom">
                                         <td class="text-start fw-bold text-dark py-2 px-4 fw-medium">Subtotal neto</td>
                                         <td class="text-end fw-bold text-dark py-2 px-4">

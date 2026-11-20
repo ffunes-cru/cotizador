@@ -396,6 +396,21 @@
                                                 </tr>
                                             </t>
                                         </t>
+                                        <t t-set="rec_lines" t-value="doc.order_line.filtered(lambda l: l.is_recargo and not l.display_type)"/>
+                                        <t t-if="rec_lines">
+                                            <tr>
+                                                <td colspan="3" class="pt-2 pb-1 meta-label" style="text-transform: uppercase; letter-spacing: 0.5px;">Recargos</td>
+                                            </tr>
+                                            <t t-foreach="rec_lines" t-as="adj">
+                                                <tr>
+                                                    <td class="text-start py-1 ps-2" style="color: #495057;"><span t-field="adj.name"/></td>
+                                                    <td class="text-end py-1" style="font-weight: 600; color: #111111;">$</td>
+                                                    <td class="text-end py-1 fw-bold" style="color: #111111;">
+                                                        <span t-out="'{:,.2f}'.format(adj.price_subtotal).replace(',', 'X').replace('.', ',').replace('X', '.')"/>
+                                                    </td>
+                                                </tr>
+                                            </t>
+                                        </t>
                                         <t t-set="plan_lines" t-value="doc.order_line.filtered(lambda l: l.is_plan_pago and not l.display_type)"/>
                                         <t t-if="plan_lines">
                                             <tr>
@@ -411,7 +426,7 @@
                                                 </tr>
                                             </t>
                                         </t>
-                                        <t t-if="desc_lines or plan_lines">
+                                        <t t-if="desc_lines or rec_lines or plan_lines">
                                         <tr style="border-top: 1px solid #dee2e6;">
                                             <td class="text-start py-1" style="color: #111111; font-weight: 700;">SUB TOTAL NETO</td>
                                             <td class="text-end py-1 text-muted" style="font-weight: 600; width: 25px;">$</td>
