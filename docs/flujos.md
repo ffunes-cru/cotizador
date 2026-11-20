@@ -32,6 +32,12 @@ Las mismas reglas se aplican en tres lugares: el configurador (para guiar), el s
 (`_check_accessory_selection`) y la matriz al guardarla (`validate_rule_set`, para que el estándar sea
 siempre una selección válida).
 
+Al guardar una cotización en borrador o enviada se vuelven a aplicar a sus líneas
+(`sale.order._cotizador_check_configuraciones()`, issue #19): el vendedor puede cambiar el producto de una línea o
+borrarla después de configurar. Cada sección *Máquina* abre un bloque; los accesorios de abajo se validan contra la
+configuración de esa máquina (la que corresponde a su variante). Los accesorios sin máquina arriba no se validan. La orden se valida una vez, al final del guardado:
+el formulario manda todos los cambios juntos, y en el medio la selección puede ser inválida.
+
 | Regla | En el configurador | Al confirmar | Al guardar la matriz |
 |---|---|---|---|
 | Exclusión (`:e`) | Con uno elegido, los demás del grupo se bloquean. | Error si hay dos elegidos. | Como máximo un ESTANDAR en el grupo. |

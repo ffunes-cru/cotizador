@@ -13,3 +13,4 @@ from . import test_pantalla_cotizacion
 from . import test_reporte_cotizacion
 from . import test_visibilidad_externos
 from . import test_externos_rpc
+from . import test_validacion_al_guardar

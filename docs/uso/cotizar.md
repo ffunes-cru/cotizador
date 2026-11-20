@@ -113,6 +113,7 @@ a ganada. Si el administrador activó *Plan de Pago Obligatorio*, no se puede co
 |---|---|---|
 | No aparece la combinación que pide el cliente | No está en la matriz. | Pedirle al administrador que la agregue a la planilla y la importe. |
 | Un accesorio no se puede elegir | Es excluyente con otro elegido, o requiere uno que falta. | Leer el motivo en el configurador. |
+| No deja guardar la cotización después de cambiar o borrar una línea | La máquina quedó con una combinación que la matriz no permite (dos accesorios excluyentes, un grupo de opción única sin opción o un accesorio de otra máquina). | Deshacer el cambio, o borrar la máquina con sus líneas y cotizarla de nuevo con **Cotizar Equipo**. |
 | "Crear Cotización" no aparece o da error en una oportunidad | La oportunidad no tiene máquina, o es un lead sin cliente. | Convertir el lead y elegir el cliente. |
 | La cotización quedó en pesos y la matriz está en dólares | Ya tenía productos cuando se configuró la máquina. | Cambiar la lista de precios a la de cotizaciones y usar *Actualizar precios*. |
 | No se puede guardar un cambio en una configuración o un accesorio | El vendedor solo lee la matriz. | Lo cambia el administrador. |

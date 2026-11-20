@@ -24,6 +24,9 @@ AFFECTS_ADJUSTMENTS = {
     'display_type', 'is_descuento', 'is_plan_pago', 'is_equipo_usado', 'sequence',
 }
 
+## Campos de línea que cambian qué máquina o accesorio se cotiza: al escribirlos se validan las configuraciones.
+AFFECTS_CONFIG = {'product_id', 'display_type', 'cotizador_section', 'sequence', 'order_id'}
+
 ## Texto por defecto de las condiciones generales (Ajustes › Ventas lo reemplaza).
 DEFAULT_CONDICIONES_GENERALES = """Condiciones Generales
 Vigencia de esta cotización sujeta a cambios sin previo aviso
@@ -493,10 +496,11 @@ class SaleOrderInherit(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """Crea cotizaciones con el modo de aceptación y, si es de máquina, la lista de precios
-        de cotizaciones; después sincroniza el CRM.
+        de cotizaciones; después valida las configuraciones de sus líneas y sincroniza el CRM.
 
         @param vals_list Lista de diccionarios de valores.
         @return Las cotizaciones creadas.
+        @throws ValidationError Si las líneas tienen una configuración inválida (issue #19).
         """
         for vals in vals_list:
             if not vals.get('portal_confirmation_mode'):
@@ -508,19 +512,30 @@ class SaleOrderInherit(models.Model):
                 company = self.env['res.company'].browse(vals.get('company_id')) or self.env.company
                 if equipo.is_maquina and company.cotizador_pricelist_id:
                     vals['pricelist_id'] = company.cotizador_pricelist_id.id
-        orders = super().create(vals_list)
+        con_lineas = any(vals.get('order_line') for vals in vals_list)
+        orders = super(SaleOrderInherit, self.with_context(cotizador_skip_config_check=True)).create(vals_list)
+        orders = orders.with_env(self.env)
+        if con_lineas:
+            orders._cotizador_check_configuraciones()
         for order in orders:
             order._sync_with_crm()
         orders._cotizador_compartir_cliente()
         return orders
 
     def write(self, vals):
-        """Escribe y sincroniza el CRM si cambian líneas, estado, cliente, vendedor o concesionario.
+        """Escribe, valida las configuraciones si cambian las líneas y sincroniza el CRM si cambian líneas,
+        estado, cliente, vendedor o concesionario.
+
+        Las líneas se validan una vez, al final: el formulario manda todos los cambios juntos, y en el medio la
+        selección puede ser inválida (p. ej. al reemplazar la opción de un grupo de opción única).
 
         @param vals Valores a escribir.
         @return True.
+        @throws ValidationError Si las líneas quedan con una configuración inválida (issue #19).
         """
-        res = super().write(vals)
+        res = super(SaleOrderInherit, self.with_context(cotizador_skip_config_check=True)).write(vals)
+        if 'order_line' in vals:
+            self._cotizador_check_configuraciones()
         if any(f in vals for f in ('order_line', 'state', 'partner_id', 'user_id', 'team_id')):
             self._sync_with_crm()
         if any(f in vals for f in ('partner_id', 'user_id', 'team_id')):
@@ -718,6 +733,66 @@ class SaleOrderInherit(models.Model):
             item['product']._with_matrix_price(item['price_unit']), item['quantity'],
             currency=self.currency_id, date=self._cotizador_price_date(),
         )
+
+    def _cotizador_check_configuraciones(self):
+        """Valida que las máquinas y accesorios de las cotizaciones sigan siendo una configuración válida (issue #19).
+
+        Al agregar la máquina se valida la selección (_cotizador_add_configuration()), pero después las líneas se
+        pueden editar: cambiar el producto de un accesorio, borrar la opción de un grupo de opción única o cambiar
+        la variante de la máquina. Esto aplica las mismas reglas
+        (sembradora.config.rel._check_accessory_selection()) a lo que quedó.
+
+        Cada sección *Máquina* del cotizador abre un bloque: los accesorios que siguen son de la máquina del bloque.
+        Los accesorios sin máquina arriba (una cotización de accesorios sueltos) no tienen configuración contra la
+        cual validarse. Solo en borrador o enviada.
+
+        @throws ValidationError Si la máquina no corresponde a ninguna configuración, si un accesorio no es de la
+                configuración de su máquina o si la selección viola las reglas.
+        """
+        for order in self.filtered(lambda o: o.state in ('draft', 'sent')):
+            bloques = []
+            actual = None
+            for line in order.order_line:
+                if line.display_type:
+                    if line.cotizador_section == 'maquina':
+                        actual = None
+                    continue
+                tmpl = line.product_id.product_tmpl_id
+                if tmpl.is_maquina:
+                    actual = (line, [])
+                    bloques.append(actual)
+                elif tmpl.is_accesorio and actual is not None:
+                    actual[1].append(line)
+            for maquina, accesorios in bloques:
+                order._cotizador_check_bloque(maquina, accesorios)
+
+    def _cotizador_check_bloque(self, maquina, accesorios):
+        """Valida una máquina de la cotización con los accesorios que tiene debajo.
+
+        @param maquina sale.order.line de la máquina.
+        @param accesorios Lista de sale.order.line de accesorios de esa máquina.
+        @throws ValidationError Si la máquina no corresponde a ninguna configuración, si un accesorio no es de la
+                configuración o si la selección viola las reglas.
+        """
+        variante = maquina.product_id
+        config = variante.product_tmpl_id._cotizador_find_config(
+            variante.product_template_attribute_value_ids.product_attribute_value_id.ids)
+        if not config:
+            raise ValidationError(self.env._(
+                "La máquina «%(maq)s» no corresponde a ninguna configuración. Cotizala de nuevo con *Cotizar Equipo*.",
+                maq=variante.display_name))
+        linea_de = {l.product_id: l for l in config.accessory_line_ids}
+        ajenos = [l.product_id.display_name for l in accesorios if l.product_id not in linea_de]
+        if ajenos:
+            raise ValidationError(self.env._(
+                "%(accs)s no son accesorios de «%(maq)s».", accs=', '.join(ajenos), maq=variante.display_name))
+        elegidas = self.env['sembradora.config.accessory.line'].sudo().union(
+            *(linea_de[l.product_id] for l in accesorios))
+        try:
+            config._check_accessory_selection(elegidas)
+        except UserError as error:
+            raise ValidationError(self.env._("«%(maq)s»: %(error)s", maq=variante.display_name,
+                                             error=error.args[0])) from error
 
     def _cotizador_add_configuration(self, config, acc_lines=None):
         """Agrega a la orden una máquina configurada y los accesorios elegidos.
@@ -959,36 +1034,46 @@ class SaleOrderLineInherit(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Crea líneas y recalcula descuentos en porcentaje y plan de pago de sus órdenes.
+        """Crea líneas, recalcula descuentos en porcentaje y plan de pago, y valida las configuraciones de sus órdenes.
 
         @param vals_list Lista de diccionarios de valores.
         @return Las líneas creadas.
+        @throws ValidationError Si la orden queda con una configuración inválida (sale.order._cotizador_check_configuraciones()).
         """
         lines = super().create(vals_list)
         if not self.env.context.get('cotizador_skip_adjustments'):
             lines.order_id._cotizador_update_adjustments()
+        if not self.env.context.get('cotizador_skip_config_check'):
+            lines.order_id._cotizador_check_configuraciones()
         return lines
 
     def write(self, vals):
-        """Escribe y, si cambia algo que afecta el neto, recalcula descuentos y plan de pago.
+        """Escribe; si cambia algo que afecta el neto, recalcula descuentos y plan de pago, y si cambia qué se
+        cotiza, valida las configuraciones.
 
         @param vals Valores a escribir.
         @return True.
+        @throws ValidationError Si la orden queda con una configuración inválida (sale.order._cotizador_check_configuraciones()).
         """
         res = super().write(vals)
         if not self.env.context.get('cotizador_skip_adjustments') and AFFECTS_ADJUSTMENTS & vals.keys():
             self.order_id._cotizador_update_adjustments()
+        if not self.env.context.get('cotizador_skip_config_check') and AFFECTS_CONFIG & vals.keys():
+            self.order_id._cotizador_check_configuraciones()
         return res
 
     def unlink(self):
-        """Borra líneas y recalcula descuentos y plan de pago de sus órdenes.
+        """Borra líneas, recalcula descuentos y plan de pago, y valida las configuraciones de sus órdenes.
 
         @return True.
+        @throws ValidationError Si la orden queda con una configuración inválida (sale.order._cotizador_check_configuraciones()).
         """
         orders = self.order_id
         res = super().unlink()
         if not self.env.context.get('cotizador_skip_adjustments'):
             orders.exists()._cotizador_update_adjustments()
+        if not self.env.context.get('cotizador_skip_config_check'):
+            orders.exists()._cotizador_check_configuraciones()
         return res
 
     def _get_parent_order(self):
