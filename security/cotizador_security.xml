@@ -167,6 +167,25 @@
         <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [(0, '=', 1)]</field>
     </record>
 
+    <!-- Conversaciones y Calendario (issue #23): un externo no lee los canales públicos ni las reuniones del personal.
+         Puede chatear con el personal: ve los canales y chats de los que es miembro, y las reuniones que organiza o
+         a las que lo invitan. Sin perm_create: al crear un canal o una reunión todavía no es miembro. Ausencias se
+         bloquea en models/ir_rule.py (no es dependencia del cotizador). -->
+    <record id="rule_externo_discuss_channel" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo ve solo sus canales y chats</field>
+        <field name="model_id" ref="mail.model_discuss_channel"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [
+            ('channel_member_ids.partner_id', '=', user.partner_id.id)]</field>
+        <field name="perm_create" eval="False"/>
+    </record>
+    <record id="rule_externo_calendar_event" model="ir.rule">
+        <field name="name">Cotizador: un usuario externo ve solo sus reuniones</field>
+        <field name="model_id" ref="calendar.model_calendar_event"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('cotizador.group_usuario_externo') else [
+            '|', ('user_id', '=', user.id), ('partner_ids', 'in', [user.partner_id.id])]</field>
+        <field name="perm_create" eval="False"/>
+    </record>
+
     <!-- La regla estándar de vendedor ("lo suyo o sin vendedor") le mostraría a cualquier concesionario las
          cotizaciones sin vendedor, como las que llegan de la tienda web. Para un externo: con vendedor, o de sus
          concesionarios. -->

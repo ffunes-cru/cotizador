@@ -61,12 +61,14 @@ jobs:
               timeout 600 apt-get -o Acquire::http::Timeout=30 -o Acquire::Retries=3 \
                 install -y -qq /tmp/chrome.deb python3-websocket > /dev/null
               mkdir -p /ws/addons && cp -r /src /ws/addons/cotizador && chown -R odoo /ws
+              # Ausencias (hr_holidays) puede estar instalada en el servidor (payroll depende de ella): con ella corren
+              # los tests de lo que no ven los concesionarios (issue #23)
               # sale_management (la app Ventas) está en staging y producción y cambia vistas que cotizador
               # hereda (p. ej. la cantidad en el portal): se instala para que CI vea las mismas vistas
               echo "== Odoo: instalación y tests"
               runuser -u odoo -- odoo --addons-path=/ws/addons \
                 --db_host=localhost --db_port="$DB_PORT" --db_user=odoo --db_password=odoo \
-                --http-port="$HTTP_PORT" -d cotizador_ci -i cotizador,sale_management \
+                --http-port="$HTTP_PORT" -d cotizador_ci -i cotizador,sale_management,hr_holidays \
                 --test-tags=/cotizador --stop-after-init --log-level=test
             '
 
